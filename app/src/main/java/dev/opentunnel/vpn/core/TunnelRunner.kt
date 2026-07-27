@@ -152,7 +152,23 @@ class TunnelRunner(
         }
 
         VpnBus.setStage(ConnectionStage.AUTHENTICATING)
-        val cookieResult = lib.obtainCookie()
+        var cookieResult = lib.obtainCookie()
+
+        // ── SSL retry: if the first attempt failed and insecure-crypto was not
+        // already enabled, retry once with it on.  This widens the TLS cipher
+        // list in ClientHello so carrier DPI on WiFi hotspots is more likely
+        // to let the handshake through.
+        if (cookieResult < 0 && !disconnectRequested.get() && !userCancelled.get()
+            && !profile.allowInsecureCrypto && !profile.wifiCompatMode
+        ) {
+            VpnBus.info("SSL handshake failed \u2014 retrying with TLS compatibility mode\u2026")
+            lib.setAllowInsecureCrypto(true)
+            runCatching { lib.setSystemTrust(true) }
+            runCatching { lib.resetSSL() }
+            passwordConsumed = false        // allow the password to be reused
+            cookieResult = lib.obtainCookie()
+        }
+
         if (disconnectRequested.get()) return null
         if (cookieResult != 0) {
             return when {
@@ -242,6 +258,14 @@ class TunnelRunner(
         if (profile.allowInsecureCrypto) {
             lib.setAllowInsecureCrypto(true)
             VpnBus.log(LogLevel.DEBUG, "Legacy cipher suites enabled for this profile")
+        }
+
+        // WiFi / hotspot compatibility mode: broaden the TLS ClientHello so
+        // carrier DPI middleboxes treat it as ordinary browser traffic.
+        if (profile.wifiCompatMode) {
+            lib.setAllowInsecureCrypto(true)
+            runCatching { lib.setSystemTrust(true) }
+            VpnBus.log(LogLevel.DEBUG, "WiFi compatibility mode enabled \u2014 broadened TLS cipher list")
         }
     }
 

@@ -19,7 +19,11 @@ set -euo pipefail
 # Defaults (overridable via flags; Gradle passes the gradle.properties values)
 # --------------------------------------------------------------------------
 OPENCONNECT_VER="9.21"
-OPENSSL_VER="3.5.7"
+# OpenSSL 3.0.x LTS produces a broader TLS 1.2+1.3 ClientHello that passes
+# carrier DPI / mobile hotspot middleboxes. OpenSSL 3.5.x sends a lean TLS 1.3
+# fingerprint that many hotspot firewalls drop ("unexpected eof" during SSL
+# handshake). 3.0.16 is the latest 3.0 LTS release with all security patches.
+OPENSSL_VER="3.0.16"
 LIBXML2_VER="2.13.8"
 LZ4_VER="1.10.0"
 
@@ -236,13 +240,18 @@ build_abi() {
             export ANDROID_NDK_ROOT="$NDK"
             export PATH="$TOOLCHAIN/bin:$PATH"
             # OpenSSL's android-* targets derive the compiler from PATH + API level.
+            # enable-weak-ssl-ciphers: makes legacy TLS 1.2 ciphers available at
+            # runtime when the app calls setAllowInsecureCrypto(true), producing a
+            # ClientHello that more closely resembles browser traffic and passes
+            # carrier DPI on mobile hotspots.
             "$BUILD_DIR/src/openssl-$OPENSSL_VER/Configure" \
                 "$(abi_openssl_target "$ABI")" \
                 -D__ANDROID_API__="$API" \
                 --prefix="$PREFIX" \
                 --openssldir="$PREFIX/ssl" \
                 --libdir=lib \
-                no-shared no-tests no-docs no-comp \
+                no-shared no-tests no-comp \
+                enable-weak-ssl-ciphers \
                 >"$WORK/openssl-configure.log" 2>&1 || {
                     tail -30 "$WORK/openssl-configure.log" >&2; die "openssl configure failed ($ABI)"; }
             make -j"$JOBS" build_libs >"$WORK/openssl-build.log" 2>&1 || {

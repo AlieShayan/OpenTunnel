@@ -396,6 +396,12 @@ fun ProfileScreen(
                                 checked = draft.allowInsecureCrypto,
                                 onCheckedChange = { draft = draft.copy(allowInsecureCrypto = it) },
                             )
+                            ToggleLine(
+                                title = "WiFi compatibility mode",
+                                subtitle = "Enable when connecting through a mobile hotspot or public WiFi that blocks VPN connections",
+                                checked = draft.wifiCompatMode,
+                                onCheckedChange = { draft = draft.copy(wifiCompatMode = it) },
+                            )
                             Column(
                                 Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalArrangement = Arrangement.spacedBy(14.dp),
