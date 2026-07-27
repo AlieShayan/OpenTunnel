@@ -1,8 +1,16 @@
 # OpenTunnel v3.1.1
 
+[![Latest Release](https://img.shields.io/github/v/release/AlieShayan/OpenTunnel?color=0080FF&style=for-the-badge&logo=github)](https://github.com/AlieShayan/OpenTunnel/releases/latest)
+[![License](https://img.shields.io/badge/License-LGPL%202.1-orange.svg?style=for-the-badge)](LICENSE)
+[![Android](https://img.shields.io/badge/Android-7.0%2B%20%28API%2024%29-3DDC84?style=for-the-badge&logo=android&logoColor=white)](app/build.gradle.kts)
+[![Language](https://img.shields.io/badge/Localization-English%20%7C%20Persian-blue?style=for-the-badge)](app/src/main/res/values-fa)
+
 An open-source, high-performance Android client for **Cisco AnyConnect** and OpenConnect SSL VPNs. OpenTunnel is powered by the native `openconnect` C engine compiled for Android with OpenSSL 3.x, featuring a modern Material You interface, multi-profile management, granular split tunneling, 1-second real-time telemetry, 3 home-screen widget sizes (2x2, 3x2, 4x1), and complete English & Persian (Farsi) localization.
 
+[📥 **Download Latest APK (v3.1.1)**](https://github.com/AlieShayan/OpenTunnel/releases/latest)
+
 ---
+
 
 ## 🚀 What's New in Version 3.1.1
 
