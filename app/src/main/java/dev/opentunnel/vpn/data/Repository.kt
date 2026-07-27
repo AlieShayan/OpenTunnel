@@ -14,6 +14,7 @@ import dev.opentunnel.vpn.ui.theme.ThemeMode
 import dev.opentunnel.vpn.util.SecretBox
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
@@ -21,30 +22,32 @@ import java.io.IOException
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "opentunnel")
 
 /**
- * One small DataStore holding both the (single) VPN profile and app settings.
- * Multi-profile support would slot in here by keying on a profile id.
+ * Single access point for app settings and multi-profile management.
+ * Profile data is delegated to [ProfileStore]; settings live in a separate DataStore.
  */
 class Repository(context: Context) {
 
     private val store = context.applicationContext.dataStore
+    private val profileStore = ProfileStore.get(context)
 
     private object Keys {
-        val name = stringPreferencesKey("profile.name")
-        val server = stringPreferencesKey("profile.server")
-        val username = stringPreferencesKey("profile.username")
-        val password = stringPreferencesKey("profile.password.enc")
-        val savePassword = booleanPreferencesKey("profile.savePassword")
-        val authGroup = stringPreferencesKey("profile.authGroup")
-        val protocol = stringPreferencesKey("profile.protocol")
-        val reportedOs = stringPreferencesKey("profile.reportedOs")
-        val userAgent = stringPreferencesKey("profile.userAgent")
-        val mtu = intPreferencesKey("profile.mtu")
-        val enableDtls = booleanPreferencesKey("profile.dtls")
-        val enableIpv6 = booleanPreferencesKey("profile.ipv6")
-        val allowInsecure = booleanPreferencesKey("profile.allowInsecureCrypto")
-        val dpd = intPreferencesKey("profile.dpd")
-        val disableXmlPost = booleanPreferencesKey("profile.disableXmlPost")
-        val trustedCert = stringPreferencesKey("profile.trustedCert")
+        // Legacy single-profile keys — kept for one-time migration only
+        val legacyName = stringPreferencesKey("profile.name")
+        val legacyServer = stringPreferencesKey("profile.server")
+        val legacyUsername = stringPreferencesKey("profile.username")
+        val legacyPassword = stringPreferencesKey("profile.password.enc")
+        val legacySavePassword = booleanPreferencesKey("profile.savePassword")
+        val legacyAuthGroup = stringPreferencesKey("profile.authGroup")
+        val legacyProtocol = stringPreferencesKey("profile.protocol")
+        val legacyReportedOs = stringPreferencesKey("profile.reportedOs")
+        val legacyUserAgent = stringPreferencesKey("profile.userAgent")
+        val legacyMtu = intPreferencesKey("profile.mtu")
+        val legacyDtls = booleanPreferencesKey("profile.dtls")
+        val legacyIpv6 = booleanPreferencesKey("profile.ipv6")
+        val legacyAllowInsecure = booleanPreferencesKey("profile.allowInsecureCrypto")
+        val legacyDpd = intPreferencesKey("profile.dpd")
+        val legacyDisableXml = booleanPreferencesKey("profile.disableXmlPost")
+        val legacyTrustedCert = stringPreferencesKey("profile.trustedCert")
 
         val themeMode = stringPreferencesKey("settings.themeMode")
         val dynamicColor = booleanPreferencesKey("settings.dynamicColor")
@@ -56,66 +59,79 @@ class Repository(context: Context) {
         val reconnectOnNetwork = booleanPreferencesKey("settings.reconnectOnNetworkChange")
         val statsInNotification = booleanPreferencesKey("settings.statsInNotification")
         val verboseLogging = booleanPreferencesKey("settings.verboseLogging")
+        val activeProfileId = stringPreferencesKey("settings.activeProfileId")
+        val legacyMigrated = booleanPreferencesKey("settings.legacyMigrated")
     }
 
     private val prefs: Flow<Preferences> = store.data.catch { e ->
         if (e is IOException) emit(emptyPreferences()) else throw e
     }
 
-    // ── profile ─────────────────────────────────────────────────────────────
+    // ── multi-profile ───────────────────────────────────────────────────────
 
-    val profile: Flow<VpnProfile> = prefs.map { p ->
-        val defaults = VpnProfile()
-        VpnProfile(
-            name = p[Keys.name] ?: defaults.name,
-            server = p[Keys.server] ?: defaults.server,
-            username = p[Keys.username] ?: defaults.username,
-            password = SecretBox.decrypt(p[Keys.password].orEmpty()),
-            savePassword = p[Keys.savePassword] ?: defaults.savePassword,
-            authGroup = p[Keys.authGroup] ?: defaults.authGroup,
-            protocol = p[Keys.protocol] ?: defaults.protocol,
-            reportedOs = p[Keys.reportedOs] ?: defaults.reportedOs,
-            userAgent = p[Keys.userAgent] ?: defaults.userAgent,
-            mtu = p[Keys.mtu] ?: defaults.mtu,
-            enableDtls = p[Keys.enableDtls] ?: defaults.enableDtls,
-            enableIpv6 = p[Keys.enableIpv6] ?: defaults.enableIpv6,
-            allowInsecureCrypto = p[Keys.allowInsecure] ?: defaults.allowInsecureCrypto,
-            dpdSeconds = p[Keys.dpd] ?: defaults.dpdSeconds,
-            disableXmlPost = p[Keys.disableXmlPost] ?: defaults.disableXmlPost,
-            trustedCertificate = p[Keys.trustedCert] ?: defaults.trustedCertificate,
-        )
+    val profiles: Flow<List<VpnProfile>> = profileStore.profiles
+
+    val activeProfile: Flow<VpnProfile> = combine(profileStore.profiles, prefs) { list, p ->
+        val id = p[Keys.activeProfileId].orEmpty()
+        list.firstOrNull { it.id == id } ?: list.firstOrNull() ?: VpnProfile()
     }
 
-    suspend fun currentProfile(): VpnProfile = profile.first()
+    /** Back-compat alias used by older callers that expect a single profile. */
+    val profile: Flow<VpnProfile> get() = activeProfile
 
-    suspend fun saveProfile(profile: VpnProfile) {
-        store.edit { p ->
-            p[Keys.name] = profile.name
-            p[Keys.server] = profile.server.trim()
-            p[Keys.username] = profile.username.trim()
-            p[Keys.password] =
-                if (profile.savePassword) SecretBox.encrypt(profile.password) else ""
-            p[Keys.savePassword] = profile.savePassword
-            p[Keys.authGroup] = profile.authGroup
-            p[Keys.protocol] = profile.protocol
-            p[Keys.reportedOs] = profile.reportedOs
-            p[Keys.userAgent] = profile.userAgent
-            p[Keys.mtu] = profile.mtu
-            p[Keys.enableDtls] = profile.enableDtls
-            p[Keys.enableIpv6] = profile.enableIpv6
-            p[Keys.allowInsecure] = profile.allowInsecureCrypto
-            p[Keys.dpd] = profile.dpdSeconds
-            p[Keys.disableXmlPost] = profile.disableXmlPost
-            p[Keys.trustedCert] = profile.trustedCertificate
+    suspend fun currentProfile(): VpnProfile = activeProfile.first()
+
+    /** Upsert and return the saved copy (which has an auto-assigned id if new). */
+    suspend fun saveProfile(profile: VpnProfile): VpnProfile = profileStore.save(profile)
+
+    suspend fun deleteProfile(profileId: String) = profileStore.delete(profileId)
+
+    suspend fun setActiveProfile(profileId: String) {
+        store.edit { it[Keys.activeProfileId] = profileId }
+    }
+
+    suspend fun pinCertificate(fingerprint: String) {
+        val active = currentProfile()
+        if (active.id.isNotBlank()) {
+            saveProfile(active.copy(trustedCertificate = fingerprint))
         }
     }
 
-    /** Persist a certificate the user accepted, without touching anything else. */
-    suspend fun pinCertificate(fingerprint: String) {
-        store.edit { it[Keys.trustedCert] = fingerprint }
+    /**
+     * One-time migration: if legacy single-profile keys exist and no profiles have been
+     * saved yet, import that data as the first profile.
+     */
+    suspend fun migrateLegacyProfileIfNeeded() {
+        val p = prefs.first()
+        if (p[Keys.legacyMigrated] == true) return
+        val server = p[Keys.legacyServer].orEmpty()
+        if (server.isNotBlank() && profileStore.allProfiles().isEmpty()) {
+            val defaults = VpnProfile()
+            val legacy = VpnProfile(
+                name = p[Keys.legacyName] ?: defaults.name,
+                server = server,
+                username = p[Keys.legacyUsername] ?: defaults.username,
+                password = SecretBox.decrypt(p[Keys.legacyPassword].orEmpty()),
+                savePassword = p[Keys.legacySavePassword] ?: defaults.savePassword,
+                authGroup = p[Keys.legacyAuthGroup] ?: defaults.authGroup,
+                protocol = p[Keys.legacyProtocol] ?: defaults.protocol,
+                reportedOs = p[Keys.legacyReportedOs] ?: defaults.reportedOs,
+                userAgent = p[Keys.legacyUserAgent] ?: defaults.userAgent,
+                mtu = p[Keys.legacyMtu] ?: defaults.mtu,
+                enableDtls = p[Keys.legacyDtls] ?: defaults.enableDtls,
+                enableIpv6 = p[Keys.legacyIpv6] ?: defaults.enableIpv6,
+                allowInsecureCrypto = p[Keys.legacyAllowInsecure] ?: defaults.allowInsecureCrypto,
+                dpdSeconds = p[Keys.legacyDpd] ?: defaults.dpdSeconds,
+                disableXmlPost = p[Keys.legacyDisableXml] ?: defaults.disableXmlPost,
+                trustedCertificate = p[Keys.legacyTrustedCert] ?: defaults.trustedCertificate,
+            )
+            val saved = profileStore.save(legacy)
+            store.edit { it[Keys.activeProfileId] = saved.id }
+        }
+        store.edit { it[Keys.legacyMigrated] = true }
     }
 
-    // ── settings ────────────────────────────────────────────────────────────
+    // ── settings ─────────────────────────────────────────────────────────────
 
     val settings: Flow<AppSettings> = prefs.map { p ->
         val defaults = AppSettings()
@@ -133,6 +149,7 @@ class Repository(context: Context) {
             reconnectOnNetworkChange = p[Keys.reconnectOnNetwork] ?: defaults.reconnectOnNetworkChange,
             showStatsInNotification = p[Keys.statsInNotification] ?: defaults.showStatsInNotification,
             verboseLogging = p[Keys.verboseLogging] ?: defaults.verboseLogging,
+            activeProfileId = p[Keys.activeProfileId].orEmpty(),
         )
     }
 
