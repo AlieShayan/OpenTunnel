@@ -1,0 +1,18 @@
+# Gradle / Android
+.gradle/
+build/
+local.properties
+keystore.properties
+*.keystore
+*.jks
+.cxx/
+captures/
+
+# Native build artefacts (regenerate with ./native/build-openconnect.sh)
+native/build/
+app/src/main/jniLibs/
+
+# IDE
+.idea/
+*.iml
+.DS_Store

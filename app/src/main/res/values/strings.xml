@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenTunnel</string>
+
+    <string name="channel_status">Tunnel status</string>
+    <string name="channel_status_desc">Ongoing notification while the VPN is running</string>
+    <string name="channel_alerts">Attention needed</string>
+    <string name="channel_alerts_desc">Sign-in prompts, certificate warnings and connection errors</string>
+
+    <string name="notif_connecting">Connecting…</string>
+    <string name="notif_connected">VPN connected</string>
+    <string name="notif_reconnecting">Reconnecting…</string>
+    <string name="notif_disconnecting">Disconnecting…</string>
+    <string name="notif_error">VPN disconnected</string>
+    <string name="notif_action_required">OpenTunnel needs your attention</string>
+
+    <string name="action_disconnect">Disconnect</string>
+
+    <string name="state_connected">Connected</string>
+    <string name="state_connecting">Connecting</string>
+    <string name="state_disconnected">Disconnected</string>
+    <string name="state_error">Failed</string>
+</resources>
