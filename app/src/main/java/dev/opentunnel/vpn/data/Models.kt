@@ -42,7 +42,7 @@ data class VpnProfile(
     /** SHA-256 pin accepted on first use, in openconnect's "pin-sha256:…" form. */
     val trustedCertificate: String = "",
 
-    // ── extended profile options (screenshots 2 & 3) ────────────────────────
+    // ── extended profile options ─────────────────────────────────────────────
     val caCertPath: String = "",
     val userCertPath: String = "",
     val privateKeyPath: String = "",
@@ -56,6 +56,22 @@ data class VpnProfile(
     val splitTunnelNetworks: String = "",
     val requirePfs: Boolean = false,
     val overrideDpdTimeout: Boolean = false,
+
+    /**
+     * OpenSSL cipher string override for TLS negotiation.
+     *
+     * Useful when a Wi-Fi hotspot or carrier DPI middlebox drops the TLS
+     * handshake because it does not recognise the default TLS 1.3 cipher
+     * fingerprint. Setting this to a legacy-compatible string such as
+     * "DEFAULT:\@SECLEVEL=1" forces OpenSSL to include older cipher suites
+     * in ClientHello, which typically passes hotspot DPI filters.
+     *
+     * Leave blank to use the library default (recommended for most users).
+     * Example values:
+     *   - "DEFAULT:\@SECLEVEL=1"   — adds TLS 1.2 ciphers, passes most hotspot DPI
+     *   - "HIGH:!aNULL:!eNULL"    — restrict to high-strength only
+     */
+    val openSSLCiphers: String = "",
 ) {
     val isComplete: Boolean
         get() = server.isNotBlank() && username.isNotBlank()
