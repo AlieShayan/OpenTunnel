@@ -32,16 +32,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val settings: StateFlow<AppSettings> = repository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
 
+    /** Active (selected) profile — used by the connect flow. */
     val profile: StateFlow<VpnProfile> = repository.profile
         .stateIn(viewModelScope, SharingStarted.Eagerly, VpnProfile())
+
+    /** Full list of profiles — used by the profile-picker UI. */
+    val profiles: StateFlow<List<VpnProfile>> = repository.profiles
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _installedApps = MutableStateFlow<List<InstalledApp>?>(null)
     val installedApps: StateFlow<List<InstalledApp>?> = _installedApps.asStateFlow()
 
-    // ── profile ─────────────────────────────────────────────────────────────
+    // ── profile management ──────────────────────────────────────────────────
 
     fun saveProfile(profile: VpnProfile) {
         viewModelScope.launch { repository.saveProfile(profile) }
+    }
+
+    fun deleteProfile(profileId: String) {
+        viewModelScope.launch { repository.deleteProfile(profileId) }
+    }
+
+    fun setActiveProfile(profileId: String) {
+        viewModelScope.launch { repository.setActiveProfile(profileId) }
     }
 
     fun forgetPinnedCertificate() {
@@ -86,7 +99,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.setVerboseLogging(enabled) }
     }
 
-    // ── split tunnelling ────────────────────────────────────────────────────
+    // ── split tunnelling ─────────────────────────────────────────────────────
 
     fun loadInstalledApps() {
         if (_installedApps.value != null) return
