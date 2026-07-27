@@ -91,5 +91,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Home-screen widget -->
+        <receiver
+            android:name=".widget.TunnelWidget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="dev.opentunnel.vpn.WIDGET_TOGGLE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/opentunnel_widget_info" />
+        </receiver>
+
     </application>
 </manifest>

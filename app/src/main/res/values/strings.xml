@@ -20,4 +20,14 @@
     <string name="state_connecting">Connecting</string>
     <string name="state_disconnected">Disconnected</string>
     <string name="state_error">Failed</string>
+
+    <!-- Home-screen widget -->
+    <string name="widget_description">OpenTunnel quick-connect widget</string>
+    <string name="widget_orb_desc">Tunnel status, tap to open app</string>
+    <string name="widget_status_disconnected">Not connected</string>
+    <string name="widget_status_connecting">Connecting…</string>
+    <string name="widget_status_connected">Connected</string>
+    <string name="widget_btn_connect">Connect</string>
+    <string name="widget_btn_disconnect">Disconnect</string>
+    <string name="widget_btn_cancel">Cancel</string>
 </resources>
