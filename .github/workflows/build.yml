@@ -64,7 +64,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: opentunnel-debug-apk
+          name: opentunnel_1.0.2
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 

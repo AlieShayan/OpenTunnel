@@ -24,7 +24,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "1.0.2"
 
         ndk {
             // Only package the ABIs the native script actually produced.
@@ -32,6 +32,13 @@ android {
         }
 
         buildConfigField("String", "OPENCONNECT_VERSION", "\"$ocVersion\"")
+    }
+
+    applicationVariants.all {
+        outputs.all {
+            val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output?.outputFileName = "opentunnel_${versionName}.apk"
+        }
     }
 
     signingConfigs {
