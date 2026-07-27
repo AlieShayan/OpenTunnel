@@ -36,7 +36,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.opentunnel.vpn.BuildConfig
@@ -61,6 +63,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     Scaffold(
         topBar = {
@@ -186,6 +189,12 @@ fun SettingsScreen(
                         append("OpenTunnel ${BuildConfig.VERSION_NAME}")
                         append(" · openconnect ")
                         append(NativeLibrary.version() ?: "${BuildConfig.OPENCONNECT_VERSION} (not loaded)")
+                        append("\nGithub@AlieShayan")
+                    },
+                    onClick = {
+                        runCatching {
+                            uriHandler.openUri("https://github.com/AlieShayan/OpenTunnel")
+                        }
                     },
                 )
             }
@@ -201,6 +210,21 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
+            )
+
+            Text(
+                text = "Github@AlieShayan",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        runCatching {
+                            uriHandler.openUri("https://github.com/AlieShayan/OpenTunnel")
+                        }
+                    }
+                    .padding(vertical = 4.dp),
             )
 
             Spacer(Modifier.height(24.dp))
