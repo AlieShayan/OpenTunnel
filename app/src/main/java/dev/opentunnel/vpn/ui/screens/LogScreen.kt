@@ -50,10 +50,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import dev.opentunnel.vpn.data.AppLanguage
+import dev.opentunnel.vpn.util.Strings
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogScreen(
     logs: List<LogLine>,
+    appLanguage: AppLanguage = AppLanguage.SYSTEM,
     onClear: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -70,7 +74,7 @@ fun LogScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Connection log") },
+                title = { Text(Strings.logsTitle(appLanguage)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")

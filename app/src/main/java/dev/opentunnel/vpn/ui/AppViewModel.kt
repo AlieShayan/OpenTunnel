@@ -48,7 +48,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.migrateLegacyProfileIfNeeded() }
     }
 
-    // ── profile management ─────────────────────────────────────────────────────
+    private val _editingProfileId = MutableStateFlow<String?>(null)
+    val editingProfileId: StateFlow<String?> = _editingProfileId.asStateFlow()
+
+    fun setEditingProfileId(id: String?) {
+        _editingProfileId.value = id
+    }
+
+    fun getProfile(id: String?): VpnProfile {
+        if (id == null || id == "new" || id.isBlank()) return VpnProfile()
+        return profiles.value.firstOrNull { it.id == id } ?: VpnProfile()
+    }
 
     fun saveProfile(profile: VpnProfile) {
         viewModelScope.launch { repository.saveProfile(profile) }
@@ -62,6 +72,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.setActiveProfile(profileId) }
     }
 
+    fun exportProfiles(onResult: (String) -> Unit) {
+        viewModelScope.launch { onResult(repository.exportProfilesJson()) }
+    }
+
+    fun importProfiles(jsonStr: String, onResult: (Int) -> Unit) {
+        viewModelScope.launch { onResult(repository.importProfilesJson(jsonStr)) }
+    }
+
     fun forgetPinnedCertificate() {
         viewModelScope.launch { repository.pinCertificate("") }
     }
@@ -70,6 +88,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { repository.setThemeMode(mode) }
+    }
+
+    fun setAppLanguage(language: dev.opentunnel.vpn.data.AppLanguage) {
+        viewModelScope.launch { repository.setAppLanguage(language) }
     }
 
     fun setDynamicColor(enabled: Boolean) {

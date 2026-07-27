@@ -56,6 +56,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
 
     private var statsJob: Job? = null
     private var locationJob: Job? = null
+    private var pingJob: Job? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var lastNetworkId: Long = -1L
     private var reconnectOnNetworkChange = true
@@ -140,6 +141,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                 runner = tunnel
                 startNetworkMonitoring()
                 startStatsPolling()
+                startPingPolling()
                 tunnel.start()
             } finally {
                 startingUp = false
@@ -171,6 +173,8 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         statsJob = null
         locationJob?.cancel()
         locationJob = null
+        pingJob?.cancel()
+        pingJob = null
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         TunnelWidget.notifyAll(this)
         stopSelf()
@@ -235,11 +239,13 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
             if (loc != null) {
                 VpnBus.updateInfo { info ->
                     info.copy(
+                        outboundIp = loc.ip.ifBlank { info.ipv4 ?: info.ipv6 },
                         locationName = "${loc.country}, ${loc.city}",
                         locationFlag = loc.flagEmoji,
                     )
                 }
                 VpnBus.info("Location: ${loc.displayLine}")
+                TunnelWidget.notifyAll(this@OpenTunnelVpnService)
             } else {
                 VpnBus.info("Could not resolve connection location")
             }
@@ -278,6 +284,28 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
             }
         }
     }
+
+    private fun startPingPolling() {
+        pingJob?.cancel()
+        pingJob = scope.launch(Dispatchers.IO) {
+            while (isActive) {
+                if (VpnBus.status.value.stage == ConnectionStage.CONNECTED) {
+                    val pingMs = measurePing()
+                    VpnBus.updateInfo { it.copy(pingMs = pingMs) }
+                    TunnelWidget.notifyAll(this@OpenTunnelVpnService)
+                }
+                delay(PING_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun measurePing(): Long = runCatching {
+        val start = android.os.SystemClock.elapsedRealtime()
+        java.net.Socket().use { socket ->
+            socket.connect(java.net.InetSocketAddress("1.1.1.1", 53), 3000)
+        }
+        android.os.SystemClock.elapsedRealtime() - start
+    }.getOrElse { -1L }
 
     // ── network monitoring ──────────────────────────────────────────────────
 
@@ -349,6 +377,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         const val ACTION_RECONNECT = "dev.opentunnel.vpn.RECONNECT"
 
         private const val STATS_INTERVAL_MS = 2_000L
+        private const val PING_INTERVAL_MS = 5_000L
         private const val FORCE_STOP_AFTER_MS = 6_000L
 
         fun connect(context: Context) {

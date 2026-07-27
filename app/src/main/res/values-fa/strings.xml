@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenTunnel</string>
+
+    <string name="channel_status">وضعیت تونل</string>
+    <string name="channel_status_desc">اعلان فعال هنگام اجرای VPN</string>
+    <string name="channel_alerts">نیازمند توجه</string>
+    <string name="channel_alerts_desc">درخواست ورود، هشدارهای گواهی امنیتی و خطاهای اتصال</string>
+
+    <string name="notif_connecting">در حال اتصال…</string>
+    <string name="notif_connected">VPN متصل شد</string>
+    <string name="notif_reconnecting">در حال اتصال مجدد…</string>
+    <string name="notif_disconnecting">در حال قطع اتصال…</string>
+    <string name="notif_error">VPN قطع شد</string>
+    <string name="notif_action_required">OpenTunnel نیازمند توجه شماست</string>
+
+    <string name="action_disconnect">قطع اتصال</string>
+
+    <string name="state_connected">متصل شد</string>
+    <string name="state_connecting">در حال اتصال</string>
+    <string name="state_disconnected">قطع شد</string>
+    <string name="state_error">خطا</string>
+
+    <!-- Home-screen widget -->
+    <string name="widget_description">ویجت میانبر اتصال OpenTunnel</string>
+    <string name="widget_orb_desc">وضعیت تونل، برای باز کردن برنامه لمس کنید</string>
+    <string name="widget_status_disconnected">متصل نیست</string>
+    <string name="widget_status_connecting">در حال اتصال…</string>
+    <string name="widget_status_connected">متصل شد</string>
+    <string name="widget_btn_connect">اتصال</string>
+    <string name="widget_btn_disconnect">قطع اتصال</string>
+    <string name="widget_btn_cancel">لغو</string>
+</resources>

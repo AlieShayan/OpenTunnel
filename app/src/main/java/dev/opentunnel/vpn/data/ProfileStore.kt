@@ -53,6 +53,29 @@ class ProfileStore(context: Context) {
         return toSave
     }
 
+    suspend fun exportJson(): String {
+        return json.encodeToString(allProfiles().map { it.copy(password = "") })
+    }
+
+    suspend fun importJson(jsonStr: String): Int {
+        return runCatching {
+            val imported = json.decodeFromString<List<VpnProfile>>(jsonStr)
+            if (imported.isEmpty()) return 0
+            var count = 0
+            store.edit { prefs ->
+                val current = decode(prefs[Keys.profilesJson].orEmpty()).toMutableList()
+                imported.forEach { item ->
+                    val p = if (item.id.isBlank()) item.copy(id = UUID.randomUUID().toString()) else item
+                    val idx = current.indexOfFirst { it.id == p.id }
+                    if (idx >= 0) current[idx] = p else current.add(p)
+                    count++
+                }
+                prefs[Keys.profilesJson] = encode(current)
+            }
+            count
+        }.getOrDefault(0)
+    }
+
     suspend fun delete(profileId: String) {
         store.edit { prefs ->
             val current = decode(prefs[Keys.profilesJson].orEmpty())

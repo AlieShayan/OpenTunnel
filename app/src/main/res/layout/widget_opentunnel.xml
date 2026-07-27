@@ -34,7 +34,7 @@
         android:letterSpacing="0.08"
         android:textAllCaps="true" />
 
-    <!-- Server hostname (connected only) -->
+    <!-- Profile & Server name (connected only) -->
     <TextView
         android:id="@+id/widget_server"
         android:layout_width="wrap_content"
@@ -43,6 +43,20 @@
         android:text=""
         android:textColor="#E4E9F4"
         android:textSize="11sp"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:visibility="gone" />
+
+    <!-- Outbound IP (connected only) -->
+    <TextView
+        android:id="@+id/widget_ip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text=""
+        android:textColor="#A9B4C9"
+        android:textSize="10sp"
         android:maxLines="1"
         android:ellipsize="end"
         android:visibility="gone" />
@@ -60,6 +74,19 @@
         android:ellipsize="end"
         android:visibility="gone" />
 
+    <!-- Traffic stats & Ping (connected only) -->
+    <TextView
+        android:id="@+id/widget_traffic"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text=""
+        android:textColor="#5EE7C4"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:maxLines="1"
+        android:visibility="gone" />
+
     <!-- Elapsed time (connected only) -->
     <TextView
         android:id="@+id/widget_timer"
@@ -68,7 +95,7 @@
         android:layout_marginTop="2dp"
         android:text="0:00:00"
         android:textColor="#E4E9F4"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:fontFamily="monospace"
         android:visibility="gone" />
 

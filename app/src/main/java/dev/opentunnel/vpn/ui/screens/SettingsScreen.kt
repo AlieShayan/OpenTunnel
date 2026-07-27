@@ -47,13 +47,15 @@ import dev.opentunnel.vpn.data.AppSettings
 import dev.opentunnel.vpn.ui.components.SectionCard
 import dev.opentunnel.vpn.ui.components.SettingRow
 import dev.opentunnel.vpn.ui.components.SwitchRow
-import dev.opentunnel.vpn.ui.theme.ThemeMode
+import dev.opentunnel.vpn.data.AppLanguage
+import dev.opentunnel.vpn.util.Strings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
     onThemeMode: (ThemeMode) -> Unit,
+    onAppLanguage: (AppLanguage) -> Unit,
     onDynamicColor: (Boolean) -> Unit,
     onBypassLocalNetworks: (Boolean) -> Unit,
     onConnectOnBoot: (Boolean) -> Unit,
@@ -64,11 +66,12 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val lang = settings.appLanguage
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(Strings.settingsTitle(lang)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
@@ -88,10 +91,10 @@ fun SettingsScreen(
                 .padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            SectionCard(title = "Appearance") {
+            SectionCard(title = Strings.appearance(lang)) {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth()) {
-                        Text("Theme", style = MaterialTheme.typography.bodyLarge)
+                        Text(Strings.theme(lang), style = MaterialTheme.typography.bodyLarge)
                     }
                     Spacer(Modifier.height(10.dp))
                     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -106,9 +109,37 @@ fun SettingsScreen(
                                 label = {
                                     Text(
                                         when (mode) {
-                                            ThemeMode.SYSTEM -> "System"
-                                            ThemeMode.DARK -> "Dark"
-                                            ThemeMode.LIGHT -> "Light"
+                                            ThemeMode.SYSTEM -> Strings.themeSystem(lang)
+                                            ThemeMode.DARK -> Strings.themeDark(lang)
+                                            ThemeMode.LIGHT -> Strings.themeLight(lang)
+                                        }
+                                    )
+                                },
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(Modifier.fillMaxWidth()) {
+                        Text(Strings.appLanguageLabel(lang), style = MaterialTheme.typography.bodyLarge)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        AppLanguage.entries.forEachIndexed { index, l ->
+                            SegmentedButton(
+                                selected = settings.appLanguage == l,
+                                onClick = { onAppLanguage(l) },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = AppLanguage.entries.size,
+                                ),
+                                label = {
+                                    Text(
+                                        when (l) {
+                                            AppLanguage.SYSTEM -> Strings.langSystem(lang)
+                                            AppLanguage.ENGLISH -> "English"
+                                            AppLanguage.PERSIAN -> "فارسی"
                                         }
                                     )
                                 },
@@ -127,34 +158,32 @@ fun SettingsScreen(
                 }
             }
 
-            SectionCard(title = "Tunnel behaviour") {
+            SectionCard(title = Strings.tunnelBehaviour(lang)) {
                 SwitchRow(
                     icon = Icons.Rounded.Router,
-                    title = "Keep local network off the VPN",
-                    subtitle = "Printers, NAS and casting keep working while connected",
+                    title = Strings.bypassLocal(lang),
+                    subtitle = Strings.bypassLocalSub(lang),
                     checked = settings.bypassLocalNetworks,
                     onCheckedChange = onBypassLocalNetworks,
                 )
                 SwitchRow(
                     icon = Icons.Rounded.Sync,
-                    title = "Reconnect on network change",
-                    subtitle = "Re-establish the tunnel when moving between Wi-Fi and mobile data",
+                    title = Strings.reconnectNetwork(lang),
+                    subtitle = Strings.reconnectNetworkSub(lang),
                     checked = settings.reconnectOnNetworkChange,
                     onCheckedChange = onReconnectOnNetworkChange,
                 )
                 SwitchRow(
                     icon = Icons.Rounded.PowerSettingsNew,
-                    title = "Connect after restart",
+                    title = Strings.connectOnBoot(lang),
                     subtitle = "Needs VPN permission to have been granted at least once",
                     checked = settings.connectOnBoot,
                     onCheckedChange = onConnectOnBoot,
                 )
-            }
-
-            SectionCard(title = "System") {
+            SectionCard(title = Strings.systemSection(lang)) {
                 SettingRow(
                     icon = Icons.Rounded.Lock,
-                    title = "Always-on VPN",
+                    title = Strings.alwaysOnVpn(lang),
                     subtitle = "Open Android's VPN settings to make this the always-on VPN and block traffic when it drops",
                     onClick = {
                         runCatching {
@@ -167,24 +196,24 @@ fun SettingsScreen(
                 )
                 SwitchRow(
                     icon = Icons.Rounded.Notifications,
-                    title = "Traffic counters in the notification",
+                    title = Strings.statsNotification(lang),
                     subtitle = "Show total up/down in the ongoing notification",
                     checked = settings.showStatsInNotification,
                     onCheckedChange = onShowStatsInNotification,
                 )
             }
 
-            SectionCard(title = "Diagnostics") {
+            SectionCard(title = Strings.diagnostics(lang)) {
                 SwitchRow(
                     icon = Icons.Rounded.BugReport,
-                    title = "Verbose logging",
+                    title = Strings.verboseLogging(lang),
                     subtitle = "Include openconnect debug output in the connection log",
                     checked = settings.verboseLogging,
                     onCheckedChange = onVerboseLogging,
                 )
                 SettingRow(
                     icon = Icons.Rounded.Info,
-                    title = "About",
+                    title = Strings.about(lang),
                     subtitle = buildString {
                         append("OpenTunnel ${BuildConfig.VERSION_NAME}")
                         append(" · openconnect ")

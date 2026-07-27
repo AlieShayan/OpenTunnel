@@ -103,7 +103,7 @@ fun SplitTunnelScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Split tunnelling") },
+                title = { Text(dev.opentunnel.vpn.util.Strings.splitTunnelTitle(settings.appLanguage)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")

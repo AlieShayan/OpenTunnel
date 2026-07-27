@@ -63,14 +63,28 @@ class TunnelWidget : AppWidgetProvider() {
 
         private fun buildWidgetState(): WidgetState {
             val status = VpnBus.status.value
+            val stats = VpnBus.stats.value
             return when {
                 status.stage == ConnectionStage.CONNECTED -> {
                     val elapsedMs = SystemClock.elapsedRealtime() - status.connectedAtElapsed
+                    val pingStr = if (status.info.pingMs >= 0) "⚡ ${status.info.pingMs} ms" else ""
+                    val rxStr = dev.opentunnel.vpn.util.Formatters.bytes(stats.rxBytes)
+                    val txStr = dev.opentunnel.vpn.util.Formatters.bytes(stats.txBytes)
+                    val trafficStr = buildString {
+                        append("⬇ $rxStr  ⬆ $txStr")
+                        if (pingStr.isNotBlank()) append("  $pingStr")
+                    }
+
                     WidgetState.Connected(
-                        serverHost = status.info.server ?: "VPN",
+                        profileName = status.info.profileDisplayName ?: status.info.server ?: "VPN",
+                        serverHost = status.info.server ?: "",
                         elapsed = formatElapsed(elapsedMs),
                         locationFlag = status.info.locationFlag.orEmpty(),
                         locationName = status.info.locationName.orEmpty(),
+                        outboundIp = status.info.outboundIp.orEmpty(),
+                        downloadedFormatted = rxStr,
+                        uploadedFormatted = txStr,
+                        pingMsFormatted = trafficStr,
                     )
                 }
                 status.stage.isBusy -> WidgetState.Connecting
@@ -119,7 +133,9 @@ class TunnelWidget : AppWidgetProvider() {
                     views.setTextColor(R.id.widget_status_label, 0xFFA9B4C9.toInt())
                     views.setViewVisibility(R.id.widget_timer, View.GONE)
                     views.setViewVisibility(R.id.widget_server, View.GONE)
+                    views.setViewVisibility(R.id.widget_ip, View.GONE)
                     views.setViewVisibility(R.id.widget_location, View.GONE)
+                    views.setViewVisibility(R.id.widget_traffic, View.GONE)
                     views.setTextViewText(
                         R.id.widget_btn_toggle,
                         context.getString(R.string.widget_btn_connect),
@@ -146,7 +162,9 @@ class TunnelWidget : AppWidgetProvider() {
                     views.setTextColor(R.id.widget_status_label, 0xFFFFC66B.toInt())
                     views.setViewVisibility(R.id.widget_timer, View.GONE)
                     views.setViewVisibility(R.id.widget_server, View.GONE)
+                    views.setViewVisibility(R.id.widget_ip, View.GONE)
                     views.setViewVisibility(R.id.widget_location, View.GONE)
+                    views.setViewVisibility(R.id.widget_traffic, View.GONE)
                     // Show Cancel during connecting
                     views.setTextViewText(
                         R.id.widget_btn_toggle,
@@ -173,9 +191,18 @@ class TunnelWidget : AppWidgetProvider() {
                     )
                     views.setTextColor(R.id.widget_status_label, 0xFF5EE7C4.toInt())
                     views.setViewVisibility(R.id.widget_server, View.VISIBLE)
-                    views.setTextViewText(R.id.widget_server, state.serverHost)
+                    views.setTextViewText(R.id.widget_server, state.profileName)
+
+                    if (state.outboundIp.isNotBlank()) {
+                        views.setViewVisibility(R.id.widget_ip, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_ip, "IP: ${state.outboundIp}")
+                    } else {
+                        views.setViewVisibility(R.id.widget_ip, View.GONE)
+                    }
+
                     views.setViewVisibility(R.id.widget_timer, View.VISIBLE)
                     views.setTextViewText(R.id.widget_timer, state.elapsed)
+
                     // Location badge
                     val locationText = buildString {
                         if (state.locationFlag.isNotBlank()) append("${state.locationFlag} ")
@@ -187,6 +214,15 @@ class TunnelWidget : AppWidgetProvider() {
                     } else {
                         views.setViewVisibility(R.id.widget_location, View.GONE)
                     }
+
+                    // Traffic & Ping line
+                    if (state.pingMsFormatted.isNotBlank()) {
+                        views.setViewVisibility(R.id.widget_traffic, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_traffic, state.pingMsFormatted)
+                    } else {
+                        views.setViewVisibility(R.id.widget_traffic, View.GONE)
+                    }
+
                     views.setTextViewText(
                         R.id.widget_btn_toggle,
                         context.getString(R.string.widget_btn_disconnect),

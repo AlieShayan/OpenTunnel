@@ -25,6 +25,7 @@ import dev.opentunnel.vpn.ui.screens.SplitTunnelScreen
 
 private object Routes {
     const val HOME = "home"
+    const val PROFILES = "profiles"
     const val PROFILE = "profile"
     const val SPLIT = "split"
     const val LOGS = "logs"
@@ -49,11 +50,21 @@ fun OpenTunnelApp(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     val prompt by viewModel.pendingPrompt.collectAsStateWithLifecycle()
+    val editingProfileId by viewModel.editingProfileId.collectAsStateWithLifecycle()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
+    val layoutDirection = if (settings.appLanguage == dev.opentunnel.vpn.data.AppLanguage.PERSIAN) {
+        androidx.compose.ui.unit.LayoutDirection.Rtl
+    } else {
+        androidx.compose.ui.unit.LayoutDirection.Ltr
+    }
+
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalLayoutDirection provides layoutDirection
     ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
@@ -78,17 +89,50 @@ fun OpenTunnelApp(
                         if (status.stage.isActive) onRequestDisconnect() else onRequestConnect()
                     },
                     onSelectProfile = viewModel::selectProfile,
-                    onOpenProfile = { navController.navigate(Routes.PROFILE) },
+                    onOpenProfile = {
+                        viewModel.setEditingProfileId(profile.id)
+                        navController.navigate(Routes.PROFILE)
+                    },
+                    onOpenProfileManagement = {
+                        navController.navigate(Routes.PROFILES)
+                    },
                     onOpenSplitTunnel = { navController.navigate(Routes.SPLIT) },
                     onOpenLogs = { navController.navigate(Routes.LOGS) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
 
+            composable(Routes.PROFILES) {
+                dev.opentunnel.vpn.ui.screens.ProfileManagementScreen(
+                    activeProfileId = settings.activeProfileId,
+                    profiles = profiles,
+                    appLanguage = settings.appLanguage,
+                    onSelectProfile = viewModel::selectProfile,
+                    onEditProfile = { id ->
+                        viewModel.setEditingProfileId(id)
+                        navController.navigate(Routes.PROFILE)
+                    },
+                    onAddProfile = {
+                        viewModel.setEditingProfileId("new")
+                        navController.navigate(Routes.PROFILE)
+                    },
+                    onDeleteProfile = viewModel::deleteProfile,
+                    onExportProfiles = viewModel::exportProfiles,
+                    onImportProfiles = viewModel::importProfiles,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
             composable(Routes.PROFILE) {
+                val targetProfile = viewModel.getProfile(editingProfileId)
                 ProfileScreen(
-                    profile = profile,
+                    profile = targetProfile,
+                    appLanguage = settings.appLanguage,
                     onSave = viewModel::saveProfile,
+                    onDelete = { id ->
+                        viewModel.deleteProfile(id)
+                        navController.popBackStack()
+                    },
                     onForgetCertificate = viewModel::forgetPinnedCertificate,
                     onBack = { navController.popBackStack() },
                 )
@@ -110,6 +154,7 @@ fun OpenTunnelApp(
             composable(Routes.LOGS) {
                 LogScreen(
                     logs = logs,
+                    appLanguage = settings.appLanguage,
                     onClear = viewModel::clearLogs,
                     onBack = { navController.popBackStack() },
                 )
@@ -119,6 +164,7 @@ fun OpenTunnelApp(
                 SettingsScreen(
                     settings = settings,
                     onThemeMode = viewModel::setThemeMode,
+                    onAppLanguage = viewModel::setAppLanguage,
                     onDynamicColor = viewModel::setDynamicColor,
                     onBypassLocalNetworks = viewModel::setBypassLocalNetworks,
                     onConnectOnBoot = viewModel::setConnectOnBoot,

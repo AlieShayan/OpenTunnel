@@ -14,10 +14,11 @@ import java.net.URL
  */
 object LocationResolver {
 
-    private const val API = "http://ip-api.com/json/?fields=status,country,countryCode,city"
+    private const val API = "http://ip-api.com/json/?fields=status,query,country,countryCode,city"
     private const val TIMEOUT_MS = 5_000
 
     data class Location(
+        val ip: String,
         /** e.g. "Netherlands" */
         val country: String,
         /** ISO-3166-1 alpha-2, e.g. "NL" */
@@ -48,6 +49,7 @@ object LocationResolver {
             val obj = JSONObject(body)
             if (obj.optString("status") != "success") return@runCatching null
             Location(
+                ip = obj.optString("query", ""),
                 country = obj.getString("country"),
                 countryCode = obj.getString("countryCode"),
                 city = obj.getString("city"),

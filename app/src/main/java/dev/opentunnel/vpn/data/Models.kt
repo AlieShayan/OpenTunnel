@@ -41,6 +41,21 @@ data class VpnProfile(
     val disableXmlPost: Boolean = false,
     /** SHA-256 pin accepted on first use, in openconnect's "pin-sha256:…" form. */
     val trustedCertificate: String = "",
+
+    // ── extended profile options (screenshots 2 & 3) ────────────────────────
+    val caCertPath: String = "",
+    val userCertPath: String = "",
+    val privateKeyPath: String = "",
+    /** Software token mode: 0=Disabled, 1=STOKEN, 2=TOTP, 3=HOTP */
+    val softwareTokenMode: Int = 0,
+    val tokenString: String = "",
+    val disableCredentialCaching: Boolean = false,
+    val batchMode: Boolean = false,
+    val csdWrapper: String = "",
+    val profileSplitTunnelMode: String = "auto",
+    val splitTunnelNetworks: String = "",
+    val requirePfs: Boolean = false,
+    val overrideDpdTimeout: Boolean = false,
 ) {
     val isComplete: Boolean
         get() = server.isNotBlank() && username.isNotBlank()
@@ -59,9 +74,16 @@ enum class SplitTunnelMode {
     INCLUDE_SELECTED,
 }
 
+enum class AppLanguage {
+    SYSTEM,
+    ENGLISH,
+    PERSIAN,
+}
+
 @Immutable
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
     val dynamicColor: Boolean = false,
 
     val splitTunnelEnabled: Boolean = false,

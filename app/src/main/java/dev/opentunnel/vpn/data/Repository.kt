@@ -50,6 +50,7 @@ class Repository(context: Context) {
         val legacyTrustedCert = stringPreferencesKey("profile.trustedCert")
 
         val themeMode = stringPreferencesKey("settings.themeMode")
+        val appLanguage = stringPreferencesKey("settings.appLanguage")
         val dynamicColor = booleanPreferencesKey("settings.dynamicColor")
         val splitEnabled = booleanPreferencesKey("settings.split.enabled")
         val splitMode = stringPreferencesKey("settings.split.mode")
@@ -81,6 +82,9 @@ class Repository(context: Context) {
 
     suspend fun currentProfile(): VpnProfile = activeProfile.first()
 
+    suspend fun getProfileById(id: String): VpnProfile? =
+        profileStore.allProfiles().firstOrNull { it.id == id }
+
     /** Upsert and return the saved copy (which has an auto-assigned id if new). */
     suspend fun saveProfile(profile: VpnProfile): VpnProfile = profileStore.save(profile)
 
@@ -89,6 +93,10 @@ class Repository(context: Context) {
     suspend fun setActiveProfile(profileId: String) {
         store.edit { it[Keys.activeProfileId] = profileId }
     }
+
+    suspend fun exportProfilesJson(): String = profileStore.exportJson()
+
+    suspend fun importProfilesJson(jsonStr: String): Int = profileStore.importJson(jsonStr)
 
     suspend fun pinCertificate(fingerprint: String) {
         val active = currentProfile()
@@ -138,6 +146,8 @@ class Repository(context: Context) {
         AppSettings(
             themeMode = p[Keys.themeMode]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                 ?: defaults.themeMode,
+            appLanguage = p[Keys.appLanguage]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
+                ?: defaults.appLanguage,
             dynamicColor = p[Keys.dynamicColor] ?: defaults.dynamicColor,
             splitTunnelEnabled = p[Keys.splitEnabled] ?: defaults.splitTunnelEnabled,
             splitTunnelMode = p[Keys.splitMode]
@@ -156,6 +166,7 @@ class Repository(context: Context) {
     suspend fun currentSettings(): AppSettings = settings.first()
 
     suspend fun setThemeMode(mode: ThemeMode) = store.edit { it[Keys.themeMode] = mode.name }
+    suspend fun setAppLanguage(language: AppLanguage) = store.edit { it[Keys.appLanguage] = language.name }
     suspend fun setDynamicColor(enabled: Boolean) = store.edit { it[Keys.dynamicColor] = enabled }
     suspend fun setSplitTunnelEnabled(enabled: Boolean) = store.edit { it[Keys.splitEnabled] = enabled }
     suspend fun setSplitTunnelMode(mode: SplitTunnelMode) = store.edit { it[Keys.splitMode] = mode.name }

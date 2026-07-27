@@ -202,14 +202,34 @@ class TunnelRunner(
             lib.setProtocol("anyconnect")
         }
 
-        host.caBundlePath()?.let { path ->
-            lib.setCAFile(path)
-            VpnBus.log(LogLevel.DEBUG, "Using the device trust store for certificate validation")
+        if (profile.caCertPath.isNotBlank()) {
+            lib.setCAFile(profile.caCertPath)
+            VpnBus.log(LogLevel.DEBUG, "Using custom CA certificate: ${profile.caCertPath}")
+        } else {
+            host.caBundlePath()?.let { path ->
+                lib.setCAFile(path)
+                VpnBus.log(LogLevel.DEBUG, "Using the device trust store for certificate validation")
+            }
+        }
+
+        if (profile.userCertPath.isNotBlank()) {
+            lib.setClientCert(profile.userCertPath, profile.privateKeyPath)
+            VpnBus.log(LogLevel.DEBUG, "Client certificate enabled")
+        }
+
+        if (profile.softwareTokenMode > 0 && profile.tokenString.isNotBlank()) {
+            lib.setTokenMode(profile.softwareTokenMode, profile.tokenString)
+            VpnBus.log(LogLevel.DEBUG, "Software token configured (mode ${profile.softwareTokenMode})")
+        }
+
+        if (profile.csdWrapper.isNotBlank()) {
+            lib.setCSDWrapper(profile.csdWrapper, "", "")
         }
 
         lib.setReportedOS(profile.reportedOs)
         lib.setMobileInfo("1.0", profile.reportedOs, DEVICE_ID)
         lib.setXMLPost(!profile.disableXmlPost)
+        lib.setPFS(profile.requirePfs)
 
         if (profile.mtu > 0) lib.setReqMTU(profile.mtu)
         if (profile.dpdSeconds > 0) lib.setDPD(profile.dpdSeconds)
@@ -405,6 +425,7 @@ class TunnelRunner(
         serverRoutes = ip.splitIncludes.orEmpty().toList(),
         excludedApps = VpnBus.status.value.info.excludedApps,
         certFingerprint = runCatching { lib.getPeerCertHash() }.getOrNull(),
+        profileDisplayName = profile.displayName,
     )
 
     private fun closeTun() {

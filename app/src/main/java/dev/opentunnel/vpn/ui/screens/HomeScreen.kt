@@ -80,6 +80,7 @@ fun HomeScreen(
     onToggleConnection: () -> Unit,
     onSelectProfile: (String) -> Unit,
     onOpenProfile: () -> Unit,
+    onOpenProfileManagement: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
     onOpenLogs: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -130,7 +131,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            StatusLine(status = status)
+            StatusLine(status = status, language = settings.appLanguage)
 
             // Location badge — shown when connected and location is resolved
             AnimatedVisibility(
@@ -157,7 +158,7 @@ fun HomeScreen(
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 Column {
-                    TrafficRow(stats)
+                    TrafficRow(stats, settings.appLanguage)
                     Spacer(Modifier.height(18.dp))
                 }
             }
@@ -179,10 +180,11 @@ fun HomeScreen(
                     profiles = profiles,
                     onSelectProfile = onSelectProfile,
                     onOpenProfile = onOpenProfile,
+                    onOpenProfileManagement = onOpenProfileManagement,
                 )
                 SettingRow(
                     icon = Icons.Rounded.Apps,
-                    title = "Split tunnelling",
+                    title = dev.opentunnel.vpn.util.Strings.splitTunnelTitle(settings.appLanguage),
                     subtitle = splitTunnelSummary(settings),
                     iconTint = scheme.tertiary,
                     iconBackground = scheme.tertiary.copy(alpha = 0.14f),
@@ -197,7 +199,7 @@ fun HomeScreen(
             ) {
                 Column {
                     Spacer(Modifier.height(18.dp))
-                    ConnectionDetails(status)
+                    ConnectionDetails(status, settings.appLanguage)
                 }
             }
 
@@ -206,7 +208,7 @@ fun HomeScreen(
             SectionCard {
                 SettingRow(
                     icon = Icons.Rounded.Article,
-                    title = "Connection log",
+                    title = dev.opentunnel.vpn.util.Strings.logsTitle(settings.appLanguage),
                     subtitle = "Everything openconnect reports, live",
                     iconTint = scheme.secondary,
                     iconBackground = scheme.secondary.copy(alpha = 0.14f),
@@ -214,7 +216,7 @@ fun HomeScreen(
                 )
                 SettingRow(
                     icon = Icons.Rounded.Tune,
-                    title = "Settings",
+                    title = dev.opentunnel.vpn.util.Strings.settingsTitle(settings.appLanguage),
                     subtitle = "Appearance, reconnection, diagnostics",
                     iconTint = scheme.onSurfaceVariant,
                     iconBackground = scheme.onSurfaceVariant.copy(alpha = 0.12f),
@@ -263,6 +265,7 @@ private fun ProfilePickerRow(
     profiles: List<VpnProfile>,
     onSelectProfile: (String) -> Unit,
     onOpenProfile: () -> Unit,
+    onOpenProfileManagement: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -276,50 +279,59 @@ private fun ProfilePickerRow(
                 else -> profile.protocol
             },
             trailing = {
-                // Only show dropdown arrow when there are multiple profiles
-                if (profiles.size > 1) {
-                    IconButton(onClick = { expanded = true }) {
-                        Icon(
-                            Icons.Rounded.ExpandMore,
-                            contentDescription = "Switch profile",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                IconButton(onClick = { expanded = true }) {
+                    Icon(
+                        Icons.Rounded.ExpandMore,
+                        contentDescription = "Switch profile",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             },
             onClick = onOpenProfile,
         )
 
-        if (profiles.size > 1) {
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-            ) {
-                profiles.forEach { p ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            profiles.forEach { p ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(
+                                text = p.displayName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (p.id == profile.id) FontWeight.Bold else FontWeight.Normal,
+                            )
+                            if (p.server.isNotBlank()) {
                                 Text(
-                                    text = p.displayName,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (p.id == profile.id) FontWeight.Bold else FontWeight.Normal,
+                                    text = p.server,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                if (p.server.isNotBlank()) {
-                                    Text(
-                                        text = p.server,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
                             }
-                        },
-                        onClick = {
-                            onSelectProfile(p.id)
-                            expanded = false
-                        },
-                    )
-                }
+                        }
+                    },
+                    onClick = {
+                        onSelectProfile(p.id)
+                        expanded = false
+                    },
+                )
             }
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = "⚙ Manage profiles…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onOpenProfileManagement()
+                },
+            )
         }
     }
 }
@@ -392,13 +404,13 @@ private fun HomeTopBar(onOpenSettings: () -> Unit, onOpenLogs: () -> Unit) {
 // ── Status ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun StatusLine(status: TunnelStatus) {
+private fun StatusLine(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLanguage) {
     val palette = LocalStatusPalette.current
 
     val label = when (status.stage) {
-        ConnectionStage.CONNECTED -> status.info.server ?: "Secure tunnel active"
-        ConnectionStage.IDLE -> "Not connected"
-        ConnectionStage.ERROR -> "Connection failed"
+        ConnectionStage.CONNECTED -> status.info.server ?: dev.opentunnel.vpn.util.Strings.connected(lang)
+        ConnectionStage.IDLE -> dev.opentunnel.vpn.util.Strings.notConnected(lang)
+        ConnectionStage.ERROR -> dev.opentunnel.vpn.util.Strings.connectionFailed(lang)
         else -> status.detail ?: "Working…"
     }
 
@@ -440,14 +452,14 @@ private fun StatusLine(status: TunnelStatus) {
 // ── Traffic ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun TrafficRow(stats: TrafficStats) {
+private fun TrafficRow(stats: TrafficStats, lang: dev.opentunnel.vpn.data.AppLanguage) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         TrafficTile(
             modifier = Modifier.weight(1f),
-            label = "Downloaded",
+            label = dev.opentunnel.vpn.util.Strings.downloaded(lang),
             total = Formatters.bytes(stats.rxBytes),
             rate = Formatters.rate(stats.rxRate),
             tint = LocalStatusPalette.current.connected,
@@ -455,7 +467,7 @@ private fun TrafficRow(stats: TrafficStats) {
         )
         TrafficTile(
             modifier = Modifier.weight(1f),
-            label = "Uploaded",
+            label = dev.opentunnel.vpn.util.Strings.uploaded(lang),
             total = Formatters.bytes(stats.txBytes),
             rate = Formatters.rate(stats.txRate),
             tint = MaterialTheme.colorScheme.secondary,
@@ -540,18 +552,18 @@ private fun ErrorBanner(message: String) {
 // ── Connection details ─────────────────────────────────────────────────────
 
 @Composable
-private fun ConnectionDetails(status: TunnelStatus) {
+private fun ConnectionDetails(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLanguage) {
     val info = status.info
-    SectionCard(title = "Connection") {
+    SectionCard(title = dev.opentunnel.vpn.util.Strings.connectionDetails(lang)) {
         Column(Modifier.padding(vertical = 6.dp)) {
-            info.ipv4?.takeIf { it.isNotBlank() }?.let { DetailRow("IPv4 address", it) }
-            info.ipv6?.takeIf { it.isNotBlank() }?.let { DetailRow("IPv6 address", it) }
-            if (info.dns.isNotEmpty()) DetailRow("DNS", info.dns.joinToString("\n"))
-            info.domain?.takeIf { it.isNotBlank() }?.let { DetailRow("Search domain", it) }
-            if (info.mtu > 0) DetailRow("MTU", info.mtu.toString())
-            info.cstpCipher?.takeIf { it.isNotBlank() }?.let { DetailRow("TLS channel", it) }
+            info.ipv4?.takeIf { it.isNotBlank() }?.let { DetailRow(dev.opentunnel.vpn.util.Strings.ipv4Address(lang), it) }
+            info.ipv6?.takeIf { it.isNotBlank() }?.let { DetailRow(dev.opentunnel.vpn.util.Strings.ipv6Address(lang), it) }
+            if (info.dns.isNotEmpty()) DetailRow(dev.opentunnel.vpn.util.Strings.dnsServers(lang), info.dns.joinToString("\n"))
+            info.domain?.takeIf { it.isNotBlank() }?.let { DetailRow(dev.opentunnel.vpn.util.Strings.searchDomain(lang), it) }
+            if (info.mtu > 0) DetailRow(dev.opentunnel.vpn.util.Strings.mtuLabel(lang), info.mtu.toString())
+            info.cstpCipher?.takeIf { it.isNotBlank() }?.let { DetailRow(dev.opentunnel.vpn.util.Strings.tlsChannel(lang), it) }
             val dtls = info.dtlsCipher?.takeIf { it.isNotBlank() }
-            DetailRow("DTLS channel", dtls ?: "not established (TLS only)")
+            DetailRow(dev.opentunnel.vpn.util.Strings.dtlsChannel(lang), dtls ?: "not established (TLS only)")
             if (info.serverRoutes.isNotEmpty()) {
                 DetailRow("Gateway routes", info.serverRoutes.joinToString("\n"))
             }
@@ -560,7 +572,7 @@ private fun ConnectionDetails(status: TunnelStatus) {
             }
             info.locationName?.let { name ->
                 val display = if (info.locationFlag != null) "${info.locationFlag} $name" else name
-                DetailRow("Location", display)
+                DetailRow(dev.opentunnel.vpn.util.Strings.locationLabel(lang), display)
             }
         }
     }

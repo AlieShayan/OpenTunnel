@@ -47,6 +47,12 @@ data class TunnelInfo(
      * Null when [locationName] is null.
      */
     val locationFlag: String? = null,
+    /** Display name of the active connected profile. */
+    val profileDisplayName: String? = null,
+    /** Public outbound IP address resolved after connection. */
+    val outboundIp: String? = null,
+    /** RTT latency in milliseconds, updated every 5 seconds. -1 if unknown/failed. */
+    val pingMs: Long = -1L,
 )
 
 @Immutable

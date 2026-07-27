@@ -16,11 +16,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -51,7 +54,7 @@ import dev.opentunnel.vpn.data.VpnProfile
 import dev.opentunnel.vpn.ui.components.SectionCard
 
 private val REPORTED_OS = listOf(
-    "android" to "Android (honest)",
+    "android" to "Android",
     "linux-64" to "Linux 64-bit",
     "linux" to "Linux 32-bit",
     "win" to "Windows",
@@ -69,32 +72,66 @@ private val PROTOCOLS = listOf(
     "array" to "Array Networks",
 )
 
+private val SOFTWARE_TOKENS = listOf(
+    "0" to "Disabled",
+    "1" to "RSA SecurID (stoken)",
+    "2" to "TOTP (Google Auth, etc.)",
+    "3" to "HOTP (Counter-based)",
+)
+
+private val SPLIT_TUNNEL_MODES = listOf(
+    "auto" to "Auto",
+    "exclude" to "Exclude selected apps",
+    "include" to "Only include selected apps",
+)
+
+private val BATCH_MODES = listOf(
+    "disabled" to "Disabled",
+    "enabled" to "Enabled",
+)
+
+import dev.opentunnel.vpn.data.AppLanguage
+import dev.opentunnel.vpn.util.Strings
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     profile: VpnProfile,
+    appLanguage: AppLanguage = AppLanguage.SYSTEM,
     onSave: (VpnProfile) -> Unit,
+    onDelete: ((String) -> Unit)? = null,
     onForgetCertificate: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val lang = appLanguage
     var draft by remember(profile) { mutableStateOf(profile) }
     var showPassword by remember { mutableStateOf(false) }
-    var showAdvanced by remember { mutableStateOf(false) }
+    var showAdvanced by remember { mutableStateOf(true) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("VPN profile") },
+                title = { Text(Strings.editProfileTitle(lang, draft.name)) },
                 navigationIcon = {
                     IconButton(onClick = { onSave(draft); onBack() }) {
                         Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
+                    if (draft.id.isNotBlank() && onDelete != null) {
+                        IconButton(onClick = { showDeleteConfirm = true }) {
+                            Icon(
+                                Icons.Rounded.Delete,
+                                contentDescription = Strings.delete(lang),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                     TextButton(onClick = { onSave(draft); onBack() }) {
                         Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.size(6.dp))
-                        Text("Save")
+                        Text(Strings.save(lang))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -111,19 +148,26 @@ fun ProfileScreen(
                 .padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            SectionCard(title = "Gateway") {
+            SectionCard(title = "Server") {
                 Column(
                     Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     OutlinedTextField(
+                        value = draft.name,
+                        onValueChange = { draft = draft.copy(name = it) },
+                        label = { Text("Profile name") },
+                        placeholder = { Text("e.g. Work VPN") },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    OutlinedTextField(
                         value = draft.server,
                         onValueChange = { draft = draft.copy(server = it) },
                         label = { Text("Server address") },
-                        placeholder = { Text("vpn.company.com") },
-                        supportingText = {
-                            Text("Hostname, host:port, or a full https:// URL with the group path")
-                        },
+                        placeholder = { Text("vpn.example.com") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Uri,
@@ -134,21 +178,53 @@ fun ProfileScreen(
                     )
 
                     OutlinedTextField(
-                        value = draft.name,
-                        onValueChange = { draft = draft.copy(name = it) },
-                        label = { Text("Display name (optional)") },
+                        value = draft.caCertPath,
+                        onValueChange = { draft = draft.copy(caCertPath = it) },
+                        label = { Text("CA certificate") },
+                        placeholder = { Text("Select or enter CA cert file path") },
                         singleLine = true,
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                }
-            }
 
-            SectionCard(title = "Credentials") {
-                Column(
-                    Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
+                    OutlinedTextField(
+                        value = draft.userCertPath,
+                        onValueChange = { draft = draft.copy(userCertPath = it) },
+                        label = { Text("User certificate") },
+                        placeholder = { Text("Client certificate path") },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    OutlinedTextField(
+                        value = draft.privateKeyPath,
+                        onValueChange = { draft = draft.copy(privateKeyPath = it) },
+                        label = { Text("Private key") },
+                        placeholder = { Text("Private key path") },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    LabelledDropdown(
+                        label = "Software token",
+                        options = SOFTWARE_TOKENS,
+                        selected = draft.softwareTokenMode.toString(),
+                        onSelected = { draft = draft.copy(softwareTokenMode = it.toIntOrNull() ?: 0) },
+                    )
+
+                    if (draft.softwareTokenMode > 0) {
+                        OutlinedTextField(
+                            value = draft.tokenString,
+                            onValueChange = { draft = draft.copy(tokenString = it) },
+                            label = { Text("Token string") },
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
                     OutlinedTextField(
                         value = draft.username,
                         onValueChange = { draft = draft.copy(username = it) },
@@ -164,11 +240,7 @@ fun ProfileScreen(
                         onValueChange = { draft = draft.copy(password = it) },
                         label = { Text("Password") },
                         singleLine = true,
-                        visualTransformation = if (showPassword) {
-                            VisualTransformation.None
-                        } else {
-                            PasswordVisualTransformation()
-                        },
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done,
@@ -176,11 +248,7 @@ fun ProfileScreen(
                         trailingIcon = {
                             IconButton(onClick = { showPassword = !showPassword }) {
                                 Icon(
-                                    imageVector = if (showPassword) {
-                                        Icons.Rounded.VisibilityOff
-                                    } else {
-                                        Icons.Rounded.Visibility
-                                    },
+                                    imageVector = if (showPassword) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                                     contentDescription = if (showPassword) "Hide password" else "Show password",
                                 )
                             }
@@ -189,29 +257,15 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    OutlinedTextField(
-                        value = draft.authGroup,
-                        onValueChange = { draft = draft.copy(authGroup = it) },
-                        label = { Text("Auth group (optional)") },
-                        supportingText = { Text("Only needed when the gateway shows a group dropdown") },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.fillMaxWidth(),
+                    CheckboxLine(
+                        title = "Disable credential caching",
+                        subtitle = "Never cache login names, user groups, or passwords",
+                        checked = draft.disableCredentialCaching,
+                        onCheckedChange = { draft = draft.copy(disableCredentialCaching = it) },
                     )
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Remember password", style = MaterialTheme.typography.bodyLarge)
-                            Text(
-                                "Stored encrypted with a hardware-backed key",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = draft.savePassword,
-                            onCheckedChange = { draft = draft.copy(savePassword = it) },
-                        )
+                    TextButton(onClick = { draft = draft.copy(password = "") }) {
+                        Text("Clear saved passwords", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -230,23 +284,88 @@ fun ProfileScreen(
 
             AnimatedVisibility(visible = showAdvanced) {
                 Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    SectionCard(title = "Protocol") {
+                    SectionCard(title = "Advanced") {
                         Column(
                             Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
+                            LabelledDropdown(
+                                label = "Batch mode",
+                                options = BATCH_MODES,
+                                selected = if (draft.batchMode) "enabled" else "disabled",
+                                onSelected = { draft = draft.copy(batchMode = (it == "enabled")) },
+                            )
+
+                            LabelledDropdown(
+                                label = "Reported OS",
+                                options = REPORTED_OS,
+                                selected = draft.reportedOs,
+                                onSelected = { draft = draft.copy(reportedOs = it) },
+                            )
+
+                            OutlinedTextField(
+                                value = draft.csdWrapper,
+                                onValueChange = { draft = draft.copy(csdWrapper = it) },
+                                label = { Text("Custom CSD wrapper") },
+                                singleLine = true,
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                            LabelledDropdown(
+                                label = "Split tunnel mode",
+                                options = SPLIT_TUNNEL_MODES,
+                                selected = draft.profileSplitTunnelMode,
+                                onSelected = { draft = draft.copy(profileSplitTunnelMode = it) },
+                            )
+
+                            OutlinedTextField(
+                                value = draft.splitTunnelNetworks,
+                                onValueChange = { draft = draft.copy(splitTunnelNetworks = it) },
+                                label = { Text("Split tunnel networks") },
+                                placeholder = { Text("e.g. 192.168.1.0/24, 10.0.0.0/8") },
+                                singleLine = true,
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+
+                            CheckboxLine(
+                                title = "Disable XML POST",
+                                subtitle = "Use the old authentication handshake; may fail on newer servers",
+                                checked = draft.disableXmlPost,
+                                onCheckedChange = { draft = draft.copy(disableXmlPost = it) },
+                            )
+
+                            CheckboxLine(
+                                title = "Require PFS",
+                                subtitle = "Only negotiate cipher suites with Perfect Forward Secrecy",
+                                checked = draft.requirePfs,
+                                onCheckedChange = { draft = draft.copy(requirePfs = it) },
+                            )
+
+                            CheckboxLine(
+                                title = "Override DPD timeout",
+                                subtitle = "Use a custom Dead Peer Detection timeout instead of the server default",
+                                checked = draft.overrideDpdTimeout,
+                                onCheckedChange = { draft = draft.copy(overrideDpdTimeout = it) },
+                            )
+
+                            if (draft.overrideDpdTimeout) {
+                                NumberField(
+                                    label = "DPD timeout (seconds)",
+                                    value = draft.dpdSeconds,
+                                    placeholder = "30",
+                                    onValueChange = { draft = draft.copy(dpdSeconds = it) },
+                                )
+                            }
+
                             LabelledDropdown(
                                 label = "VPN protocol",
                                 options = PROTOCOLS,
                                 selected = draft.protocol,
                                 onSelected = { draft = draft.copy(protocol = it) },
                             )
-                            LabelledDropdown(
-                                label = "Report this OS to the gateway",
-                                options = REPORTED_OS,
-                                selected = draft.reportedOs,
-                                onSelected = { draft = draft.copy(reportedOs = it) },
-                            )
+
                             OutlinedTextField(
                                 value = draft.userAgent,
                                 onValueChange = { draft = draft.copy(userAgent = it) },
@@ -278,12 +397,6 @@ fun ProfileScreen(
                                 checked = draft.allowInsecureCrypto,
                                 onCheckedChange = { draft = draft.copy(allowInsecureCrypto = it) },
                             )
-                            ToggleLine(
-                                title = "Disable XML POST",
-                                subtitle = "Compatibility shim for some non-Cisco gateways",
-                                checked = draft.disableXmlPost,
-                                onCheckedChange = { draft = draft.copy(disableXmlPost = it) },
-                            )
                             Column(
                                 Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -293,12 +406,6 @@ fun ProfileScreen(
                                     value = draft.mtu,
                                     placeholder = "Automatic",
                                     onValueChange = { draft = draft.copy(mtu = it) },
-                                )
-                                NumberField(
-                                    label = "Dead peer detection (seconds)",
-                                    value = draft.dpdSeconds,
-                                    placeholder = "Gateway default",
-                                    onValueChange = { draft = draft.copy(dpdSeconds = it) },
                                 )
                             }
                         }
@@ -326,6 +433,53 @@ fun ProfileScreen(
             }
 
             Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    if (showDeleteConfirm && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Profile") },
+            text = { Text("Are you sure you want to delete profile “${draft.displayName}”?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(draft.id)
+                    showDeleteConfirm = false
+                    onBack()
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun CheckboxLine(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Column(Modifier.padding(start = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
