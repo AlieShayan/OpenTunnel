@@ -5,6 +5,8 @@ name: Build APK
 on:
   push:
     branches: [main, master]
+    tags:
+      - 'v*'
   pull_request:
   workflow_dispatch:
     inputs:
@@ -74,3 +76,13 @@ jobs:
           name: libopenconnect-so
           path: app/src/main/jniLibs/**/libopenconnect.so
           if-no-files-found: warn
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/debug/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
