@@ -21,6 +21,7 @@ import dev.opentunnel.vpn.core.TunnelRunner
 import dev.opentunnel.vpn.core.VpnBus
 import dev.opentunnel.vpn.data.Repository
 import dev.opentunnel.vpn.util.SystemCaBundle
+import dev.opentunnel.vpn.widget.TunnelWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -150,6 +151,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         statsJob?.cancel()
         statsJob = null
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        TunnelWidget.notifyAll(this)
         stopSelf()
     }
 
@@ -178,19 +180,21 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         scope.launch {
             combine(VpnBus.status, VpnBus.stats) { status, stats -> status to stats }
                 .collect { (status, stats) ->
-                    if (runner == null && !status.stage.isActive) return@collect
-                    runCatching {
-                        val manager = getSystemService<NotificationManager>()
-                        manager?.notify(
-                            Notifications.STATUS_NOTIFICATION_ID,
-                            Notifications.buildStatus(
-                                this@OpenTunnelVpnService,
-                                status,
-                                stats,
-                                showStatsInNotification,
-                            ),
-                        )
+                    if (runner != null || status.stage.isActive) {
+                        runCatching {
+                            val manager = getSystemService<NotificationManager>()
+                            manager?.notify(
+                                Notifications.STATUS_NOTIFICATION_ID,
+                                Notifications.buildStatus(
+                                    this@OpenTunnelVpnService,
+                                    status,
+                                    stats,
+                                    showStatsInNotification,
+                                ),
+                            )
+                        }
                     }
+                    TunnelWidget.notifyAll(this@OpenTunnelVpnService)
                 }
         }
     }
