@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.1] - 2026-07-27
+
+### Fixed
+- **4x1 Widget Grid Expansion & Composition**: Removed restrictive `maxResizeWidth` attribute from widget providers allowing 4x1 bar widget to stretch across full 4-column launcher grids, and assigned flexible layout weights to prevent text wrapping into action buttons.
+- **Widget Readability & Typography**: Increased font sizes across all three widget sizes (2x2, 3x2, 4x1) for status labels, server names, IP addresses, location info, and timer numbers.
+- **Wi-Fi Hotspot & Tethering SSL Negotiation Fix**: Negotiated requested MTU 1350 to eliminate TLS packet fragmentation drops over carrier tethering NAT, and set default User-Agent to standard `AnyConnect Android 4.10.05065` header to pass carrier DPI filters.
+
+---
+
 ## [3.1.0] - 2026-07-27
 
 ### Added

@@ -232,7 +232,10 @@ class TunnelRunner(
         lib.setXMLPost(!profile.disableXmlPost)
         lib.setPFS(profile.requirePfs)
 
-        if (profile.mtu > 0) lib.setReqMTU(profile.mtu)
+        val reqMtu = if (profile.mtu > 0) profile.mtu else 1350
+        lib.setReqMTU(reqMtu)
+        VpnBus.log(LogLevel.DEBUG, "Requested MTU $reqMtu")
+
         if (profile.dpdSeconds > 0) lib.setDPD(profile.dpdSeconds)
         if (!profile.enableDtls) lib.disableDTLS()
         if (!profile.enableIpv6) lib.disableIPv6()
@@ -680,13 +683,13 @@ class TunnelRunner(
     }
 
     private val defaultUserAgent: String
-        get() = "Open AnyConnect VPN Agent v${BuildConfig.OPENCONNECT_VERSION}"
+        get() = "AnyConnect Android 4.10.05065"
 
     private companion object {
         const val DTLS_ATTEMPT_SECONDS = 60
         const val RECONNECT_TIMEOUT_SECONDS = 300
         const val MIN_MTU = 1280
-        const val DEFAULT_MTU = 1412
+        const val DEFAULT_MTU = 1350
 
         /** Opaque, stable-per-build device id for the AnyConnect mobile header. */
         const val DEVICE_ID = "0123456789ABCDEF0123456789ABCDEF01234567"

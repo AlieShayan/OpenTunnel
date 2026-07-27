@@ -1,15 +1,15 @@
-# OpenTunnel v3.1.0
+# OpenTunnel v3.1.1
 
 An open-source, high-performance Android client for **Cisco AnyConnect** and OpenConnect SSL VPNs. OpenTunnel is powered by the native `openconnect` C engine compiled for Android with OpenSSL 3.x, featuring a modern Material You interface, multi-profile management, granular split tunneling, 1-second real-time telemetry, 3 home-screen widget sizes (2x2, 3x2, 4x1), and complete English & Persian (Farsi) localization.
 
 ---
 
-## 🚀 What's New in Version 3.1.0
+## 🚀 What's New in Version 3.1.1
 
-- 📊 **3 Home-Screen Widget Sizes (2x2, 3x2, 4x1)**: Select between 2×2 compact square, 3×2 detailed card, and 4×1 horizontal bar widget choices from your launcher.
-- 🌐 **Wi-Fi Connectivity & Protected Socket Binding**: Explicitly binds protected VPN sockets to active physical interfaces (`setUnderlyingNetworks`) and preserves original SNI & HTTP `Host` headers on Wi-Fi connections.
-- 🗺️ **Fast & Reliable Exit Location Resolver**: Uses HTTPS GeoIP endpoints (`https://ipwho.is/` and `https://freeipapi.com/api/json`) without in-flight job cancellations.
-- 🔔 **Enhanced Notification Panel Telemetry**: Download (`↓`) and Upload (`↑`) rates are prominently formatted in notification title, text, and BigText view without status bar truncation.
+- 📐 **Full 4-Column Horizontal Widget (4×1)**: Removed width caps so the horizontal widget stretches fully across 4 screen columns without text overflow or button clipping.
+- 🔤 **Enhanced Readability Across All Widgets**: Increased text sizes for labels, status, IP, location, and timer across 2×2, 3×2, and 4×1 widgets for clear readability.
+- 📶 **Wi-Fi Hotspot & Tethering Connection Fix**: Resolved SSL negotiation timeouts on Wi-Fi Hotspots with tuned MTU (1350) and standard AnyConnect User-Agent to prevent packet drops and DPI blocks.
+
 - 🇮🇷 **Complete Persian (Farsi) & English Localization**: Full translation coverage for Split Tunneling, Connect Orb states, connection stages, and Settings options with RTL support.
 - ⏱️ **Real-Time 1-Second Telemetry**: Live traffic counters, latency ping, and connection duration update every 1 second across the app UI and all widget sizes.
 

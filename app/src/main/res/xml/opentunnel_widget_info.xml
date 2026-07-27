@@ -4,11 +4,12 @@
     android:minHeight="110dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
-    android:maxResizeWidth="250dp"
-    android:maxResizeHeight="110dp"
+    android:minResizeWidth="100dp"
+    android:minResizeHeight="100dp"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_opentunnel"
     android:widgetCategory="home_screen"
     android:description="@string/widget_description"
     android:widgetFeatures="reconfigurable|configuration_optional" />
+

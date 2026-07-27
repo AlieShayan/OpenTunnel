@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/widget_bg"
-    android:padding="12dp"
+    android:padding="10dp"
     android:gravity="center">
 
     <!-- Orb / status icon — tap opens the app -->
@@ -25,7 +25,7 @@
         android:layout_marginTop="4dp"
         android:text="@string/widget_status_disconnected"
         android:textColor="#A9B4C9"
-        android:textSize="9sp"
+        android:textSize="11sp"
         android:fontFamily="sans-serif-medium"
         android:letterSpacing="0.06"
         android:textAllCaps="true" />
@@ -35,10 +35,10 @@
         android:id="@+id/widget_server"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="1dp"
+        android:layout_marginTop="2dp"
         android:text=""
         android:textColor="#E4E9F4"
-        android:textSize="10sp"
+        android:textSize="13sp"
         android:fontFamily="sans-serif-medium"
         android:maxLines="1"
         android:ellipsize="end"
@@ -52,7 +52,7 @@
         android:layout_marginTop="1dp"
         android:text=""
         android:textColor="#A9B4C9"
-        android:textSize="9sp"
+        android:textSize="11sp"
         android:maxLines="1"
         android:ellipsize="end"
         android:visibility="gone" />
@@ -65,7 +65,7 @@
         android:layout_marginTop="1dp"
         android:text=""
         android:textColor="#A9B4C9"
-        android:textSize="9sp"
+        android:textSize="11sp"
         android:maxLines="1"
         android:ellipsize="end"
         android:visibility="gone" />
@@ -78,7 +78,7 @@
         android:layout_marginTop="1dp"
         android:text=""
         android:textColor="#5EE7C4"
-        android:textSize="9sp"
+        android:textSize="11sp"
         android:fontFamily="monospace"
         android:maxLines="1"
         android:visibility="gone" />
@@ -91,7 +91,7 @@
         android:layout_marginTop="1dp"
         android:text=""
         android:textColor="#FFD54F"
-        android:textSize="9sp"
+        android:textSize="11sp"
         android:fontFamily="sans-serif-medium"
         android:maxLines="1"
         android:visibility="gone" />
@@ -104,7 +104,7 @@
         android:layout_marginTop="2dp"
         android:text="0:00:00"
         android:textColor="#E4E9F4"
-        android:textSize="13sp"
+        android:textSize="14sp"
         android:fontFamily="monospace"
         android:visibility="gone" />
 
@@ -112,14 +112,15 @@
     <Button
         android:id="@+id/widget_btn_toggle"
         android:layout_width="match_parent"
-        android:layout_height="30dp"
+        android:layout_height="32dp"
         android:layout_marginTop="6dp"
         android:background="@drawable/widget_btn_idle_bg"
         android:text="@string/widget_btn_connect"
         android:textColor="#A9B4C9"
-        android:textSize="10sp"
+        android:textSize="11sp"
         android:fontFamily="sans-serif-medium"
         android:textAllCaps="true"
         android:letterSpacing="0.04" />
 
 </LinearLayout>
+
