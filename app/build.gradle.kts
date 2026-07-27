@@ -45,8 +45,9 @@ android {
     signingConfigs {
         /* Optional release signing. Create keystore.properties in the project
          * root (see README) and it will be picked up automatically; otherwise
-         * ./gradlew assembleRelease produces an unsigned APK. */
+         * use rootProject release.keystore if present. */
         val keystorePropsFile = rootProject.file("keystore.properties")
+        val rootKeystoreFile = rootProject.file("release.keystore")
         if (keystorePropsFile.exists()) {
             create("release") {
                 val props = Properties().apply { keystorePropsFile.inputStream().use { load(it) } }
@@ -54,6 +55,13 @@ android {
                 storePassword = props.getProperty("storePassword")
                 keyAlias = props.getProperty("keyAlias")
                 keyPassword = props.getProperty("keyPassword")
+            }
+        } else if (rootKeystoreFile.exists()) {
+            create("release") {
+                storeFile = rootKeystoreFile
+                storePassword = "opentunnelreleasekey"
+                keyAlias = "opentunnel"
+                keyPassword = "opentunnelreleasekey"
             }
         }
     }
@@ -66,7 +74,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            if (rootProject.file("keystore.properties").exists()) {
+            if (signingConfigs.findByName("release") != null) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
                 signingConfig = signingConfigs.getByName("debug")

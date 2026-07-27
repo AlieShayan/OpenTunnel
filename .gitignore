@@ -4,6 +4,7 @@ build/
 local.properties
 keystore.properties
 *.keystore
+!release.keystore
 *.jks
 .cxx/
 captures/
