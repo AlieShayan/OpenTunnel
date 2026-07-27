@@ -47,6 +47,19 @@
         android:ellipsize="end"
         android:visibility="gone" />
 
+    <!-- Location info (connected only) -->
+    <TextView
+        android:id="@+id/widget_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text=""
+        android:textColor="#A9B4C9"
+        android:textSize="10sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:visibility="gone" />
+
     <!-- Elapsed time (connected only) -->
     <TextView
         android:id="@+id/widget_timer"

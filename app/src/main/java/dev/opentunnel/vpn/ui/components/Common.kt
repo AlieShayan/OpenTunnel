@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.material3.Switch
+
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
@@ -51,7 +53,7 @@ fun SectionCard(
 fun SettingRow(
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     modifier: Modifier = Modifier,
     iconTint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
     iconBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
@@ -89,16 +91,42 @@ fun SettingRow(
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         if (trailing != null) {
             trailing()
         }
     }
+}
+
+@Composable
+fun SwitchRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    SettingRow(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        onClick = { if (enabled) onCheckedChange(!checked) },
+        trailing = {
+            Switch(
+                checked = checked,
+                onCheckedChange = { if (enabled) onCheckedChange(it) },
+                enabled = enabled,
+            )
+        },
+    )
 }
 
 @Composable
