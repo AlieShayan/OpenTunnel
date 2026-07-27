@@ -60,14 +60,14 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Assemble debug APK
-        run: ./gradlew assembleDebug -Popenconnect.abis="$OC_ABIS" --stacktrace
+      - name: Assemble APKs (Debug & Release)
+        run: ./gradlew assemble -Popenconnect.abis="$OC_ABIS" --stacktrace
 
-      - name: Upload APK
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: opentunnel_1.0.2
-          path: app/build/outputs/apk/debug/*.apk
+          name: opentunnel_apks
+          path: app/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
       - name: Upload native libraries
@@ -81,7 +81,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/*.apk
+          files: app/build/outputs/apk/**/*.apk
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
