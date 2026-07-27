@@ -8,9 +8,7 @@ import kotlinx.coroutines.flow.update
 
 /**
  * Single source of truth for tunnel state, shared between the VpnService (which
- * writes) and the UI (which reads). Deliberately a process-wide singleton: the
- * service and the activity live in the same process, and this saves the UI from
- * having to bind to the service just to render a status dot.
+ * writes) and the UI (which reads). Deliberately a process-wide singleton.
  */
 object VpnBus {
 
@@ -34,6 +32,9 @@ object VpnBus {
                 stage = stage,
                 detail = detail ?: defaultDetail(stage),
                 error = if (stage == ConnectionStage.ERROR) current.error else null,
+                // Clear location when going back to idle/error
+                location = if (stage == ConnectionStage.IDLE || stage == ConnectionStage.ERROR) null
+                           else current.location,
             )
         }
     }
@@ -46,12 +47,18 @@ object VpnBus {
                 error = null,
                 connectedAtElapsed = connectedAtElapsed,
                 info = info,
+                location = null, // will be resolved asynchronously
             )
         }
     }
 
     fun updateInfo(transform: (TunnelInfo) -> TunnelInfo) {
         _status.update { it.copy(info = transform(it.info)) }
+    }
+
+    /** Called by the location-resolver coroutine once the IP lookup completes. */
+    fun setLocation(location: LocationInfo?) {
+        _status.update { it.copy(location = location) }
     }
 
     fun setError(message: String) {
@@ -61,6 +68,7 @@ object VpnBus {
                 detail = null,
                 error = message,
                 connectedAtElapsed = 0L,
+                location = null,
             )
         }
     }

@@ -3,16 +3,19 @@ package dev.opentunnel.vpn.data
 import androidx.compose.runtime.Immutable
 import dev.opentunnel.vpn.ui.theme.ThemeMode
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 /**
  * Everything needed to reach one AnyConnect/openconnect gateway.
  *
  * [password] is held in memory in the clear but is always encrypted before it
- * touches disk — see [ProfileStore].
+ * touches disk — see [Repository].
  */
 @Serializable
 @Immutable
 data class VpnProfile(
+    /** Stable, user-opaque identifier — generated once and never changes. */
+    val id: String = UUID.randomUUID().toString(),
     val name: String = "",
     /** Hostname, "host:port", or a full https:// URL including the group path. */
     val server: String = "",
@@ -72,4 +75,7 @@ data class AppSettings(
     val reconnectOnNetworkChange: Boolean = true,
     val showStatsInNotification: Boolean = true,
     val verboseLogging: Boolean = false,
+
+    /** ID of the profile that should be used on the next Connect call. */
+    val activeProfileId: String = "",
 )
