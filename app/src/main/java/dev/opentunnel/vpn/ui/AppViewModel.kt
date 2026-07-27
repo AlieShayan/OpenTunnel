@@ -32,23 +32,41 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val settings: StateFlow<AppSettings> = repository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
 
-    val profile: StateFlow<VpnProfile> = repository.profile
+    /** The currently active (selected) profile. */
+    val profile: StateFlow<VpnProfile> = repository.activeProfile
         .stateIn(viewModelScope, SharingStarted.Eagerly, VpnProfile())
+
+    /** All saved profiles, for the profile picker menu. */
+    val profiles: StateFlow<List<VpnProfile>> = repository.profiles
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _installedApps = MutableStateFlow<List<InstalledApp>?>(null)
     val installedApps: StateFlow<List<InstalledApp>?> = _installedApps.asStateFlow()
 
-    // ── profile ─────────────────────────────────────────────────────────────
+    init {
+        // One-time migration of legacy single-profile data.
+        viewModelScope.launch { repository.migrateLegacyProfileIfNeeded() }
+    }
+
+    // ── profile management ─────────────────────────────────────────────────────
 
     fun saveProfile(profile: VpnProfile) {
         viewModelScope.launch { repository.saveProfile(profile) }
+    }
+
+    fun deleteProfile(profileId: String) {
+        viewModelScope.launch { repository.deleteProfile(profileId) }
+    }
+
+    fun selectProfile(profileId: String) {
+        viewModelScope.launch { repository.setActiveProfile(profileId) }
     }
 
     fun forgetPinnedCertificate() {
         viewModelScope.launch { repository.pinCertificate("") }
     }
 
-    // ── settings ────────────────────────────────────────────────────────────
+    // ── settings ─────────────────────────────────────────────────────────────
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { repository.setThemeMode(mode) }
@@ -86,7 +104,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.setVerboseLogging(enabled) }
     }
 
-    // ── split tunnelling ────────────────────────────────────────────────────
+    // ── split tunnelling ──────────────────────────────────────────────────────
 
     fun loadInstalledApps() {
         if (_installedApps.value != null) return
@@ -109,7 +127,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.setSelectedPackages(emptySet()) }
     }
 
-    // ── prompts ─────────────────────────────────────────────────────────────
+    // ── prompts ──────────────────────────────────────────────────────────────
 
     fun submitPrompt(values: Map<String, String>) {
         Interaction.submit(PromptResult.Values(values))
@@ -123,7 +141,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         Interaction.submit(PromptResult.Cancel)
     }
 
-    // ── logs ────────────────────────────────────────────────────────────────
+    // ── logs ─────────────────────────────────────────────────────────────────
 
     fun clearLogs() {
         VpnBus.clearLogs()
