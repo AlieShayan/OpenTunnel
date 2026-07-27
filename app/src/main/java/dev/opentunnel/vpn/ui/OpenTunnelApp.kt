@@ -45,6 +45,7 @@ fun OpenTunnelApp(
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val logs by viewModel.logs.collectAsStateWithLifecycle()
     val profile by viewModel.profile.collectAsStateWithLifecycle()
+    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     val prompt by viewModel.pendingPrompt.collectAsStateWithLifecycle()
@@ -71,10 +72,12 @@ fun OpenTunnelApp(
                     status = status,
                     stats = stats,
                     profile = profile,
+                    profiles = profiles,
                     settings = settings,
                     onToggleConnection = {
                         if (status.stage.isActive) onRequestDisconnect() else onRequestConnect()
                     },
+                    onSelectProfile = viewModel::selectProfile,
                     onOpenProfile = { navController.navigate(Routes.PROFILE) },
                     onOpenSplitTunnel = { navController.navigate(Routes.SPLIT) },
                     onOpenLogs = { navController.navigate(Routes.LOGS) },

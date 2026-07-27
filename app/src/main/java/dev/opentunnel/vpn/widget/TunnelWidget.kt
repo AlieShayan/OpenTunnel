@@ -16,10 +16,10 @@ import dev.opentunnel.vpn.service.OpenTunnelVpnService
 import java.util.concurrent.TimeUnit
 
 /**
- * 2×2 (min) resizable home-screen widget for OpenTunnel.
+ * 2x2 (min) resizable home-screen widget for OpenTunnel.
  *
- * Shows current tunnel state and a single Connect/Disconnect/Cancel button.
- * Tapping the orb icon opens the main activity.
+ * Shows current tunnel state, location info (flag + name), and a single
+ * Connect/Disconnect/Cancel button. Tapping the orb icon opens the main activity.
  */
 class TunnelWidget : AppWidgetProvider() {
 
@@ -39,6 +39,7 @@ class TunnelWidget : AppWidgetProvider() {
         if (intent.action == ACTION_WIDGET_TOGGLE) {
             val stage = VpnBus.status.value.stage
             when {
+                // Allow cancellation during connecting as well
                 stage == ConnectionStage.CONNECTED || stage.isBusy ->
                     OpenTunnelVpnService.disconnect(context)
                 else ->
@@ -50,9 +51,6 @@ class TunnelWidget : AppWidgetProvider() {
     companion object {
         const val ACTION_WIDGET_TOGGLE = "dev.opentunnel.vpn.WIDGET_TOGGLE"
 
-        // ── public API called by the VPN service ─────────────────────────
-
-        /** Call this from OpenTunnelVpnService whenever tunnel state changes. */
         fun notifyAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(
@@ -63,8 +61,6 @@ class TunnelWidget : AppWidgetProvider() {
             ids.forEach { id -> updateWidget(context, manager, id, state) }
         }
 
-        // ── internals ────────────────────────────────────────────────────
-
         private fun buildWidgetState(): WidgetState {
             val status = VpnBus.status.value
             return when {
@@ -73,6 +69,8 @@ class TunnelWidget : AppWidgetProvider() {
                     WidgetState.Connected(
                         serverHost = status.info.server ?: "VPN",
                         elapsed = formatElapsed(elapsedMs),
+                        locationFlag = status.info.locationFlag.orEmpty(),
+                        locationName = status.info.locationName.orEmpty(),
                     )
                 }
                 status.stage.isBusy -> WidgetState.Connecting
@@ -95,7 +93,6 @@ class TunnelWidget : AppWidgetProvider() {
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_opentunnel)
 
-            // ── Orb → open main activity ─────────────────────────────────
             val launchPi = PendingIntent.getActivity(
                 context,
                 0,
@@ -104,7 +101,6 @@ class TunnelWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_orb, launchPi)
 
-            // ── Toggle button ────────────────────────────────────────────
             val togglePi = PendingIntent.getBroadcast(
                 context,
                 appWidgetId,
@@ -113,7 +109,6 @@ class TunnelWidget : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_btn_toggle, togglePi)
 
-            // ── State-specific appearance ────────────────────────────────
             when (state) {
                 is WidgetState.Disconnected -> {
                     views.setImageViewResource(R.id.widget_orb, R.drawable.ic_widget_orb_idle)
@@ -124,6 +119,7 @@ class TunnelWidget : AppWidgetProvider() {
                     views.setTextColor(R.id.widget_status_label, 0xFFA9B4C9.toInt())
                     views.setViewVisibility(R.id.widget_timer, View.GONE)
                     views.setViewVisibility(R.id.widget_server, View.GONE)
+                    views.setViewVisibility(R.id.widget_location, View.GONE)
                     views.setTextViewText(
                         R.id.widget_btn_toggle,
                         context.getString(R.string.widget_btn_connect),
@@ -147,9 +143,11 @@ class TunnelWidget : AppWidgetProvider() {
                         R.id.widget_status_label,
                         context.getString(R.string.widget_status_connecting),
                     )
-                    views.setTextColor(R.id.widget_status_label, 0xFFFFC66B.toInt()) // amber
+                    views.setTextColor(R.id.widget_status_label, 0xFFFFC66B.toInt())
                     views.setViewVisibility(R.id.widget_timer, View.GONE)
                     views.setViewVisibility(R.id.widget_server, View.GONE)
+                    views.setViewVisibility(R.id.widget_location, View.GONE)
+                    // Show Cancel during connecting
                     views.setTextViewText(
                         R.id.widget_btn_toggle,
                         context.getString(R.string.widget_btn_cancel),
@@ -173,11 +171,22 @@ class TunnelWidget : AppWidgetProvider() {
                         R.id.widget_status_label,
                         context.getString(R.string.widget_status_connected),
                     )
-                    views.setTextColor(R.id.widget_status_label, 0xFF5EE7C4.toInt()) // mint
+                    views.setTextColor(R.id.widget_status_label, 0xFF5EE7C4.toInt())
                     views.setViewVisibility(R.id.widget_server, View.VISIBLE)
                     views.setTextViewText(R.id.widget_server, state.serverHost)
                     views.setViewVisibility(R.id.widget_timer, View.VISIBLE)
                     views.setTextViewText(R.id.widget_timer, state.elapsed)
+                    // Location badge
+                    val locationText = buildString {
+                        if (state.locationFlag.isNotBlank()) append("${state.locationFlag} ")
+                        if (state.locationName.isNotBlank()) append(state.locationName)
+                    }.trim()
+                    if (locationText.isNotBlank()) {
+                        views.setViewVisibility(R.id.widget_location, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_location, locationText)
+                    } else {
+                        views.setViewVisibility(R.id.widget_location, View.GONE)
+                    }
                     views.setTextViewText(
                         R.id.widget_btn_toggle,
                         context.getString(R.string.widget_btn_disconnect),

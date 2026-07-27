@@ -23,15 +23,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Article
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,11 +41,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -69,8 +75,10 @@ fun HomeScreen(
     status: TunnelStatus,
     stats: TrafficStats,
     profile: VpnProfile,
+    profiles: List<VpnProfile>,
     settings: AppSettings,
     onToggleConnection: () -> Unit,
+    onSelectProfile: (String) -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
     onOpenLogs: () -> Unit,
@@ -114,7 +122,8 @@ fun HomeScreen(
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 ConnectOrb(
                     stage = status.stage,
-                    enabled = !status.stage.isBusy,
+                    // Always enabled — user can tap to cancel even while connecting
+                    enabled = true,
                     onClick = onToggleConnection,
                 )
             }
@@ -122,6 +131,22 @@ fun HomeScreen(
             Spacer(Modifier.height(18.dp))
 
             StatusLine(status = status)
+
+            // Location badge — shown when connected and location is resolved
+            AnimatedVisibility(
+                visible = status.stage == ConnectionStage.CONNECTED &&
+                    status.info.locationName != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                Column {
+                    Spacer(Modifier.height(10.dp))
+                    LocationBadge(
+                        flag = status.info.locationFlag.orEmpty(),
+                        name = status.info.locationName.orEmpty(),
+                    )
+                }
+            }
 
             Spacer(Modifier.height(22.dp))
 
@@ -149,15 +174,11 @@ fun HomeScreen(
             }
 
             SectionCard {
-                SettingRow(
-                    icon = Icons.Rounded.Public,
-                    title = profile.displayName,
-                    subtitle = when {
-                        !profile.isComplete -> "Tap to add your server, username and password"
-                        profile.username.isNotBlank() -> "${profile.username} · ${profile.protocol}"
-                        else -> profile.protocol
-                    },
-                    onClick = onOpenProfile,
+                ProfilePickerRow(
+                    profile = profile,
+                    profiles = profiles,
+                    onSelectProfile = onSelectProfile,
+                    onOpenProfile = onOpenProfile,
                 )
                 SettingRow(
                     icon = Icons.Rounded.Apps,
@@ -229,6 +250,116 @@ fun HomeScreen(
     }
 }
 
+// ── Profile Picker ─────────────────────────────────────────────────────────
+
+/**
+ * Shows the active profile name with a dropdown arrow. Tapping opens a menu
+ * listing all saved profiles. A secondary tap (on the title text) opens the
+ * profile editor for the currently active profile.
+ */
+@Composable
+private fun ProfilePickerRow(
+    profile: VpnProfile,
+    profiles: List<VpnProfile>,
+    onSelectProfile: (String) -> Unit,
+    onOpenProfile: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        SettingRow(
+            icon = Icons.Rounded.Public,
+            title = profile.displayName,
+            subtitle = when {
+                !profile.isComplete -> "Tap to add your server, username and password"
+                profile.username.isNotBlank() -> "${profile.username} · ${profile.protocol}"
+                else -> profile.protocol
+            },
+            trailing = {
+                // Only show dropdown arrow when there are multiple profiles
+                if (profiles.size > 1) {
+                    IconButton(onClick = { expanded = true }) {
+                        Icon(
+                            Icons.Rounded.ExpandMore,
+                            contentDescription = "Switch profile",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+            onClick = onOpenProfile,
+        )
+
+        if (profiles.size > 1) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                profiles.forEach { p ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(
+                                    text = p.displayName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (p.id == profile.id) FontWeight.Bold else FontWeight.Normal,
+                                )
+                                if (p.server.isNotBlank()) {
+                                    Text(
+                                        text = p.server,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            onSelectProfile(p.id)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── Location Badge ─────────────────────────────────────────────────────────
+
+@Composable
+private fun LocationBadge(flag: String, name: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (flag.isNotBlank()) {
+                    Text(
+                        text = flag,
+                        fontSize = 20.sp,
+                    )
+                }
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+}
+
+// ── Top bar ────────────────────────────────────────────────────────────────
+
 @Composable
 private fun HomeTopBar(onOpenSettings: () -> Unit, onOpenLogs: () -> Unit) {
     Row(
@@ -257,6 +388,8 @@ private fun HomeTopBar(onOpenSettings: () -> Unit, onOpenLogs: () -> Unit) {
         }
     }
 }
+
+// ── Status ─────────────────────────────────────────────────────────────────
 
 @Composable
 private fun StatusLine(status: TunnelStatus) {
@@ -303,6 +436,8 @@ private fun StatusLine(status: TunnelStatus) {
         }
     }
 }
+
+// ── Traffic ────────────────────────────────────────────────────────────────
 
 @Composable
 private fun TrafficRow(stats: TrafficStats) {
@@ -373,6 +508,8 @@ private fun TrafficTile(
     }
 }
 
+// ── Error ──────────────────────────────────────────────────────────────────
+
 @Composable
 private fun ErrorBanner(message: String) {
     Surface(
@@ -400,6 +537,8 @@ private fun ErrorBanner(message: String) {
     }
 }
 
+// ── Connection details ─────────────────────────────────────────────────────
+
 @Composable
 private fun ConnectionDetails(status: TunnelStatus) {
     val info = status.info
@@ -418,6 +557,10 @@ private fun ConnectionDetails(status: TunnelStatus) {
             }
             if (info.excludedApps > 0) {
                 DetailRow("Apps outside the tunnel", info.excludedApps.toString())
+            }
+            info.locationName?.let { name ->
+                val display = if (info.locationFlag != null) "${info.locationFlag} $name" else name
+                DetailRow("Location", display)
             }
         }
     }
