@@ -20,6 +20,7 @@ import dev.opentunnel.vpn.core.TunnelHost
 import dev.opentunnel.vpn.core.TunnelRunner
 import dev.opentunnel.vpn.core.VpnBus
 import dev.opentunnel.vpn.data.Repository
+import dev.opentunnel.vpn.util.LocationResolver
 import dev.opentunnel.vpn.util.SystemCaBundle
 import dev.opentunnel.vpn.widget.TunnelWidget
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +36,11 @@ import kotlinx.coroutines.launch
 /**
  * Owns the tunnel's lifetime: foreground notification, network monitoring, and
  * the worker thread that runs libopenconnect.
+ *
+ * v1.2.0 additions:
+ * - Disconnect/cancel is honoured at ANY stage including PREPARING/CONNECTING/AUTHENTICATING.
+ * - After the tunnel reaches CONNECTED, a background geo-IP lookup populates
+ *   [TunnelInfo.locationName] and [TunnelInfo.locationFlag] in [VpnBus].
  */
 class OpenTunnelVpnService : VpnService(), TunnelHost {
 
@@ -44,7 +50,12 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     @Volatile
     private var runner: TunnelRunner? = null
 
+    /** True while startTunnel() coroutine is in flight but before TunnelRunner is assigned. */
+    @Volatile
+    private var startingUp = false
+
     private var statsJob: Job? = null
+    private var locationJob: Job? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var lastNetworkId: Long = -1L
     private var reconnectOnNetworkChange = true
@@ -61,6 +72,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_DISCONNECT -> {
+                // Honour disconnect at ANY stage — including while still setting up.
                 stopTunnel()
                 return START_NOT_STICKY
             }
@@ -87,16 +99,17 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     override fun onDestroy() {
         stopNetworkMonitoring()
         statsJob?.cancel()
+        locationJob?.cancel()
         runner?.requestDisconnect()
         scope.cancel()
         super.onDestroy()
     }
 
-    // ── lifecycle ───────────────────────────────────────────────────────────
+    // ── lifecycle ──────────────────────────────────────────────────────
 
     private fun startTunnel() {
-        if (runner != null) {
-            VpnBus.info("Tunnel is already running")
+        if (startingUp || runner != null) {
+            VpnBus.info("Tunnel is already running or starting")
             return
         }
 
@@ -105,33 +118,39 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         goForeground()
 
         scope.launch {
-            val profile = repository.currentProfile()
-            val settings = repository.currentSettings()
-            reconnectOnNetworkChange = settings.reconnectOnNetworkChange
-            showStatsInNotification = settings.showStatsInNotification
+            startingUp = true
+            try {
+                val profile = repository.currentProfile()
+                val settings = repository.currentSettings()
+                reconnectOnNetworkChange = settings.reconnectOnNetworkChange
+                showStatsInNotification = settings.showStatsInNotification
 
-            if (!profile.isComplete) {
-                VpnBus.setError("Add a server address and username before connecting.")
-                stopSelfSafely()
-                return@launch
-            }
-            if (!NativeLibrary.isAvailable) {
-                VpnBus.setError(NativeLibrary.MISSING_MESSAGE)
-                stopSelfSafely()
-                return@launch
-            }
+                if (!profile.isComplete) {
+                    VpnBus.setError("Add a server address and username before connecting.")
+                    stopSelfSafely()
+                    return@launch
+                }
+                if (!NativeLibrary.isAvailable) {
+                    VpnBus.setError(NativeLibrary.MISSING_MESSAGE)
+                    stopSelfSafely()
+                    return@launch
+                }
 
-            val tunnel = TunnelRunner(this@OpenTunnelVpnService, profile, settings)
-            runner = tunnel
-            startNetworkMonitoring()
-            startStatsPolling()
-            tunnel.start()
+                val tunnel = TunnelRunner(this@OpenTunnelVpnService, profile, settings)
+                runner = tunnel
+                startNetworkMonitoring()
+                startStatsPolling()
+                tunnel.start()
+            } finally {
+                startingUp = false
+            }
         }
     }
 
     private fun stopTunnel() {
         val tunnel = runner
         if (tunnel == null) {
+            // Either not yet started or still in startingUp phase — clean up immediately.
             stopSelfSafely()
             return
         }
@@ -150,6 +169,8 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         stopNetworkMonitoring()
         statsJob?.cancel()
         statsJob = null
+        locationJob?.cancel()
+        locationJob = null
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         TunnelWidget.notifyAll(this)
         stopSelf()
@@ -174,7 +195,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         }
     }
 
-    // ── observers ───────────────────────────────────────────────────────────
+    // ── observers ─────────────────────────────────────────────────────────
 
     private fun observeStatus() {
         scope.launch {
@@ -195,7 +216,33 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                         }
                     }
                     TunnelWidget.notifyAll(this@OpenTunnelVpnService)
+
+                    // Kick off geo-IP lookup once the tunnel is fully connected.
+                    if (status.stage == ConnectionStage.CONNECTED &&
+                        status.info.locationName == null
+                    ) {
+                        startLocationLookup()
+                    }
                 }
+        }
+    }
+
+    private fun startLocationLookup() {
+        locationJob?.cancel()
+        locationJob = scope.launch {
+            VpnBus.info("Resolving connection location…")
+            val loc = LocationResolver.resolve()
+            if (loc != null) {
+                VpnBus.updateInfo { info ->
+                    info.copy(
+                        locationName = "${loc.country}, ${loc.city}",
+                        locationFlag = loc.flagEmoji,
+                    )
+                }
+                VpnBus.info("Location: ${loc.displayLine}")
+            } else {
+                VpnBus.info("Could not resolve connection location")
+            }
         }
     }
 
@@ -268,7 +315,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         runCatching { getSystemService<ConnectivityManager>()?.unregisterNetworkCallback(callback) }
     }
 
-    // ── TunnelHost ──────────────────────────────────────────────────────────
+    // ── TunnelHost ───────────────────────────────────────────────────────────
 
     override fun newBuilder(): Builder = Builder()
 
@@ -282,6 +329,8 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
 
     override fun onTunnelFinished(error: String?) {
         runner = null
+        locationJob?.cancel()
+        locationJob = null
         scope.launch {
             if (error != null) {
                 VpnBus.setError(error)
