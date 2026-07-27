@@ -180,6 +180,8 @@ fun SettingsScreen(
                     checked = settings.connectOnBoot,
                     onCheckedChange = onConnectOnBoot,
                 )
+            }
+
             SectionCard(title = Strings.systemSection(lang)) {
                 SettingRow(
                     icon = Icons.Rounded.Lock,

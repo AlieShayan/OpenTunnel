@@ -51,6 +51,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.opentunnel.vpn.data.VpnProfile
+import dev.opentunnel.vpn.data.AppLanguage
+import dev.opentunnel.vpn.util.Strings
 import dev.opentunnel.vpn.ui.components.SectionCard
 
 private val REPORTED_OS = listOf(
@@ -89,9 +91,6 @@ private val BATCH_MODES = listOf(
     "disabled" to "Disabled",
     "enabled" to "Enabled",
 )
-
-import dev.opentunnel.vpn.data.AppLanguage
-import dev.opentunnel.vpn.util.Strings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
