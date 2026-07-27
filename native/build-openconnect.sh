@@ -344,7 +344,10 @@ build_abi() {
         # with -version-number, so override the libtool flags for this target.
         make libopenconnect.map >/dev/null 2>&1 || true
         VSCRIPT=""
-        [[ -f libopenconnect.map ]] && VSCRIPT="-Wl,--version-script,libopenconnect.map"
+        if [[ -f libopenconnect.map ]]; then
+            sed -i '/global:/a \    Java_*;' libopenconnect.map
+            VSCRIPT="-Wl,--version-script,libopenconnect.map"
+        fi
 
         make -j"$JOBS" libopenconnect.la \
             libopenconnect_la_LDFLAGS="-avoid-version -no-undefined $VSCRIPT" \

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Widget background: --surface #0C111C @ 85% alpha, 28dp corners, outline border -->
+<!-- Widget background: surface #0C111C @ 85% alpha, 28dp corners, outline border -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="#D90C111C" />
