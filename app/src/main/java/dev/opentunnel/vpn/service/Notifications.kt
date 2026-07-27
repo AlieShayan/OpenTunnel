@@ -73,7 +73,7 @@ object Notifications {
         stats: TrafficStats,
         showStats: Boolean,
     ): Notification {
-        val title = when (status.stage) {
+        val titlePrefix = when (status.stage) {
             ConnectionStage.CONNECTED -> context.getString(R.string.notif_connected)
             ConnectionStage.RECONNECTING -> context.getString(R.string.notif_reconnecting)
             ConnectionStage.DISCONNECTING -> context.getString(R.string.notif_disconnecting)
@@ -81,19 +81,31 @@ object Notifications {
             else -> context.getString(R.string.notif_connecting)
         }
 
-        val subtitle = buildString {
-            status.info.server?.let { append(it) }
-            if (status.stage == ConnectionStage.CONNECTED && showStats) {
-                if (isNotEmpty()) append("  ·  ")
-                append("↓ ${Formatters.bytes(stats.rxBytes)}   ↑ ${Formatters.bytes(stats.txBytes)}")
-            }
-            if (isEmpty()) append(status.detail ?: status.error ?: "")
+        val serverName = status.info.profileDisplayName.takeIf { !it.isNullOrBlank() }
+            ?: status.info.server
+        val title = if (!serverName.isNullOrBlank()) "$titlePrefix · $serverName" else titlePrefix
+
+        val subtitle = if (status.stage == ConnectionStage.CONNECTED && showStats) {
+            "↓ ${Formatters.bytes(stats.rxBytes)}   ↑ ${Formatters.bytes(stats.txBytes)}"
+        } else {
+            status.detail ?: status.error ?: ""
         }
+
+        val bigText = buildString {
+            if (!status.info.server.isNullOrBlank()) append("Server: ${status.info.server}\n")
+            if (status.stage == ConnectionStage.CONNECTED) {
+                append("↓ Downloaded: ${Formatters.bytes(stats.rxBytes)}\n")
+                append("↑ Uploaded: ${Formatters.bytes(stats.txBytes)}")
+            } else if (!subtitle.isBlank()) {
+                append(subtitle)
+            }
+        }.trim()
 
         return NotificationCompat.Builder(context, STATUS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(subtitle)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setContentIntent(contentIntent(context))
             .setOngoing(status.stage != ConnectionStage.ERROR)
             .setOnlyAlertOnce(true)

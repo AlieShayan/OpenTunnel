@@ -257,25 +257,10 @@ class TunnelRunner(
         return runCatching {
             val uri = java.net.URI(rawUrl)
             val host = uri.host ?: return rawUrl
-            if (Net.isValidIp(host)) {
-                return rawUrl
+            if (!Net.isValidIp(host)) {
+                lib.setHostname(host)
             }
-            lib.setHostname(host)
-
-            val addrs = java.net.InetAddress.getAllByName(host)
-            val v4 = addrs.firstOrNull { it is java.net.Inet4Address }
-            val targetAddr = (v4 ?: addrs.firstOrNull())?.hostAddress ?: return rawUrl
-
-            VpnBus.log(LogLevel.DEBUG, "Resolved $host -> $targetAddr")
-
-            val portStr = if (uri.port != -1) ":${uri.port}" else ""
-            val userInfo = uri.userInfo?.let { "$it@" } ?: ""
-            val scheme = uri.scheme ?: "https"
-            val path = uri.rawPath ?: ""
-            val query = uri.rawQuery?.let { "?$it" } ?: ""
-            val fragment = uri.rawFragment?.let { "#$it" } ?: ""
-
-            "$scheme://$userInfo$targetAddr$portStr$path$query$fragment"
+            rawUrl
         }.getOrDefault(rawUrl)
     }
 

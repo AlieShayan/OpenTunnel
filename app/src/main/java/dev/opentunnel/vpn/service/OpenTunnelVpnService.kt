@@ -231,8 +231,10 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         }
     }
 
+    private var locationAttemptCount = 0
+
     private fun startLocationLookup() {
-        locationJob?.cancel()
+        if (locationJob?.isActive == true) return
         locationJob = scope.launch {
             VpnBus.info("Resolving connection location…")
             val loc = LocationResolver.resolve()
@@ -247,7 +249,9 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                 VpnBus.info("Location: ${loc.displayLine}")
                 TunnelWidget.notifyAll(this@OpenTunnelVpnService)
             } else {
+                locationAttemptCount++
                 VpnBus.info("Could not resolve connection location")
+                delay(15_000L)
             }
         }
     }
@@ -333,10 +337,12 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                     runner?.requestReconnect()
                 }
                 lastNetworkId = id
+                runCatching { setUnderlyingNetworks(arrayOf(network)) }
             }
 
             override fun onLost(network: Network) {
                 VpnBus.info("Network lost")
+                runCatching { setUnderlyingNetworks(null) }
             }
         }
 

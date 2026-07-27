@@ -21,7 +21,9 @@ import java.util.concurrent.TimeUnit
  * Shows current tunnel state, location info (flag + name), and a single
  * Connect/Disconnect/Cancel button. Tapping the orb icon opens the main activity.
  */
-class TunnelWidget : AppWidgetProvider() {
+open class TunnelWidget : AppWidgetProvider() {
+
+    protected open val layoutResId: Int = R.layout.widget_opentunnel_2x2
 
     override fun onUpdate(
         context: Context,
@@ -30,7 +32,7 @@ class TunnelWidget : AppWidgetProvider() {
     ) {
         val state = buildWidgetState()
         appWidgetIds.forEach { id ->
-            updateWidget(context, appWidgetManager, id, state)
+            updateWidget(context, appWidgetManager, id, layoutResId, state)
         }
     }
 
@@ -39,7 +41,6 @@ class TunnelWidget : AppWidgetProvider() {
         if (intent.action == ACTION_WIDGET_TOGGLE) {
             val stage = VpnBus.status.value.stage
             when {
-                // Allow cancellation during connecting as well
                 stage == ConnectionStage.CONNECTED || stage.isBusy ->
                     OpenTunnelVpnService.disconnect(context)
                 else ->
@@ -52,13 +53,24 @@ class TunnelWidget : AppWidgetProvider() {
         const val ACTION_WIDGET_TOGGLE = "dev.opentunnel.vpn.WIDGET_TOGGLE"
 
         fun notifyAll(context: Context) {
-            val manager = AppWidgetManager.getInstance(context)
-            val ids = manager.getAppWidgetIds(
-                ComponentName(context, TunnelWidget::class.java)
-            )
-            if (ids.isEmpty()) return
+            val manager = AppWidgetManager.getInstance(context) ?: return
             val state = buildWidgetState()
-            ids.forEach { id -> updateWidget(context, manager, id, state) }
+
+            updateProvider(context, manager, TunnelWidget::class.java, R.layout.widget_opentunnel_2x2, state)
+            updateProvider(context, manager, TunnelWidget2x2::class.java, R.layout.widget_opentunnel_2x2, state)
+            updateProvider(context, manager, TunnelWidget3x2::class.java, R.layout.widget_opentunnel_3x2, state)
+            updateProvider(context, manager, TunnelWidget4x1::class.java, R.layout.widget_opentunnel_4x1, state)
+        }
+
+        private fun updateProvider(
+            context: Context,
+            manager: AppWidgetManager,
+            providerClass: Class<*>,
+            layoutResId: Int,
+            state: WidgetState,
+        ) {
+            val ids = manager.getAppWidgetIds(ComponentName(context, providerClass))
+            ids.forEach { id -> updateWidget(context, manager, id, layoutResId, state) }
         }
 
         private fun buildWidgetState(): WidgetState {
@@ -70,10 +82,6 @@ class TunnelWidget : AppWidgetProvider() {
                     val pingStr = if (status.info.pingMs >= 0) "⚡ ${status.info.pingMs} ms" else ""
                     val rxStr = dev.opentunnel.vpn.util.Formatters.bytes(stats.rxBytes)
                     val txStr = dev.opentunnel.vpn.util.Formatters.bytes(stats.txBytes)
-                    val trafficStr = buildString {
-                        append("⬇ $rxStr  ⬆ $txStr")
-                        if (pingStr.isNotBlank()) append("  $pingStr")
-                    }
 
                     WidgetState.Connected(
                         profileName = status.info.profileDisplayName ?: status.info.server ?: "VPN",
@@ -84,7 +92,7 @@ class TunnelWidget : AppWidgetProvider() {
                         outboundIp = status.info.outboundIp.orEmpty(),
                         downloadedFormatted = rxStr,
                         uploadedFormatted = txStr,
-                        pingMsFormatted = trafficStr,
+                        pingMsFormatted = pingStr,
                     )
                 }
                 status.stage.isBusy -> WidgetState.Connecting
@@ -103,9 +111,10 @@ class TunnelWidget : AppWidgetProvider() {
             context: Context,
             manager: AppWidgetManager,
             appWidgetId: Int,
+            layoutResId: Int,
             state: WidgetState,
         ) {
-            val views = RemoteViews(context.packageName, R.layout.widget_opentunnel)
+            val views = RemoteViews(context.packageName, layoutResId)
 
             val launchPi = PendingIntent.getActivity(
                 context,
@@ -136,6 +145,7 @@ class TunnelWidget : AppWidgetProvider() {
                     views.setViewVisibility(R.id.widget_ip, View.GONE)
                     views.setViewVisibility(R.id.widget_location, View.GONE)
                     views.setViewVisibility(R.id.widget_traffic, View.GONE)
+                    views.setViewVisibility(R.id.widget_ping, View.GONE)
                     views.setTextViewText(
                         R.id.widget_btn_toggle,
                         context.getString(R.string.widget_btn_connect),
@@ -165,6 +175,7 @@ class TunnelWidget : AppWidgetProvider() {
                     views.setViewVisibility(R.id.widget_ip, View.GONE)
                     views.setViewVisibility(R.id.widget_location, View.GONE)
                     views.setViewVisibility(R.id.widget_traffic, View.GONE)
+                    views.setViewVisibility(R.id.widget_ping, View.GONE)
                     // Show Cancel during connecting
                     views.setTextViewText(
                         R.id.widget_btn_toggle,
@@ -215,12 +226,19 @@ class TunnelWidget : AppWidgetProvider() {
                         views.setViewVisibility(R.id.widget_location, View.GONE)
                     }
 
-                    // Traffic & Ping line
+                    // Traffic line
+                    views.setViewVisibility(R.id.widget_traffic, View.VISIBLE)
+                    views.setTextViewText(
+                        R.id.widget_traffic,
+                        "⬇ ${state.downloadedFormatted}  ⬆ ${state.uploadedFormatted}",
+                    )
+
+                    // Dedicated Ping line
                     if (state.pingMsFormatted.isNotBlank()) {
-                        views.setViewVisibility(R.id.widget_traffic, View.VISIBLE)
-                        views.setTextViewText(R.id.widget_traffic, state.pingMsFormatted)
+                        views.setViewVisibility(R.id.widget_ping, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_ping, state.pingMsFormatted)
                     } else {
-                        views.setViewVisibility(R.id.widget_traffic, View.GONE)
+                        views.setViewVisibility(R.id.widget_ping, View.GONE)
                     }
 
                     views.setTextViewText(
@@ -244,4 +262,16 @@ class TunnelWidget : AppWidgetProvider() {
             manager.updateAppWidget(appWidgetId, views)
         }
     }
+}
+
+class TunnelWidget2x2 : TunnelWidget() {
+    override val layoutResId: Int = R.layout.widget_opentunnel_2x2
+}
+
+class TunnelWidget3x2 : TunnelWidget() {
+    override val layoutResId: Int = R.layout.widget_opentunnel_3x2
+}
+
+class TunnelWidget4x1 : TunnelWidget() {
+    override val layoutResId: Int = R.layout.widget_opentunnel_4x1
 }

@@ -91,9 +91,10 @@
             </intent-filter>
         </receiver>
 
-        <!-- Home-screen widget -->
+        <!-- Home-screen widgets (2x2, 3x2, 4x1) -->
         <receiver
             android:name=".widget.TunnelWidget"
+            android:label="OpenTunnel (2×2)"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -101,7 +102,46 @@
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/opentunnel_widget_info" />
+                android:resource="@xml/widget_info_2x2" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TunnelWidget2x2"
+            android:label="OpenTunnel (2×2)"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="dev.opentunnel.vpn.WIDGET_TOGGLE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_2x2" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TunnelWidget3x2"
+            android:label="OpenTunnel (3×2)"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="dev.opentunnel.vpn.WIDGET_TOGGLE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_3x2" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TunnelWidget4x1"
+            android:label="OpenTunnel (4×1)"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="dev.opentunnel.vpn.WIDGET_TOGGLE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_4x1" />
         </receiver>
 
     </application>

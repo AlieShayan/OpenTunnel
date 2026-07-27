@@ -23,8 +23,8 @@ android {
         applicationId = "dev.opentunnel.vpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "3.0.0"
+        versionCode = 6
+        versionName = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "3.0.1"
 
         ndk {
             // Only package the ABIs the native script actually produced.

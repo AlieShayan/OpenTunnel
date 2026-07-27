@@ -36,7 +36,7 @@ object LocationResolver {
     }
 
     suspend fun resolve(): Location? = withContext(Dispatchers.IO) {
-        resolveIpApi() ?: resolveIpApiCo() ?: resolveIpInfo()
+        resolveIpWhoIs() ?: resolveFreeIpApi() ?: resolveIpApiCo() ?: resolveIpInfo()
     }
 
     private fun fetchJson(urlString: String): JSONObject? = runCatching {
@@ -52,15 +52,29 @@ object LocationResolver {
         JSONObject(body)
     }.getOrNull()
 
-    private fun resolveIpApi(): Location? {
-        val obj = fetchJson("https://ip-api.com/json/?fields=status,query,country,countryCode,city") ?: return null
-        if (obj.optString("status") != "success") return null
+    private fun resolveIpWhoIs(): Location? {
+        val obj = fetchJson("https://ipwho.is/") ?: return null
+        if (!obj.optBoolean("success", false)) return null
         val country = obj.optString("country", "")
-        val countryCode = obj.optString("countryCode", "")
+        val countryCode = obj.optString("country_code", "")
         val city = obj.optString("city", "")
         if (country.isBlank() || countryCode.isBlank()) return null
         return Location(
-            ip = obj.optString("query", ""),
+            ip = obj.optString("ip", ""),
+            country = country,
+            countryCode = countryCode,
+            city = city,
+        )
+    }
+
+    private fun resolveFreeIpApi(): Location? {
+        val obj = fetchJson("https://freeipapi.com/api/json") ?: return null
+        val country = obj.optString("countryName", "")
+        val countryCode = obj.optString("countryCode", "")
+        val city = obj.optString("cityName", "")
+        if (country.isBlank() || countryCode.isBlank()) return null
+        return Location(
+            ip = obj.optString("ipAddress", ""),
             country = country,
             countryCode = countryCode,
             city = city,

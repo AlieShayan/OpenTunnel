@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Home-screen widget layout for OpenTunnel.
-  Uses RemoteViews-compatible views only (no Compose, no custom views).
-  Min size: 2×2 cells. Resizable up to 4×2.
--->
+<!-- 3x2 Card Home-screen widget layout for OpenTunnel -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -21,7 +17,7 @@
         android:src="@drawable/ic_widget_orb_idle"
         android:contentDescription="@string/widget_orb_desc" />
 
-    <!-- State label: NOT CONNECTED / CONNECTING / CONNECTED -->
+    <!-- State label -->
     <TextView
         android:id="@+id/widget_status_label"
         android:layout_width="wrap_content"
@@ -34,12 +30,12 @@
         android:letterSpacing="0.08"
         android:textAllCaps="true" />
 
-    <!-- Profile & Server name (connected only) -->
+    <!-- Profile & Server name -->
     <TextView
         android:id="@+id/widget_server"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="1dp"
+        android:layout_marginTop="2dp"
         android:text=""
         android:textColor="#E4E9F4"
         android:textSize="11sp"
@@ -48,7 +44,7 @@
         android:ellipsize="end"
         android:visibility="gone" />
 
-    <!-- Outbound IP (connected only) -->
+    <!-- Outbound IP -->
     <TextView
         android:id="@+id/widget_ip"
         android:layout_width="wrap_content"
@@ -61,7 +57,7 @@
         android:ellipsize="end"
         android:visibility="gone" />
 
-    <!-- Location info (connected only) -->
+    <!-- Location info -->
     <TextView
         android:id="@+id/widget_location"
         android:layout_width="wrap_content"
@@ -74,7 +70,7 @@
         android:ellipsize="end"
         android:visibility="gone" />
 
-    <!-- Traffic stats (connected only) -->
+    <!-- Traffic stats -->
     <TextView
         android:id="@+id/widget_traffic"
         android:layout_width="wrap_content"
@@ -87,7 +83,7 @@
         android:maxLines="1"
         android:visibility="gone" />
 
-    <!-- Ping (connected only) -->
+    <!-- Dedicated Ping line -->
     <TextView
         android:id="@+id/widget_ping"
         android:layout_width="wrap_content"
@@ -100,7 +96,7 @@
         android:maxLines="1"
         android:visibility="gone" />
 
-    <!-- Elapsed time (connected only) -->
+    <!-- Elapsed time -->
     <TextView
         android:id="@+id/widget_timer"
         android:layout_width="wrap_content"
@@ -112,12 +108,12 @@
         android:fontFamily="monospace"
         android:visibility="gone" />
 
-    <!-- Connect / Disconnect / Cancel button -->
+    <!-- Connect / Disconnect button -->
     <Button
         android:id="@+id/widget_btn_toggle"
         android:layout_width="match_parent"
         android:layout_height="34dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:background="@drawable/widget_btn_idle_bg"
         android:text="@string/widget_btn_connect"
         android:textColor="#A9B4C9"

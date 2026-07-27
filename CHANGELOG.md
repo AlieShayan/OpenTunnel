@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.0] - 2026-07-27
+
+### Added
+- **Three Home Screen Widget Sizes (2x2, 3x2, 4x1)**: Added distinct 2x2 compact, 3x2 card, and 4x1 horizontal bar widget options (`widget_opentunnel_2x2`, `widget_opentunnel_3x2`, `widget_opentunnel_4x1`) registered as separate launcher widget choices.
+- **Dedicated Widget Ping Display**: Added a dedicated `widget_ping` TextView view element to display live Ping (`⚡ ms`) on its own line across widget layouts.
+
+### Fixed
+- **Wi-Fi Connectivity & Physical Interface Binding**: Bound protected VPN sockets to active underlying networks via `setUnderlyingNetworks()` and preserved domain hostnames in `resolveServerUrl` for TLS SNI and HTTP `Host` header compliance on Wi-Fi.
+- **Location Lookup Loop**: Prevented premature cancellation of active location resolution jobs on 1-second stats emissions, and integrated fast HTTPS GeoIP endpoints (`https://ipwho.is/`, `https://freeipapi.com/api/json`).
+- **Notification Panel Stats Truncation**: Formatted Download (`↓`) and Upload (`↑`) counters and BigText view in `Notifications.kt` to ensure traffic numbers remain visible on MIUI / Android status bars.
+- **Release Versioning & Debug Artifact Exclusion**: Dynamically resolved `versionName` from release tag (`v3.1.0`) in `build.gradle.kts` and filtered GitHub Release action assets to `app/build/outputs/apk/release/*.apk`.
+
+---
+
 ## [3.0.0] - 2026-07-27
 
 ### Added
