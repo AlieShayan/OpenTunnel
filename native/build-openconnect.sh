@@ -245,6 +245,16 @@ build_abi() {
         )
     fi
 
+    # OpenConnect's configure script with --with-openssl=DIR expects libssl.a
+    # and libcrypto.a directly under $PREFIX rather than $PREFIX/lib or $PREFIX/lib64.
+    for lib in libssl.a libcrypto.a; do
+        if [[ -f "$PREFIX/lib/$lib" ]]; then
+            ln -sf "lib/$lib" "$PREFIX/$lib"
+        elif [[ -f "$PREFIX/lib64/$lib" ]]; then
+            ln -sf "lib64/$lib" "$PREFIX/$lib"
+        fi
+    done
+
     # ---------------- libxml2 (CMake) ----------------
     if [[ -f "$PREFIX/lib/libxml2.a" ]]; then
         sub "libxml2  already built"
