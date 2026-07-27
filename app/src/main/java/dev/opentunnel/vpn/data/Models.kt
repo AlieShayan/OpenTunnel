@@ -8,11 +8,13 @@ import kotlinx.serialization.Serializable
  * Everything needed to reach one AnyConnect/openconnect gateway.
  *
  * [password] is held in memory in the clear but is always encrypted before it
- * touches disk — see [ProfileStore].
+ * touches disk — see [Repository].
  */
 @Serializable
 @Immutable
 data class VpnProfile(
+    /** Unique identifier for this profile. Auto-generated if blank. */
+    val id: String = "",
     val name: String = "",
     /** Hostname, "host:port", or a full https:// URL including the group path. */
     val server: String = "",
@@ -72,4 +74,7 @@ data class AppSettings(
     val reconnectOnNetworkChange: Boolean = true,
     val showStatsInNotification: Boolean = true,
     val verboseLogging: Boolean = false,
+
+    /** ID of the currently active profile. Empty means use the first available. */
+    val activeProfileId: String = "",
 )
