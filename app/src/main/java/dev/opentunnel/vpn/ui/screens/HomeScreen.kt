@@ -123,9 +123,9 @@ fun HomeScreen(
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 ConnectOrb(
                     stage = status.stage,
-                    // Always enabled — user can tap to cancel even while connecting
-                    enabled = true,
                     onClick = onToggleConnection,
+                    lang = settings.appLanguage,
+                    enabled = true,
                 )
             }
 
@@ -136,7 +136,7 @@ fun HomeScreen(
             // Location badge — shown when connected and location is resolved
             AnimatedVisibility(
                 visible = status.stage == ConnectionStage.CONNECTED &&
-                    status.info.locationName != null,
+                    (status.info.locationName != null || status.info.pingMs >= 0),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
             ) {
@@ -145,6 +145,7 @@ fun HomeScreen(
                     LocationBadge(
                         flag = status.info.locationFlag.orEmpty(),
                         name = status.info.locationName.orEmpty(),
+                        pingMs = status.info.pingMs,
                     )
                 }
             }
@@ -209,7 +210,7 @@ fun HomeScreen(
                 SettingRow(
                     icon = Icons.Rounded.Article,
                     title = dev.opentunnel.vpn.util.Strings.logsTitle(settings.appLanguage),
-                    subtitle = "Everything openconnect reports, live",
+                    subtitle = dev.opentunnel.vpn.util.Strings.logsSubtitle(settings.appLanguage),
                     iconTint = scheme.secondary,
                     iconBackground = scheme.secondary.copy(alpha = 0.14f),
                     onClick = onOpenLogs,
@@ -217,7 +218,7 @@ fun HomeScreen(
                 SettingRow(
                     icon = Icons.Rounded.Tune,
                     title = dev.opentunnel.vpn.util.Strings.settingsTitle(settings.appLanguage),
-                    subtitle = "Appearance, reconnection, diagnostics",
+                    subtitle = dev.opentunnel.vpn.util.Strings.settingsSubtitle(settings.appLanguage),
                     iconTint = scheme.onSurfaceVariant,
                     iconBackground = scheme.onSurfaceVariant.copy(alpha = 0.12f),
                     onClick = onOpenSettings,
@@ -339,7 +340,7 @@ private fun ProfilePickerRow(
 // ── Location Badge ─────────────────────────────────────────────────────────
 
 @Composable
-private fun LocationBadge(flag: String, name: String) {
+private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -360,17 +361,34 @@ private fun LocationBadge(flag: String, name: String) {
                         fontSize = 20.sp,
                     )
                 }
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                if (name.isNotBlank()) {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                if (pingMs >= 0) {
+                    if (name.isNotBlank()) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = "⚡ $pingMs ms",
+                        style = MaterialTheme.typography.bodyMedium.merge(MonoNumberStyle),
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
 }
 
-// ── Top bar ────────────────────────────────────────────────────────────────
+// ── Top bar ────────────────────────────────────────────────----------------
 
 @Composable
 private fun HomeTopBar(onOpenSettings: () -> Unit, onOpenLogs: () -> Unit) {
@@ -411,7 +429,12 @@ private fun StatusLine(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLa
         ConnectionStage.CONNECTED -> status.info.server ?: dev.opentunnel.vpn.util.Strings.connected(lang)
         ConnectionStage.IDLE -> dev.opentunnel.vpn.util.Strings.notConnected(lang)
         ConnectionStage.ERROR -> dev.opentunnel.vpn.util.Strings.connectionFailed(lang)
-        else -> status.detail ?: "Working…"
+        ConnectionStage.AUTHENTICATING -> dev.opentunnel.vpn.util.Strings.authenticating(lang)
+        ConnectionStage.PREPARING -> dev.opentunnel.vpn.util.Strings.preparing(lang)
+        ConnectionStage.CONNECTING -> dev.opentunnel.vpn.util.Strings.connecting(lang)
+        ConnectionStage.DISCONNECTING -> dev.opentunnel.vpn.util.Strings.disconnecting(lang)
+        ConnectionStage.RECONNECTING -> dev.opentunnel.vpn.util.Strings.reconnecting(lang)
+        else -> status.detail ?: dev.opentunnel.vpn.util.Strings.connecting(lang)
     }
 
     val tint = when (status.stage) {
@@ -437,7 +460,7 @@ private fun StatusLine(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLa
             val elapsed by produceState(0L, status.connectedAtElapsed) {
                 while (true) {
                     value = SystemClock.elapsedRealtime() - status.connectedAtElapsed
-                    delay(500)
+                    delay(1000)
                 }
             }
             Text(
@@ -573,6 +596,9 @@ private fun ConnectionDetails(status: TunnelStatus, lang: dev.opentunnel.vpn.dat
             info.locationName?.let { name ->
                 val display = if (info.locationFlag != null) "${info.locationFlag} $name" else name
                 DetailRow(dev.opentunnel.vpn.util.Strings.locationLabel(lang), display)
+            }
+            if (info.pingMs >= 0) {
+                DetailRow(dev.opentunnel.vpn.util.Strings.pingLabel(lang), "${info.pingMs} ms")
             }
         }
     }

@@ -144,7 +144,8 @@ class TunnelRunner(
 
         applyPreferences(lib)
 
-        val url = normaliseServer(profile.server)
+        val rawUrl = normaliseServer(profile.server)
+        val url = resolveServerUrl(rawUrl, lib)
         VpnBus.info("Connecting to $url")
         if (lib.parseURL(url) != 0) {
             return "Could not parse the server address “${profile.server}”."
@@ -250,6 +251,32 @@ class TunnelRunner(
             value.startsWith("http://", ignoreCase = true) -> "https://" + value.substring(7)
             else -> "https://$value"
         }
+    }
+
+    private fun resolveServerUrl(rawUrl: String, lib: Session): String {
+        return runCatching {
+            val uri = java.net.URI(rawUrl)
+            val host = uri.host ?: return rawUrl
+            if (Net.isValidIp(host)) {
+                return rawUrl
+            }
+            lib.setHostname(host)
+
+            val addrs = java.net.InetAddress.getAllByName(host)
+            val v4 = addrs.firstOrNull { it is java.net.Inet4Address }
+            val targetAddr = (v4 ?: addrs.firstOrNull())?.hostAddress ?: return rawUrl
+
+            VpnBus.log(LogLevel.DEBUG, "Resolved $host -> $targetAddr")
+
+            val portStr = if (uri.port != -1) ":${uri.port}" else ""
+            val userInfo = uri.userInfo?.let { "$it@" } ?: ""
+            val scheme = uri.scheme ?: "https"
+            val path = uri.rawPath ?: ""
+            val query = uri.rawQuery?.let { "?$it" } ?: ""
+            val fragment = uri.rawFragment?.let { "#$it" } ?: ""
+
+            "$scheme://$userInfo$targetAddr$portStr$path$query$fragment"
+        }.getOrDefault(rawUrl)
     }
 
     // ── tun setup ───────────────────────────────────────────────────────────

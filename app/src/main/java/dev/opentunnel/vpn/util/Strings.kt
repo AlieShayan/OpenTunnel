@@ -32,6 +32,10 @@ object Strings {
     // ── HomeScreen ───────────────────────────────────────────────────────────
     fun notConnected(lang: AppLanguage): String = if (isRtl(lang)) "متصل نیست" else "Not connected"
     fun connecting(lang: AppLanguage): String = if (isRtl(lang)) "در حال اتصال…" else "Connecting…"
+    fun authenticating(lang: AppLanguage): String = if (isRtl(lang)) "در حال احراز هویت…" else "Authenticating…"
+    fun preparing(lang: AppLanguage): String = if (isRtl(lang)) "در حال آماده‌سازی…" else "Preparing…"
+    fun disconnecting(lang: AppLanguage): String = if (isRtl(lang)) "در حال قطع اتصال…" else "Disconnecting…"
+    fun reconnecting(lang: AppLanguage): String = if (isRtl(lang)) "در حال اتصال مجدد…" else "Reconnecting…"
     fun connected(lang: AppLanguage): String = if (isRtl(lang)) "اتصال امن برقرار است" else "Secure tunnel active"
     fun connectionFailed(lang: AppLanguage): String = if (isRtl(lang)) "خطا در اتصال" else "Connection failed"
     fun downloaded(lang: AppLanguage): String = if (isRtl(lang)) "دریافتی (دانلود)" else "Downloaded"
@@ -46,6 +50,15 @@ object Strings {
     fun dtlsChannel(lang: AppLanguage): String = if (isRtl(lang)) "کانال ${ltr("DTLS")}" else "DTLS channel"
     fun locationLabel(lang: AppLanguage): String = if (isRtl(lang)) "موقعیت خروجی" else "Location"
     fun pingLabel(lang: AppLanguage): String = if (isRtl(lang)) "پینگ" else "Ping"
+    fun logsSubtitle(lang: AppLanguage): String = if (isRtl(lang)) "گزارش زنده تمام رویدادهای ${ltr("openconnect")}" else "Everything openconnect reports, live"
+    fun settingsSubtitle(lang: AppLanguage): String = if (isRtl(lang)) "ظاهر، اتصال مجدد و عیب‌یابی" else "Appearance, reconnection, diagnostics"
+
+    // ── Connect Orb Labels ──────────────────────────────────────────────────
+    fun orbConnect(lang: AppLanguage): String = if (isRtl(lang)) "اتصال" else "CONNECT"
+    fun orbConnected(lang: AppLanguage): String = if (isRtl(lang)) "متصل" else "CONNECTED"
+    fun orbRetry(lang: AppLanguage): String = if (isRtl(lang)) "تلاش مجدد" else "RETRY"
+    fun orbStopping(lang: AppLanguage): String = if (isRtl(lang)) "توقف" else "STOPPING"
+    fun orbCancel(lang: AppLanguage): String = if (isRtl(lang)) "لغو" else "CANCEL"
 
     // ── Profile Management ──────────────────────────────────────────────────
     fun addProfile(lang: AppLanguage): String = if (isRtl(lang)) "افزودن پروفایل" else "Add profile"
@@ -96,6 +109,28 @@ object Strings {
     fun dpdSeconds(lang: AppLanguage): String = if (isRtl(lang)) "مهلت ${ltr("DPD")} (ثانیه)" else "DPD timeout (seconds)"
     fun vpnProtocol(lang: AppLanguage): String = if (isRtl(lang)) "پروتکل ${ltr("VPN")}" else "VPN protocol"
 
+    // ── Split Tunneling ─────────────────────────────────────────────────────
+    fun splitTunnelHeaderTitle(lang: AppLanguage): String = if (isRtl(lang)) "مسیریابی مستقیم برنامه‌ها" else "Route apps around the VPN"
+    fun splitTunnelDisabledSub(lang: AppLanguage): String = if (isRtl(lang)) "در حال حاضر تمام برنامه‌ها از تونل عبور می‌کنند" else "Every app currently goes through the tunnel"
+    fun splitTunnelNoAppsSub(lang: AppLanguage): String = if (isRtl(lang)) "برنامه‌هایی که نباید از تونل عبور کنند را انتخاب کنید" else "Pick the apps to leave outside the tunnel"
+    fun splitTunnelExcludeCountSub(lang: AppLanguage, count: Int): String =
+        if (isRtl(lang)) "$count برنامه مستقیم به اینترنت متصل می‌شوند" else "$count app(s) will use your normal connection"
+    fun splitTunnelIncludeCountSub(lang: AppLanguage, count: Int): String =
+        if (isRtl(lang)) "تنها $count برنامه از تونل استفاده خواهند کرد" else "Only $count app(s) will use the tunnel"
+    fun splitTunnelNotice(lang: AppLanguage): String = if (isRtl(lang)) "تغییرات در اتصال بعدی تونل اعمال می‌شوند." else "Changes apply the next time the tunnel connects."
+    fun splitTunnelBypassMode(lang: AppLanguage): String = if (isRtl(lang)) "عدم عبور برنامه‌های انتخاب‌شده" else "Selected apps bypass VPN"
+    fun splitTunnelOnlyMode(lang: AppLanguage): String = if (isRtl(lang)) "فقط برنامه‌های انتخاب‌شده" else "Only selected use VPN"
+    fun splitTunnelSearchPlaceholder(lang: AppLanguage): String = if (isRtl(lang)) "جستجوی برنامه‌ها…" else "Search apps"
+    fun splitTunnelClear(lang: AppLanguage): String = if (isRtl(lang)) "پاک‌سازی" else "Clear"
+    fun splitTunnelFilterAll(lang: AppLanguage): String = if (isRtl(lang)) "همه" else "All"
+    fun splitTunnelFilterSelected(lang: AppLanguage): String = if (isRtl(lang)) "انتخاب‌شده" else "Selected"
+    fun splitTunnelFilterInstalled(lang: AppLanguage): String = if (isRtl(lang)) "نصب‌شده" else "Installed"
+    fun splitTunnelFilterSystem(lang: AppLanguage): String = if (isRtl(lang)) "سیستم" else "System"
+    fun splitTunnelEmptyDisabled(lang: AppLanguage): String =
+        if (isRtl(lang)) "برای تعیین برنامه‌های خارج از ${ltr("VPN")}، تونل‌سازی جداگانه را روشن کنید." else "Turn split tunnelling on to choose which apps skip the VPN."
+    fun splitTunnelNoMatches(lang: AppLanguage, query: String): String =
+        if (isRtl(lang)) "هیچ برنامه‌ای با «$query» مطابقت نداشت." else "No apps match “$query”."
+
     // ── SettingsScreen ───────────────────────────────────────────────────────
     fun appearance(lang: AppLanguage): String = if (isRtl(lang)) "ظاهر و پوسته" else "Appearance"
     fun theme(lang: AppLanguage): String = if (isRtl(lang)) "پوسته برنامه" else "Theme"
@@ -106,6 +141,9 @@ object Strings {
     fun langSystem(lang: AppLanguage): String = if (isRtl(lang)) "پیش‌فرض سیستم" else "System Default"
     fun langEnglish(lang: AppLanguage): String = if (isRtl(lang)) "English (انگلیسی)" else "English"
     fun langPersian(lang: AppLanguage): String = if (isRtl(lang)) "فارسی (Persian)" else "فارسی (Persian)"
+    fun dynamicColorTitle(lang: AppLanguage): String = if (isRtl(lang)) "رنگ‌بندی پوسته سیستم" else "Wallpaper colours"
+    fun dynamicColorSub(lang: AppLanguage): String =
+        if (isRtl(lang)) "هماهنگ‌سازی رنگ‌های برنامه با تصویر پس‌زمینه (${ltr("Material You")})" else "Tint the app with your Material You palette"
     fun tunnelBehaviour(lang: AppLanguage): String = if (isRtl(lang)) "رفتار تونل" else "Tunnel behaviour"
     fun bypassLocal(lang: AppLanguage): String = if (isRtl(lang)) "عدم عبور ترافیک شبکه محلی از ${ltr("VPN")}" else "Keep local network off the VPN"
     fun bypassLocalSub(lang: AppLanguage): String =
@@ -114,10 +152,18 @@ object Strings {
     fun reconnectNetworkSub(lang: AppLanguage): String =
         if (isRtl(lang)) "اتصال مجدد هنگام جابجایی بین ${ltr("Wi-Fi")} و دیتای موبایل" else "Re-establish the tunnel when moving between Wi-Fi and mobile data"
     fun connectOnBoot(lang: AppLanguage): String = if (isRtl(lang)) "اتصال خودکار پس از روشن شدن دستگاه" else "Connect after restart"
+    fun connectOnBootSub(lang: AppLanguage): String =
+        if (isRtl(lang)) "نیازمند اعطای حداقل یک‌بار مجوز ${ltr("VPN")} است" else "Needs VPN permission to have been granted at least once"
     fun systemSection(lang: AppLanguage): String = if (isRtl(lang)) "سیستم" else "System"
     fun alwaysOnVpn(lang: AppLanguage): String = if (isRtl(lang)) "${ltr("VPN")} همیشه روشن" else "Always-on VPN"
+    fun alwaysOnVpnSub(lang: AppLanguage): String =
+        if (isRtl(lang)) "باز کردن تنظیمات ${ltr("VPN")} اندروید برای فعال‌سازی اتصال همیشگی" else "Open Android's VPN settings to make this the always-on VPN and block traffic when it drops"
     fun statsNotification(lang: AppLanguage): String = if (isRtl(lang)) "نمایش میزان ترافیک در اعلان" else "Traffic counters in the notification"
+    fun statsNotificationSub(lang: AppLanguage): String =
+        if (isRtl(lang)) "نمایش مجموع ترافیک ارسالی و دریافتی در اعلان" else "Show total up/down in the ongoing notification"
     fun diagnostics(lang: AppLanguage): String = if (isRtl(lang)) "عیب‌یابی و لاگ" else "Diagnostics"
     fun verboseLogging(lang: AppLanguage): String = if (isRtl(lang)) "ثبت لاگ‌های تفصیلی (${ltr("Verbose")})" else "Verbose logging"
+    fun verboseLoggingSub(lang: AppLanguage): String =
+        if (isRtl(lang)) "شامل کردن لاگ‌های دیباگ ${ltr("openconnect")} در لاگ اتصال" else "Include openconnect debug output in the connection log"
     fun about(lang: AppLanguage): String = if (isRtl(lang)) "درباره برنامه" else "About"
 }

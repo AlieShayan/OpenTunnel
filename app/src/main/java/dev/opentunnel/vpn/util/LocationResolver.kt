@@ -14,7 +14,6 @@ import java.net.URL
  */
 object LocationResolver {
 
-    private const val API = "http://ip-api.com/json/?fields=status,query,country,countryCode,city"
     private const val TIMEOUT_MS = 5_000
 
     data class Location(
@@ -37,23 +36,61 @@ object LocationResolver {
     }
 
     suspend fun resolve(): Location? = withContext(Dispatchers.IO) {
-        runCatching {
-            val url = URL(API)
-            val conn = url.openConnection() as HttpURLConnection
-            conn.connectTimeout = TIMEOUT_MS
-            conn.readTimeout = TIMEOUT_MS
-            conn.requestMethod = "GET"
-            conn.setRequestProperty("Accept", "application/json")
-            if (conn.responseCode != 200) return@runCatching null
-            val body = conn.inputStream.bufferedReader().readText()
-            val obj = JSONObject(body)
-            if (obj.optString("status") != "success") return@runCatching null
-            Location(
-                ip = obj.optString("query", ""),
-                country = obj.getString("country"),
-                countryCode = obj.getString("countryCode"),
-                city = obj.getString("city"),
-            )
-        }.getOrNull()
+        resolveIpApi() ?: resolveIpApiCo() ?: resolveIpInfo()
+    }
+
+    private fun fetchJson(urlString: String): JSONObject? = runCatching {
+        val url = URL(urlString)
+        val conn = url.openConnection() as HttpURLConnection
+        conn.connectTimeout = TIMEOUT_MS
+        conn.readTimeout = TIMEOUT_MS
+        conn.requestMethod = "GET"
+        conn.setRequestProperty("User-Agent", "OpenTunnel/1.0")
+        conn.setRequestProperty("Accept", "application/json")
+        if (conn.responseCode != 200) return@runCatching null
+        val body = conn.inputStream.bufferedReader().readText()
+        JSONObject(body)
+    }.getOrNull()
+
+    private fun resolveIpApi(): Location? {
+        val obj = fetchJson("https://ip-api.com/json/?fields=status,query,country,countryCode,city") ?: return null
+        if (obj.optString("status") != "success") return null
+        val country = obj.optString("country", "")
+        val countryCode = obj.optString("countryCode", "")
+        val city = obj.optString("city", "")
+        if (country.isBlank() || countryCode.isBlank()) return null
+        return Location(
+            ip = obj.optString("query", ""),
+            country = country,
+            countryCode = countryCode,
+            city = city,
+        )
+    }
+
+    private fun resolveIpApiCo(): Location? {
+        val obj = fetchJson("https://ipapi.co/json/") ?: return null
+        val country = obj.optString("country_name", "")
+        val countryCode = obj.optString("country_code", "")
+        val city = obj.optString("city", "")
+        if (country.isBlank() || countryCode.isBlank()) return null
+        return Location(
+            ip = obj.optString("ip", ""),
+            country = country,
+            countryCode = countryCode,
+            city = city,
+        )
+    }
+
+    private fun resolveIpInfo(): Location? {
+        val obj = fetchJson("https://ipinfo.io/json") ?: return null
+        val countryCode = obj.optString("country", "")
+        val city = obj.optString("city", "")
+        if (countryCode.isBlank()) return null
+        return Location(
+            ip = obj.optString("ip", ""),
+            country = countryCode,
+            countryCode = countryCode,
+            city = city,
+        )
     }
 }

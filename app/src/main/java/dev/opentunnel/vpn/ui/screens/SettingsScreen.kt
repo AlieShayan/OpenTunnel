@@ -107,13 +107,16 @@ fun SettingsScreen(
                                     index = index,
                                     count = ThemeMode.entries.size,
                                 ),
+                                modifier = Modifier.weight(1f),
                                 label = {
                                     Text(
                                         when (mode) {
                                             ThemeMode.SYSTEM -> Strings.themeSystem(lang)
                                             ThemeMode.DARK -> Strings.themeDark(lang)
                                             ThemeMode.LIGHT -> Strings.themeLight(lang)
-                                        }
+                                        },
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 },
                             )
@@ -135,13 +138,16 @@ fun SettingsScreen(
                                     index = index,
                                     count = AppLanguage.entries.size,
                                 ),
+                                modifier = Modifier.weight(1f),
                                 label = {
                                     Text(
-                                        when (l) {
+                                        text = when (l) {
                                             AppLanguage.SYSTEM -> Strings.langSystem(lang)
                                             AppLanguage.ENGLISH -> "English"
                                             AppLanguage.PERSIAN -> "فارسی"
-                                        }
+                                        },
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 },
                             )
@@ -151,8 +157,8 @@ fun SettingsScreen(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     SwitchRow(
                         icon = Icons.Rounded.Palette,
-                        title = "Wallpaper colours",
-                        subtitle = "Tint the app with your Material You palette",
+                        title = Strings.dynamicColorTitle(lang),
+                        subtitle = Strings.dynamicColorSub(lang),
                         checked = settings.dynamicColor,
                         onCheckedChange = onDynamicColor,
                     )
@@ -177,7 +183,7 @@ fun SettingsScreen(
                 SwitchRow(
                     icon = Icons.Rounded.PowerSettingsNew,
                     title = Strings.connectOnBoot(lang),
-                    subtitle = "Needs VPN permission to have been granted at least once",
+                    subtitle = Strings.connectOnBootSub(lang),
                     checked = settings.connectOnBoot,
                     onCheckedChange = onConnectOnBoot,
                 )
@@ -187,7 +193,7 @@ fun SettingsScreen(
                 SettingRow(
                     icon = Icons.Rounded.Lock,
                     title = Strings.alwaysOnVpn(lang),
-                    subtitle = "Open Android's VPN settings to make this the always-on VPN and block traffic when it drops",
+                    subtitle = Strings.alwaysOnVpnSub(lang),
                     onClick = {
                         runCatching {
                             context.startActivity(
@@ -200,7 +206,7 @@ fun SettingsScreen(
                 SwitchRow(
                     icon = Icons.Rounded.Notifications,
                     title = Strings.statsNotification(lang),
-                    subtitle = "Show total up/down in the ongoing notification",
+                    subtitle = Strings.statsNotificationSub(lang),
                     checked = settings.showStatsInNotification,
                     onCheckedChange = onShowStatsInNotification,
                 )
@@ -210,7 +216,7 @@ fun SettingsScreen(
                 SwitchRow(
                     icon = Icons.Rounded.BugReport,
                     title = Strings.verboseLogging(lang),
-                    subtitle = "Include openconnect debug output in the connection log",
+                    subtitle = Strings.verboseLoggingSub(lang),
                     checked = settings.verboseLogging,
                     onCheckedChange = onVerboseLogging,
                 )

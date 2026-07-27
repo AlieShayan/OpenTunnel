@@ -59,11 +59,18 @@ import dev.opentunnel.vpn.data.InstalledApp
 import dev.opentunnel.vpn.data.InstalledApps
 import dev.opentunnel.vpn.data.SplitTunnelMode
 
-private enum class AppFilter(val label: String) {
-    ALL("All"),
-    SELECTED("Selected"),
-    USER("Installed"),
-    SYSTEM("System"),
+private enum class AppFilter {
+    ALL,
+    SELECTED,
+    USER,
+    SYSTEM;
+
+    fun getLabel(lang: dev.opentunnel.vpn.data.AppLanguage): String = when (this) {
+        ALL -> dev.opentunnel.vpn.util.Strings.splitTunnelFilterAll(lang)
+        SELECTED -> dev.opentunnel.vpn.util.Strings.splitTunnelFilterSelected(lang)
+        USER -> dev.opentunnel.vpn.util.Strings.splitTunnelFilterInstalled(lang)
+        SYSTEM -> dev.opentunnel.vpn.util.Strings.splitTunnelFilterSystem(lang)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +85,7 @@ fun SplitTunnelScreen(
     onClearAll: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val lang = settings.appLanguage
     LaunchedEffect(Unit) { onLoadApps() }
 
     var query by remember { mutableStateOf("") }
@@ -103,15 +111,15 @@ fun SplitTunnelScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(dev.opentunnel.vpn.util.Strings.splitTunnelTitle(settings.appLanguage)) },
+                title = { Text(dev.opentunnel.vpn.util.Strings.splitTunnelTitle(lang)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = dev.opentunnel.vpn.util.Strings.cancel(lang))
                     }
                 },
                 actions = {
                     if (selected.isNotEmpty()) {
-                        TextButton(onClick = onClearAll) { Text("Clear") }
+                        TextButton(onClick = onClearAll) { Text(dev.opentunnel.vpn.util.Strings.splitTunnelClear(lang)) }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -129,6 +137,7 @@ fun SplitTunnelScreen(
                 enabled = settings.splitTunnelEnabled,
                 mode = settings.splitTunnelMode,
                 selectedCount = selected.size,
+                lang = lang,
                 onToggleEnabled = onToggleEnabled,
                 onChangeMode = onChangeMode,
             )
@@ -139,12 +148,12 @@ fun SplitTunnelScreen(
                     OutlinedTextField(
                         value = query,
                         onValueChange = { query = it },
-                        placeholder = { Text("Search apps") },
+                        placeholder = { Text(dev.opentunnel.vpn.util.Strings.splitTunnelSearchPlaceholder(lang)) },
                         leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                         trailingIcon = {
                             if (query.isNotEmpty()) {
                                 IconButton(onClick = { query = "" }) {
-                                    Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+                                    Icon(Icons.Rounded.Close, contentDescription = null)
                                 }
                             }
                         },
@@ -167,7 +176,7 @@ fun SplitTunnelScreen(
                             FilterChip(
                                 selected = filter == option,
                                 onClick = { filter = option },
-                                label = { Text(option.label) },
+                                label = { Text(option.getLabel(lang)) },
                                 shape = MaterialTheme.shapes.small,
                             )
                         }
@@ -178,9 +187,7 @@ fun SplitTunnelScreen(
             }
 
             if (!settings.splitTunnelEnabled) {
-                EmptyHint(
-                    "Turn split tunnelling on to choose which apps skip the VPN."
-                )
+                EmptyHint(dev.opentunnel.vpn.util.Strings.splitTunnelEmptyDisabled(lang))
                 return@Column
             }
 
@@ -192,7 +199,7 @@ fun SplitTunnelScreen(
                     contentAlignment = Alignment.Center,
                 ) { CircularProgressIndicator() }
 
-                visible.isEmpty() -> EmptyHint("No apps match “$query”.")
+                visible.isEmpty() -> EmptyHint(dev.opentunnel.vpn.util.Strings.splitTunnelNoMatches(lang, query))
 
                 else -> LazyColumn(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -215,6 +222,7 @@ private fun HeaderCard(
     enabled: Boolean,
     mode: SplitTunnelMode,
     selectedCount: Int,
+    lang: dev.opentunnel.vpn.data.AppLanguage,
     onToggleEnabled: (Boolean) -> Unit,
     onChangeMode: (SplitTunnelMode) -> Unit,
 ) {
@@ -229,16 +237,16 @@ private fun HeaderCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Route apps around the VPN",
+                        dev.opentunnel.vpn.util.Strings.splitTunnelHeaderTitle(lang),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
                         when {
-                            !enabled -> "Every app currently goes through the tunnel"
-                            selectedCount == 0 -> "Pick the apps to leave outside the tunnel"
+                            !enabled -> dev.opentunnel.vpn.util.Strings.splitTunnelDisabledSub(lang)
+                            selectedCount == 0 -> dev.opentunnel.vpn.util.Strings.splitTunnelNoAppsSub(lang)
                             mode == SplitTunnelMode.EXCLUDE_SELECTED ->
-                                "$selectedCount app(s) will use your normal connection"
-                            else -> "Only $selectedCount app(s) will use the tunnel"
+                                dev.opentunnel.vpn.util.Strings.splitTunnelExcludeCountSub(lang, selectedCount)
+                            else -> dev.opentunnel.vpn.util.Strings.splitTunnelIncludeCountSub(lang, selectedCount)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -251,10 +259,10 @@ private fun HeaderCard(
             AnimatedVisibility(visible = enabled) {
                 Column {
                     Spacer(Modifier.height(14.dp))
-                    ModeSelector(mode = mode, onChangeMode = onChangeMode)
+                    ModeSelector(mode = mode, lang = lang, onChangeMode = onChangeMode)
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Changes apply the next time the tunnel connects.",
+                        dev.opentunnel.vpn.util.Strings.splitTunnelNotice(lang),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp),
@@ -266,7 +274,11 @@ private fun HeaderCard(
 }
 
 @Composable
-private fun ModeSelector(mode: SplitTunnelMode, onChangeMode: (SplitTunnelMode) -> Unit) {
+private fun ModeSelector(
+    mode: SplitTunnelMode,
+    lang: dev.opentunnel.vpn.data.AppLanguage,
+    onChangeMode: (SplitTunnelMode) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -276,13 +288,13 @@ private fun ModeSelector(mode: SplitTunnelMode, onChangeMode: (SplitTunnelMode) 
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         ModeOption(
-            text = "Selected apps bypass VPN",
+            text = dev.opentunnel.vpn.util.Strings.splitTunnelBypassMode(lang),
             selected = mode == SplitTunnelMode.EXCLUDE_SELECTED,
             modifier = Modifier.weight(1f),
             onClick = { onChangeMode(SplitTunnelMode.EXCLUDE_SELECTED) },
         )
         ModeOption(
-            text = "Only selected use VPN",
+            text = dev.opentunnel.vpn.util.Strings.splitTunnelOnlyMode(lang),
             selected = mode == SplitTunnelMode.INCLUDE_SELECTED,
             modifier = Modifier.weight(1f),
             onClick = { onChangeMode(SplitTunnelMode.INCLUDE_SELECTED) },

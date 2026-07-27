@@ -299,13 +299,25 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         }
     }
 
-    private fun measurePing(): Long = runCatching {
-        val start = android.os.SystemClock.elapsedRealtime()
-        java.net.Socket().use { socket ->
-            socket.connect(java.net.InetSocketAddress("1.1.1.1", 53), 3000)
+    private fun measurePing(): Long {
+        val targets = listOf(
+            "1.1.1.1" to 443,
+            "1.1.1.1" to 53,
+            "8.8.8.8" to 53,
+            "1.0.0.1" to 443,
+        )
+        for ((host, port) in targets) {
+            val ms = runCatching {
+                val start = android.os.SystemClock.elapsedRealtime()
+                java.net.Socket().use { socket ->
+                    socket.connect(java.net.InetSocketAddress(host, port), 2000)
+                }
+                android.os.SystemClock.elapsedRealtime() - start
+            }.getOrDefault(-1L)
+            if (ms >= 0) return ms
         }
-        android.os.SystemClock.elapsedRealtime() - start
-    }.getOrElse { -1L }
+        return -1L
+    }
 
     // ── network monitoring ──────────────────────────────────────────────────
 
@@ -376,8 +388,8 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         const val ACTION_DISCONNECT = "dev.opentunnel.vpn.DISCONNECT"
         const val ACTION_RECONNECT = "dev.opentunnel.vpn.RECONNECT"
 
-        private const val STATS_INTERVAL_MS = 2_000L
-        private const val PING_INTERVAL_MS = 5_000L
+        private const val STATS_INTERVAL_MS = 1_000L
+        private const val PING_INTERVAL_MS = 4_000L
         private const val FORCE_STOP_AFTER_MS = 6_000L
 
         fun connect(context: Context) {

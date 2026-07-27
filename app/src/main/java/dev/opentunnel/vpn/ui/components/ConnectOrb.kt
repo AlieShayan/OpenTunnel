@@ -66,6 +66,7 @@ fun ConnectOrb(
     stage: ConnectionStage,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    lang: dev.opentunnel.vpn.data.AppLanguage = dev.opentunnel.vpn.data.AppLanguage.SYSTEM,
     enabled: Boolean = true,          // kept for API compat but defaults true everywhere
     diameter: Dp = 228.dp,
 ) {
@@ -232,13 +233,11 @@ fun ConnectOrb(
             )
             Text(
                 text = when (stage) {
-                    ConnectionStage.CONNECTED -> "CONNECTED"
-                    ConnectionStage.IDLE -> "CONNECT"
-                    ConnectionStage.ERROR -> "RETRY"
-                    ConnectionStage.DISCONNECTING -> "STOPPING"
-                    ConnectionStage.RECONNECTING -> "CANCEL"
-                    ConnectionStage.AUTHENTICATING -> "CANCEL"
-                    else -> "CANCEL"
+                    ConnectionStage.CONNECTED -> dev.opentunnel.vpn.util.Strings.orbConnected(lang)
+                    ConnectionStage.IDLE -> dev.opentunnel.vpn.util.Strings.orbConnect(lang)
+                    ConnectionStage.ERROR -> dev.opentunnel.vpn.util.Strings.orbRetry(lang)
+                    ConnectionStage.DISCONNECTING -> dev.opentunnel.vpn.util.Strings.orbStopping(lang)
+                    else -> dev.opentunnel.vpn.util.Strings.orbCancel(lang)
                 },
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontSize = 12.sp,
