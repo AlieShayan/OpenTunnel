@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.2] - 2026-07-27
+
+### Fixed
+- **Release Build Signing & Signature Consistency**: Enforced `release` signing config in `buildTypes.release` and threw a Gradle build exception when no keystore is present to prevent signature mismatch errors during APK updates.
+- **Wi-Fi DNS Pre-Resolution & DoH Fallback**: Integrated DNS pre-resolution in `TunnelRunner.kt` using system DNS first, with an automatic fallback to DNS-over-HTTPS (DoH via Cloudflare `1.1.1.1` & Google `8.8.8.8`) on Wi-Fi networks with broken/filtered DNS.
+
+### Changed
+- **Codebase Documentation Standardization**: Replaced all inline Persian comments in source code and Gradle build scripts with standard English documentation.
+
+---
+
 ## [3.1.1] - 2026-07-27
 
 ### Fixed

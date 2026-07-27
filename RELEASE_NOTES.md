@@ -1,5 +1,13 @@
 ## 🇮🇷 فارسی (Persian)
 
+### 🚀 تغییرات نسخه 3.1.2
+
+- 🔒 **رفع خطای آپدیت (Signature Mismatch)**: الزام ساخت امضای Release در Gradle و جلوگیری از سوئیچ خودکار به کلید Debug برای یکسان ماندن امضای APK در به‌روزرسانی‌ها.
+- 🌐 **حل مشکل عدم اتصال روی شبکه‌های Wi-Fi**: افزودن رزولوشن خودکار DNS-over-HTTPS (DoH از طریق Cloudflare `1.1.1.1` و Google `8.8.8.8`) هنگام شکست خوردن DNS شبکه وای‌فای.
+- 🧹 **پاک‌سازی کامنت‌های پروژه**: ترجمه و یکدست‌سازی کامنت‌های خطی کاتلین و اسکریپت‌ها به زبان انگلیسی.
+
+---
+
 ### 🚀 تغییرات نسخه 3.1.1
 
 - 📐 **پشتیبانی کامل ویجت افقی (۴×۱) از ۴ ستون**:
@@ -47,6 +55,22 @@
 ---
 
 ## 🇬🇧 English
+
+### 🚀 What's New in v3.1.2
+
+- 🔒 **Enforced Release Build Signing**: Fixed APK update signature mismatch by requiring release signing keys and removing debug fallback.
+- 🌐 **DNS-over-HTTPS (DoH) Fallback**: Added automatic DoH resolution (Cloudflare `1.1.1.1` & Google `8.8.8.8`) for hostnames when Wi-Fi DNS fails.
+- 🧹 **Cleaned Codebase Documentation**: Replaced all Persian inline comments across Kotlin code and build scripts with standard English documentation.
+
+---
+
+### 🚀 What's New in v3.1.1
+
+- 📊 **4x1 Widget Grid Expansion**: Removed `maxResizeWidth` restriction allowing full 4-column stretching across all Android launchers.
+- 🔤 **Enhanced Typography**: Scaled font sizes for server names, IP addresses, ping, and status indicators across 2x2, 3x2, and 4x1 widgets.
+- 📶 **Wi-Fi Hotspot & Tethering Fix**: Set requested MTU to 1350 and default User-Agent to official AnyConnect header to prevent TLS fragmentation drops.
+
+---
 
 ### 🚀 What's New in v3.1.0
 

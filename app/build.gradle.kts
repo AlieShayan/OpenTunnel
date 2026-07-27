@@ -23,8 +23,8 @@ android {
         applicationId = "dev.opentunnel.vpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "3.1.1"
+        versionCode = 8
+        versionName = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "3.1.2"
 
         ndk {
             // Only package the ABIs the native script actually produced.
@@ -43,25 +43,24 @@ android {
     }
 
     signingConfigs {
-        /* Optional release signing. Create keystore.properties in the project
-         * root (see README) and it will be picked up automatically; otherwise
-         * use rootProject release.keystore if present. */
         val keystorePropsFile = rootProject.file("keystore.properties")
         val rootKeystoreFile = rootProject.file("release.keystore")
-        if (keystorePropsFile.exists()) {
-            create("release") {
+        create("release") {
+            if (keystorePropsFile.exists()) {
                 val props = Properties().apply { keystorePropsFile.inputStream().use { load(it) } }
                 storeFile = rootProject.file(props.getProperty("storeFile"))
                 storePassword = props.getProperty("storePassword")
                 keyAlias = props.getProperty("keyAlias")
                 keyPassword = props.getProperty("keyPassword")
-            }
-        } else if (rootKeystoreFile.exists()) {
-            create("release") {
+            } else if (rootKeystoreFile.exists()) {
                 storeFile = rootKeystoreFile
                 storePassword = "opentunnelreleasekey"
                 keyAlias = "opentunnel"
                 keyPassword = "opentunnelreleasekey"
+            } else {
+                throw GradleException(
+                    "No signing key found. Provide keystore.properties or release.keystore."
+                )
             }
         }
     }
@@ -74,11 +73,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            if (signingConfigs.findByName("release") != null) {
-                signingConfig = signingConfigs.getByName("release")
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

@@ -260,11 +260,66 @@ class TunnelRunner(
         return runCatching {
             val uri = java.net.URI(rawUrl)
             val host = uri.host ?: return rawUrl
-            if (!Net.isValidIp(host)) {
-                lib.setHostname(host)
+            if (Net.isValidIp(host)) return rawUrl   // already an IP
+
+            lib.setHostname(host)
+
+            // Try system DNS first
+            val systemIp = runCatching {
+                java.net.InetAddress.getByName(host).hostAddress
+            }.getOrNull()
+
+            if (systemIp != null && systemIp.isNotBlank()) {
+                VpnBus.log(LogLevel.DEBUG, "Resolved $host → $systemIp (system DNS)")
+                return buildResolvedUrl(uri, systemIp)
             }
+
+            // System DNS failed - fallback to DoH via Cloudflare / Google
+            VpnBus.log(LogLevel.DEBUG, "System DNS failed for $host, trying DoH fallback")
+            val dohIp = resolveViaDoh(host)
+            if (dohIp != null) {
+                VpnBus.log(LogLevel.DEBUG, "Resolved $host → $dohIp (DoH fallback)")
+                return buildResolvedUrl(uri, dohIp)
+            }
+
+            VpnBus.log(LogLevel.DEBUG, "DNS resolution failed for $host, trying hostname directly")
             rawUrl
         }.getOrDefault(rawUrl)
+    }
+
+    private fun buildResolvedUrl(uri: java.net.URI, ip: String): String {
+        val safeIp = if (ip.contains(':')) "[$ip]" else ip  // IPv6 needs brackets
+        val port = if (uri.port > 0) ":${uri.port}" else ""
+        val path = uri.rawPath.ifEmpty { "/" }
+        return "https://$safeIp$port$path"
+    }
+
+    /**
+     * DNS-over-HTTPS fallback via Cloudflare 1.1.1.1.
+     * VpnService.protect() is NOT called here because the VPN tunnel is not yet up.
+     */
+    private fun resolveViaDoh(hostname: String): String? {
+        val encodedName = java.net.URLEncoder.encode(hostname, "UTF-8")
+        val dohUrls = listOf(
+            "https://1.1.1.1/dns-query?name=$encodedName&type=A",
+            "https://8.8.8.8/dns-query?name=$encodedName&type=A",
+        )
+        for (url in dohUrls) {
+            val ip = runCatching {
+                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                conn.setRequestProperty("Accept", "application/dns-json")
+                conn.connectTimeout = 5_000
+                conn.readTimeout = 5_000
+                conn.connect()
+                val body = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+                // Simple JSON regex parsing to extract first A record
+                val regex = Regex(""""data"\s*:\s*"([\d.]+)"""")
+                regex.find(body)?.groupValues?.get(1)
+            }.getOrNull()
+            if (!ip.isNullOrBlank()) return ip
+        }
+        return null
     }
 
     // ── tun setup ───────────────────────────────────────────────────────────
