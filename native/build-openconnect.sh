@@ -319,7 +319,7 @@ build_abi() {
         "$OC_SRC/configure" \
             --host="$TRIPLE" \
             --prefix="$PREFIX" \
-            --with-openssl="$PREFIX" \
+            --with-openssl \
             --without-gnutls \
             --with-java="$JNI_INC" \
             --enable-jni-standalone \
@@ -330,6 +330,8 @@ build_abi() {
             --without-gssapi --without-libproxy --without-libpskc \
             --without-openssl-version-check \
             --disable-dsa-tests \
+            OPENSSL_CFLAGS="-I$PREFIX/include" \
+            OPENSSL_LIBS="$PREFIX/lib/libssl.a $PREFIX/lib/libcrypto.a" \
             CFLAGS="$COMMON_CFLAGS" \
             LDFLAGS="-L$PREFIX/lib -Wl,--gc-sections" \
             LIBS="-lz" \
