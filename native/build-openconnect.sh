@@ -161,6 +161,13 @@ unpack "lz4-$LZ4_VER.tar.gz"                 "lz4-$LZ4_VER"
 
 OC_SRC="$BUILD_DIR/src/openconnect-$OPENCONNECT_VER"
 
+# Patch openconnect symbol map templates so JNI Java_* symbols are in global scope across all ABIs
+for mapfile in "$OC_SRC/libopenconnect.map.in" "$OC_SRC/libopenconnect.map" "$OC_SRC/src/libopenconnect.map.in"; do
+    if [[ -f "$mapfile" ]] && ! grep -q "Java_\*" "$mapfile"; then
+        sed -i 's/global:/global:\n\tJava_*;/' "$mapfile"
+    fi
+done
+
 # --------------------------------------------------------------------------
 # Per-ABI build
 # --------------------------------------------------------------------------
@@ -345,7 +352,9 @@ build_abi() {
         make libopenconnect.map >/dev/null 2>&1 || true
         VSCRIPT=""
         if [[ -f libopenconnect.map ]]; then
-            sed -i '/global:/a \    Java_*;' libopenconnect.map
+            if ! grep -q "Java_\*" libopenconnect.map; then
+                sed -i 's/global:/global:\n\tJava_*;/' libopenconnect.map
+            fi
             VSCRIPT="-Wl,--version-script,libopenconnect.map"
         fi
 
