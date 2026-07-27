@@ -36,6 +36,17 @@ data class TunnelInfo(
     val serverRoutes: List<String> = emptyList(),
     val excludedApps: Int = 0,
     val certFingerprint: String? = null,
+    /**
+     * Human-readable country/city name resolved after connection, e.g. "Netherlands, Amsterdam".
+     * Null while resolving or if lookup failed.
+     */
+    val locationName: String? = null,
+    /**
+     * Unicode flag emoji for the country, e.g. "\uD83C\uDDF3\uD83C\uDDF1" for NL.
+     * Derived from the ISO-3166-1 alpha-2 country code returned by the geo-IP lookup.
+     * Null when [locationName] is null.
+     */
+    val locationFlag: String? = null,
 )
 
 @Immutable
