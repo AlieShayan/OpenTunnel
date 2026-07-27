@@ -1,4 +1,4 @@
-# OpenTunnel v3.1.1
+# OpenTunnel v3.1.2
 
 [![Latest Release](https://img.shields.io/github/v/release/AlieShayan/OpenTunnel?color=0080FF&style=for-the-badge&logo=github)](https://github.com/AlieShayan/OpenTunnel/releases/latest)
 [![License](https://img.shields.io/badge/License-LGPL%202.1-orange.svg?style=for-the-badge)](LICENSE)
@@ -7,19 +7,18 @@
 
 An open-source, high-performance Android client for **Cisco AnyConnect** and OpenConnect SSL VPNs. OpenTunnel is powered by the native `openconnect` C engine compiled for Android with OpenSSL 3.x, featuring a modern Material You interface, multi-profile management, granular split tunneling, 1-second real-time telemetry, 3 home-screen widget sizes (2x2, 3x2, 4x1), and complete English & Persian (Farsi) localization.
 
-[📥 **Download Latest APK (v3.1.1)**](https://github.com/AlieShayan/OpenTunnel/releases/latest)
+[📥 **Download Latest APK (v3.1.2)**](https://github.com/AlieShayan/OpenTunnel/releases/latest)
 
 ---
 
 
-## 🚀 What's New in Version 3.1.1
+## 🚀 What's New in Version 3.1.2
 
-- 📐 **Full 4-Column Horizontal Widget (4×1)**: Removed width caps so the horizontal widget stretches fully across 4 screen columns without text overflow or button clipping.
-- 🔤 **Enhanced Readability Across All Widgets**: Increased text sizes for labels, status, IP, location, and timer across 2×2, 3×2, and 4×1 widgets for clear readability.
-- 📶 **Wi-Fi Hotspot & Tethering Connection Fix**: Resolved SSL negotiation timeouts on Wi-Fi Hotspots with tuned MTU (1350) and standard AnyConnect User-Agent to prevent packet drops and DPI blocks.
-
-- 🇮🇷 **Complete Persian (Farsi) & English Localization**: Full translation coverage for Split Tunneling, Connect Orb states, connection stages, and Settings options with RTL support.
-- ⏱️ **Real-Time 1-Second Telemetry**: Live traffic counters, latency ping, and connection duration update every 1 second across the app UI and all widget sizes.
+- 🔒 **Enforced Release Build Signing**: Fixed APK update signature mismatch by requiring release signing keys and removing debug fallback in release builds.
+- 🌐 **DNS-over-HTTPS (DoH) Fallback**: Added automatic DoH resolution (Cloudflare `1.1.1.1` & Google `8.8.8.8`) when system DNS fails on restricted Wi-Fi networks.
+- 🧹 **Cleaned Codebase Documentation**: Sanitized all Persian inline comments from source files and build scripts into standard English documentation.
+- 📐 **Full 4-Column Horizontal Widget (4×1)**: Expanded widget layout flexibility without text wrapping into control buttons.
+- 📶 **Wi-Fi Hotspot & Tethering Connection Fix**: Auto-tuned MTU (1350) and official AnyConnect User-Agent for seamless tethering.
 
 ---
 
@@ -39,7 +38,7 @@ An open-source, high-performance Android client for **Cisco AnyConnect** and Ope
 Android Studio Ladybug+, Android SDK 35, NDK r27+, JDK 17.
 
 ### Option A — GitHub Actions CI (Recommended)
-Push tags or commits to GitHub to automatically cross-compile `libopenconnect.so` and build signed APK artifacts (`opentunnel_3.1.0_release.apk`).
+Push tags or commits to GitHub to automatically cross-compile `libopenconnect.so` and build signed APK artifacts (`opentunnel_3.1.2_release.apk`).
 
 ### Option B — Local Build
 
