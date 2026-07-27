@@ -48,6 +48,7 @@ import dev.opentunnel.vpn.ui.components.SectionCard
 import dev.opentunnel.vpn.ui.components.SettingRow
 import dev.opentunnel.vpn.ui.components.SwitchRow
 import dev.opentunnel.vpn.data.AppLanguage
+import dev.opentunnel.vpn.ui.theme.ThemeMode
 import dev.opentunnel.vpn.util.Strings
 
 @OptIn(ExperimentalMaterial3Api::class)

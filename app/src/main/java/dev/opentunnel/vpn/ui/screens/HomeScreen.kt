@@ -131,7 +131,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            StatusLine(status = status, language = settings.appLanguage)
+            StatusLine(status = status, lang = settings.appLanguage)
 
             // Location badge — shown when connected and location is resolved
             AnimatedVisibility(
