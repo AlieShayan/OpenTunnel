@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Animated pulse ring for connecting state — colour: --amber #FFC66B -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- dashed outer ring -->
+    <path
+        android:pathData="M24,8 A16,16 0 1,1 23.999,8"
+        android:strokeColor="#FFC66B"
+        android:strokeWidth="2.5"
+        android:fillColor="@android:color/transparent"
+        android:strokeLineCap="round" />
+    <!-- centre dot -->
+    <path
+        android:pathData="M24,24 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+        android:fillColor="#FFC66B" />
+    <!-- stem -->
+    <path
+        android:pathData="M24,8 L24,20"
+        android:strokeColor="#FFC66B"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+</vector>

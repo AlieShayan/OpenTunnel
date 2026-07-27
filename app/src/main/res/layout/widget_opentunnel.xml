@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Home-screen widget layout for OpenTunnel.
+  Uses RemoteViews-compatible views only (no Compose, no custom views).
+  Min size: 2×2 cells. Resizable up to 4×2.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="16dp"
+    android:gravity="center">
+
+    <!-- Orb / status icon — tap opens the app -->
+    <ImageView
+        android:id="@+id/widget_orb"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_widget_orb_idle"
+        android:contentDescription="@string/widget_orb_desc" />
+
+    <!-- State label: NOT CONNECTED / CONNECTING / CONNECTED -->
+    <TextView
+        android:id="@+id/widget_status_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/widget_status_disconnected"
+        android:textColor="#A9B4C9"
+        android:textSize="10sp"
+        android:fontFamily="sans-serif-medium"
+        android:letterSpacing="0.08"
+        android:textAllCaps="true" />
+
+    <!-- Server hostname (connected only) -->
+    <TextView
+        android:id="@+id/widget_server"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text=""
+        android:textColor="#E4E9F4"
+        android:textSize="11sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:visibility="gone" />
+
+    <!-- Elapsed time (connected only) -->
+    <TextView
+        android:id="@+id/widget_timer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="0:00:00"
+        android:textColor="#E4E9F4"
+        android:textSize="16sp"
+        android:fontFamily="monospace"
+        android:visibility="gone" />
+
+    <!-- Connect / Disconnect / Cancel button -->
+    <Button
+        android:id="@+id/widget_btn_toggle"
+        android:layout_width="match_parent"
+        android:layout_height="34dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/widget_btn_idle_bg"
+        android:text="@string/widget_btn_connect"
+        android:textColor="#A9B4C9"
+        android:textSize="11sp"
+        android:fontFamily="sans-serif-medium"
+        android:textAllCaps="true"
+        android:letterSpacing="0.05" />
+
+</LinearLayout>
