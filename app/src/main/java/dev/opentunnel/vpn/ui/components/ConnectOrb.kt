@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.Icon
@@ -52,16 +53,20 @@ import kotlin.math.min
 /**
  * The single tap target of the whole app.
  *
- * Idle – calm outline with a faint glow.
- * Busy – sweeping arc plus two expanding rings.
- * Live – closed ring and a halo that breathes slowly.
+ * The orb is ALWAYS tappable so the user can cancel a connection at any point:
+ * - Idle   → initiates connection
+ * - Busy   → cancels / interrupts the in-progress handshake
+ * - Live   → disconnects
+ * - Error  → retries
+ *
+ * Busy state now shows a ✕ / CANCEL icon to communicate the action clearly.
  */
 @Composable
 fun ConnectOrb(
     stage: ConnectionStage,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
+    enabled: Boolean = true,          // kept for API compat but defaults true everywhere
     diameter: Dp = 228.dp,
 ) {
     val palette = LocalStatusPalette.current
@@ -136,7 +141,8 @@ fun ConnectOrb(
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true),
-                enabled = enabled,
+                // Always enabled — the orb doubles as a Cancel button while connecting.
+                enabled = true,
                 role = Role.Button,
                 onClick = onClick,
             ),
@@ -147,7 +153,6 @@ fun ConnectOrb(
             val radius = min(size.width, size.height) / 2f
             val scale = pressScale * if (live) breathe else 1f
 
-            // Ambient halo.
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -162,7 +167,6 @@ fun ConnectOrb(
                 center = center,
             )
 
-            // Expanding rings while the tunnel comes up.
             if (busy) {
                 for (progress in listOf(waveA, waveB)) {
                     drawCircle(
@@ -219,7 +223,7 @@ fun ConnectOrb(
             Icon(
                 imageVector = when {
                     live -> Icons.Rounded.Shield
-                    busy -> Icons.Rounded.Bolt
+                    busy -> Icons.Rounded.Close   // shows ✕ to communicate "tap to cancel"
                     else -> Icons.Rounded.PowerSettingsNew
                 },
                 contentDescription = null,
@@ -232,9 +236,9 @@ fun ConnectOrb(
                     ConnectionStage.IDLE -> "CONNECT"
                     ConnectionStage.ERROR -> "RETRY"
                     ConnectionStage.DISCONNECTING -> "STOPPING"
-                    ConnectionStage.RECONNECTING -> "RECONNECTING"
-                    ConnectionStage.AUTHENTICATING -> "SIGNING IN"
-                    else -> "CONNECTING"
+                    ConnectionStage.RECONNECTING -> "CANCEL"
+                    ConnectionStage.AUTHENTICATING -> "CANCEL"
+                    else -> "CANCEL"
                 },
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontSize = 12.sp,
