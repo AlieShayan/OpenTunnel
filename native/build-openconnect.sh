@@ -358,27 +358,23 @@ build_abi() {
                 tail -40 "$WORK/openconnect-configure.log" >&2
                 die "openconnect configure failed ($ABI) — full log: $WORK/openconnect-configure.log"; }
 
-        # Verify JNI standalone was actually enabled in config.h
-        if [[ -f config.h ]] && ! grep -q "#define JNI_STANDALONE 1" config.h; then
+        # Verify JNI standalone was actually enabled in Makefile
+        if [[ -f Makefile ]] && grep -q "^JNI_STANDALONE_TRUE = #" Makefile; then
             tail -40 "$WORK/openconnect-configure.log" >&2
             die "openconnect configure did not enable JNI standalone ($ABI) — see $WORK/openconnect-configure.log"
         fi
 
-        # Create explicit symbol version script including Java_* JNI entry points
-        cat << 'EOF' > libopenconnect.map
-OPENCONNECT_5.0 {
-global:
-	openconnect_*;
-	Java_*;
-local:
-	*;
-};
-EOF
-
         # Android's loader has no concept of versioned sonames: the file must be
         # called libopenconnect.so *and* carry that exact SONAME. Override libtool flags.
+        if [[ -f libopenconnect.map ]] && ! grep -q "Java_" libopenconnect.map; then
+            sed -i 's/global:/global:\n\tJava_*;/' libopenconnect.map
+        fi
+
+        VSCRIPT=""
+        [[ -f libopenconnect.map ]] && VSCRIPT="-Wl,--version-script,libopenconnect.map"
+
         make -j"$JOBS" libopenconnect.la \
-            libopenconnect_la_LDFLAGS="-avoid-version -no-undefined -Wl,--version-script,libopenconnect.map" \
+            libopenconnect_la_LDFLAGS="-avoid-version -no-undefined $VSCRIPT" \
             >"$WORK/openconnect-build.log" 2>&1 || {
                 tail -60 "$WORK/openconnect-build.log" >&2
                 die "openconnect build failed ($ABI) — full log: $WORK/openconnect-build.log"; }
