@@ -408,6 +408,25 @@ class TunnelRunner(
         val serverIncludes = ip.splitIncludes.orEmpty().mapNotNull { Net.parseCidr(it) }
         val serverExcludes = ip.splitExcludes.orEmpty().mapNotNull { Net.parseCidr(it) }
 
+        val customCidrs = mutableListOf<Cidr>()
+        if (settings.splitTunnelNetworksEnabled && settings.splitTunnelNetworks.isNotEmpty()) {
+            for (entry in settings.splitTunnelNetworks) {
+                val item = entry.trim()
+                if (item.isBlank()) continue
+                val cidr = Net.parseCidr(item)
+                    ?: if (Net.isValidIp(item)) Cidr(item, 32, item.contains(':')) else null
+                if (cidr != null) {
+                    customCidrs.add(cidr)
+                }
+            }
+        }
+
+        if (settings.splitTunnelNetworksEnabled && settings.splitTunnelNetworksMode == SplitTunnelMode.INCLUDE_SELECTED && customCidrs.isNotEmpty()) {
+            customCidrs.forEach { addRoute(builder, it) }
+            VpnBus.info("Installed ${customCidrs.size} split-tunnel network route(s)")
+            return
+        }
+
         if (serverIncludes.isNotEmpty()) {
             // The gateway is already doing route-based split tunnelling.
             serverIncludes.forEach { addRoute(builder, it) }
@@ -418,6 +437,9 @@ class TunnelRunner(
         val excludes = buildList {
             addAll(serverExcludes)
             if (settings.bypassLocalNetworks) addAll(Net.LOCAL_NETWORKS)
+            if (settings.splitTunnelNetworksEnabled && settings.splitTunnelNetworksMode == SplitTunnelMode.EXCLUDE_SELECTED) {
+                addAll(customCidrs)
+            }
         }
 
         if (excludes.isEmpty()) {
@@ -441,13 +463,13 @@ class TunnelRunner(
                 }.isSuccess
                 if (applied) excluded++
             }
-            VpnBus.info("Kept $excluded local range(s) off the tunnel")
+            VpnBus.info("Kept $excluded range(s) off the tunnel")
         } else {
             // No excludeRoute() before Android 13 — install the complement.
             val routes = Net.ipv4DefaultMinus(excludes)
             routes.forEach { addRoute(builder, it) }
             if (profile.enableIpv6) addRoute(builder, Cidr("::", 0, true))
-            VpnBus.info("Installed ${routes.size} routes so local networks bypass the tunnel")
+            VpnBus.info("Installed ${routes.size} routes so excluded networks bypass the tunnel")
         }
     }
 
@@ -484,9 +506,17 @@ class TunnelRunner(
             if (added == 0) VpnBus.log(LogLevel.DEBUG, "Gateway supplied no DNS servers")
         }
 
+        val customDomains = if (settings.splitTunnelNetworksEnabled) {
+            settings.splitTunnelNetworks
+                .filter { Net.parseCidr(it) == null && !Net.isValidIp(it) }
+                .map { it.trim().removePrefix("*.").removePrefix(".") }
+                .filter { it.isNotBlank() }
+        } else emptyList()
+
         val domains = buildList {
             ip.domain?.split(' ', ',', '\t')?.let { addAll(it) }
             addAll(ip.splitDNS.orEmpty())
+            addAll(customDomains)
         }
         for (domain in domains.map { it.trim() }.filter { it.isNotEmpty() }.distinct()) {
             runCatching { builder.addSearchDomain(domain) }

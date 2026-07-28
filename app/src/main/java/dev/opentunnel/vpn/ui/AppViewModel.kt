@@ -43,9 +43,42 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _installedApps = MutableStateFlow<List<InstalledApp>?>(null)
     val installedApps: StateFlow<List<InstalledApp>?> = _installedApps.asStateFlow()
 
+    val rxHistory = MutableStateFlow<List<Long>>(emptyList())
+    val txHistory = MutableStateFlow<List<Long>>(emptyList())
+
+    private var lastStage: dev.opentunnel.vpn.core.ConnectionStage? = null
+
     init {
         // One-time migration of legacy single-profile data.
         viewModelScope.launch { repository.migrateLegacyProfileIfNeeded() }
+
+        viewModelScope.launch {
+            status.collect { s ->
+                val prev = lastStage
+                lastStage = s.stage
+                if (prev != s.stage && (s.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTING || s.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTED) && prev == dev.opentunnel.vpn.core.ConnectionStage.IDLE) {
+                    rxHistory.value = emptyList()
+                    txHistory.value = emptyList()
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            stats.collect { st ->
+                if (status.value.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTED) {
+                    val rx = rxHistory.value.toMutableList().apply {
+                        add(st.rxRate)
+                        if (size > 18000) removeAt(0)
+                    }
+                    val tx = txHistory.value.toMutableList().apply {
+                        add(st.txRate)
+                        if (size > 18000) removeAt(0)
+                    }
+                    rxHistory.value = rx
+                    txHistory.value = tx
+                }
+            }
+        }
     }
 
     private val _editingProfileId = MutableStateFlow<String?>(null)
@@ -151,6 +184,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearSelectedPackages() {
         viewModelScope.launch { repository.setSelectedPackages(emptySet()) }
+    }
+
+    fun setSplitTunnelNetworksEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setSplitTunnelNetworksEnabled(enabled) }
+    }
+
+    fun setSplitTunnelNetworksMode(mode: SplitTunnelMode) {
+        viewModelScope.launch { repository.setSplitTunnelNetworksMode(mode) }
+    }
+
+    fun addSplitTunnelNetwork(network: String) {
+        viewModelScope.launch { repository.addSplitTunnelNetwork(network) }
+    }
+
+    fun removeSplitTunnelNetwork(network: String) {
+        viewModelScope.launch { repository.removeSplitTunnelNetwork(network) }
+    }
+
+    fun clearSplitTunnelNetworks() {
+        viewModelScope.launch { repository.clearSplitTunnelNetworks() }
     }
 
     // ── prompts ──────────────────────────────────────────────────────────────

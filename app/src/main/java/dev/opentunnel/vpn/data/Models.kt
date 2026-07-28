@@ -125,6 +125,11 @@ data class AppSettings(
     val splitTunnelEnabled: Boolean = false,
     val splitTunnelMode: SplitTunnelMode = SplitTunnelMode.EXCLUDE_SELECTED,
     val selectedPackages: Set<String> = emptySet(),
+
+    val splitTunnelNetworksEnabled: Boolean = false,
+    val splitTunnelNetworksMode: SplitTunnelMode = SplitTunnelMode.EXCLUDE_SELECTED,
+    val splitTunnelNetworks: Set<String> = emptySet(),
+
     /** Keep LAN/private-range traffic off the tunnel. */
     val bypassLocalNetworks: Boolean = true,
 

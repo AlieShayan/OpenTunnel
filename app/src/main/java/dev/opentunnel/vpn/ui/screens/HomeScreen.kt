@@ -78,17 +78,21 @@ import dev.opentunnel.vpn.util.Formatters
 import kotlinx.coroutines.delay
 
 @Composable
+@Composable
 fun HomeScreen(
     status: TunnelStatus,
     stats: TrafficStats,
     profile: VpnProfile,
     profiles: List<VpnProfile>,
     settings: AppSettings,
+    rxHistoryList: List<Long> = emptyList(),
+    txHistoryList: List<Long> = emptyList(),
     onToggleConnection: () -> Unit,
     onSelectProfile: (String) -> Unit,
     onOpenProfile: () -> Unit,
     onOpenProfileManagement: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
+    onOpenSplitNetworks: () -> Unit,
     onOpenLogs: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -126,7 +130,7 @@ fun HomeScreen(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 18.dp),
         ) {
-            HomeTopBar(onOpenSettings = onOpenSettings, onOpenLogs = onOpenLogs)
+            HomeTopBar()
 
             Spacer(Modifier.height(8.dp))
 
@@ -143,7 +147,11 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(12.dp))
+
+            StatusLine(status = status, lang = settings.appLanguage)
+
+            Spacer(Modifier.height(16.dp))
 
             AnimatedVisibility(
                 visible = status.stage == ConnectionStage.CONNECTED &&
@@ -172,6 +180,8 @@ fun HomeScreen(
                     dev.opentunnel.vpn.ui.components.SpeedChart(
                         stats = stats,
                         appLanguage = settings.appLanguage,
+                        rxHistoryList = rxHistoryList,
+                        txHistoryList = txHistoryList,
                     )
                     Spacer(Modifier.height(18.dp))
                 }
@@ -205,6 +215,14 @@ fun HomeScreen(
                     iconBackground = scheme.tertiary.copy(alpha = 0.14f),
                     onClick = onOpenSplitTunnel,
                 )
+                SettingRow(
+                    icon = Icons.Rounded.Public,
+                    title = if (settings.appLanguage == dev.opentunnel.vpn.data.AppLanguage.PERSIAN) "تونل‌سازی شبکه‌ها و سایت‌ها" else "Network & Site Split Tunneling",
+                    subtitle = splitTunnelNetworksSummary(settings),
+                    iconTint = scheme.primary,
+                    iconBackground = scheme.primary.copy(alpha = 0.14f),
+                    onClick = onOpenSplitNetworks,
+                )
             }
 
             AnimatedVisibility(
@@ -216,27 +234,6 @@ fun HomeScreen(
                     Spacer(Modifier.height(18.dp))
                     ConnectionDetails(status, settings.appLanguage)
                 }
-            }
-
-            Spacer(Modifier.height(18.dp))
-
-            SectionCard {
-                SettingRow(
-                    icon = Icons.Rounded.Article,
-                    title = dev.opentunnel.vpn.util.Strings.logsTitle(settings.appLanguage),
-                    subtitle = dev.opentunnel.vpn.util.Strings.logsSubtitle(settings.appLanguage),
-                    iconTint = scheme.secondary,
-                    iconBackground = scheme.secondary.copy(alpha = 0.14f),
-                    onClick = onOpenLogs,
-                )
-                SettingRow(
-                    icon = Icons.Rounded.Tune,
-                    title = dev.opentunnel.vpn.util.Strings.settingsTitle(settings.appLanguage),
-                    subtitle = dev.opentunnel.vpn.util.Strings.settingsSubtitle(settings.appLanguage),
-                    iconTint = scheme.onSurfaceVariant,
-                    iconBackground = scheme.onSurfaceVariant.copy(alpha = 0.12f),
-                    onClick = onOpenSettings,
-                )
             }
 
             Spacer(Modifier.height(20.dp))
@@ -262,9 +259,49 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(80.dp))
+        }
+
+        // ── Floating Bottom Capsule ───────────────────────────────────────────────
+        val haptic = LocalHapticFeedback.current
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 24.dp, end = 20.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onOpenLogs()
+                }) {
+                    Icon(
+                        Icons.Rounded.Article,
+                        contentDescription = "Connection Log",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onOpenSettings()
+                }) {
+                    Icon(
+                        Icons.Rounded.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
         }
     }
+}
 }
 
 // ── Profile Picker Sheet ───────────────────────────────────────────────────
@@ -448,31 +485,26 @@ private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
 // ── Top bar ────────────────────────────────────────────────----------------
 
 @Composable
-private fun HomeTopBar(onOpenSettings: () -> Unit, onOpenLogs: () -> Unit) {
-    Row(
+private fun HomeTopBar() {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = "OpenTunnel",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "AnyConnect · openconnect",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onOpenLogs) {
-            Icon(Icons.Rounded.Article, contentDescription = "Connection log")
-        }
-        IconButton(onClick = onOpenSettings) {
-            Icon(Icons.Rounded.Settings, contentDescription = "Settings")
-        }
+        Text(
+            text = "OpenTunnel",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = "AnyConnect · openconnect",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -667,4 +699,12 @@ private fun splitTunnelSummary(settings: AppSettings): String = when {
     settings.splitTunnelMode == SplitTunnelMode.EXCLUDE_SELECTED ->
         "${settings.selectedPackages.size} app(s) bypass the VPN"
     else -> "Only ${settings.selectedPackages.size} app(s) use the VPN"
+}
+
+private fun splitTunnelNetworksSummary(settings: AppSettings): String = when {
+    !settings.splitTunnelNetworksEnabled -> "Off — all networks route through VPN"
+    settings.splitTunnelNetworks.isEmpty() -> "On, but no networks or sites added"
+    settings.splitTunnelNetworksMode == SplitTunnelMode.EXCLUDE_SELECTED ->
+        "${settings.splitTunnelNetworks.size} network(s)/site(s) bypass the VPN"
+    else -> "Only ${settings.splitTunnelNetworks.size} network(s)/site(s) use the VPN"
 }

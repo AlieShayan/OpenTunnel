@@ -67,26 +67,33 @@ private const val MAX_STORED_POINTS = 18000
 fun SpeedChart(
     stats: TrafficStats,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    rxHistoryList: List<Long> = emptyList(),
+    txHistoryList: List<Long> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     val isPersian = appLanguage == AppLanguage.PERSIAN
-    val rxHistory = remember { mutableStateListOf<Long>() }
-    val txHistory = remember { mutableStateListOf<Long>() }
+    val rxBuffer = remember { mutableStateListOf<Long>() }
+    val txBuffer = remember { mutableStateListOf<Long>() }
     var selectedRange by remember { mutableStateOf(ChartRange.M1) }
     var showRangeDropdown by remember { mutableStateOf(false) }
 
+    val currentRx = if (rxHistoryList.isNotEmpty()) rxHistoryList else rxBuffer
+    val currentTx = if (txHistoryList.isNotEmpty()) txHistoryList else txBuffer
+
     LaunchedEffect(stats.rxRate, stats.txRate) {
-        rxHistory.add(stats.rxRate)
-        txHistory.add(stats.txRate)
-        if (rxHistory.size > MAX_STORED_POINTS) rxHistory.removeAt(0)
-        if (txHistory.size > MAX_STORED_POINTS) txHistory.removeAt(0)
+        if (rxHistoryList.isEmpty()) {
+            rxBuffer.add(stats.rxRate)
+            txBuffer.add(stats.txRate)
+            if (rxBuffer.size > MAX_STORED_POINTS) rxBuffer.removeAt(0)
+            if (txBuffer.size > MAX_STORED_POINTS) txBuffer.removeAt(0)
+        }
     }
 
-    val visibleRx = remember(rxHistory.size, selectedRange) {
-        rxHistory.takeLast(selectedRange.maxPoints)
+    val visibleRx = remember(currentRx.size, selectedRange) {
+        currentRx.takeLast(selectedRange.maxPoints)
     }
-    val visibleTx = remember(txHistory.size, selectedRange) {
-        txHistory.takeLast(selectedRange.maxPoints)
+    val visibleTx = remember(currentTx.size, selectedRange) {
+        currentTx.takeLast(selectedRange.maxPoints)
     }
     val peakRxRate = remember(visibleRx) {
         visibleRx.maxOrNull() ?: 0L

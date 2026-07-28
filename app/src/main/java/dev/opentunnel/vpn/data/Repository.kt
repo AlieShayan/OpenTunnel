@@ -55,6 +55,9 @@ class Repository(context: Context) {
         val splitEnabled = booleanPreferencesKey("settings.split.enabled")
         val splitMode = stringPreferencesKey("settings.split.mode")
         val splitPackages = stringSetPreferencesKey("settings.split.packages")
+        val splitNetworksEnabled = booleanPreferencesKey("settings.splitNetworks.enabled")
+        val splitNetworksMode = stringPreferencesKey("settings.splitNetworks.mode")
+        val splitNetworks = stringSetPreferencesKey("settings.splitNetworks.networks")
         val bypassLocal = booleanPreferencesKey("settings.bypassLocalNetworks")
         val connectOnBoot = booleanPreferencesKey("settings.connectOnBoot")
         val reconnectOnNetwork = booleanPreferencesKey("settings.reconnectOnNetworkChange")
@@ -157,6 +160,11 @@ class Repository(context: Context) {
                 ?.let { runCatching { SplitTunnelMode.valueOf(it) }.getOrNull() }
                 ?: defaults.splitTunnelMode,
             selectedPackages = p[Keys.splitPackages] ?: defaults.selectedPackages,
+            splitTunnelNetworksEnabled = p[Keys.splitNetworksEnabled] ?: defaults.splitTunnelNetworksEnabled,
+            splitTunnelNetworksMode = p[Keys.splitNetworksMode]
+                ?.let { runCatching { SplitTunnelMode.valueOf(it) }.getOrNull() }
+                ?: defaults.splitTunnelNetworksMode,
+            splitTunnelNetworks = p[Keys.splitNetworks] ?: defaults.splitTunnelNetworks,
             bypassLocalNetworks = p[Keys.bypassLocal] ?: defaults.bypassLocalNetworks,
             connectOnBoot = p[Keys.connectOnBoot] ?: defaults.connectOnBoot,
             reconnectOnNetworkChange = p[Keys.reconnectOnNetwork] ?: defaults.reconnectOnNetworkChange,
@@ -176,6 +184,8 @@ class Repository(context: Context) {
     suspend fun setDynamicColor(enabled: Boolean) = store.edit { it[Keys.dynamicColor] = enabled }
     suspend fun setSplitTunnelEnabled(enabled: Boolean) = store.edit { it[Keys.splitEnabled] = enabled }
     suspend fun setSplitTunnelMode(mode: SplitTunnelMode) = store.edit { it[Keys.splitMode] = mode.name }
+    suspend fun setSplitTunnelNetworksEnabled(enabled: Boolean) = store.edit { it[Keys.splitNetworksEnabled] = enabled }
+    suspend fun setSplitTunnelNetworksMode(mode: SplitTunnelMode) = store.edit { it[Keys.splitNetworksMode] = mode.name }
     suspend fun setBypassLocalNetworks(enabled: Boolean) = store.edit { it[Keys.bypassLocal] = enabled }
     suspend fun setConnectOnBoot(enabled: Boolean) = store.edit { it[Keys.connectOnBoot] = enabled }
     suspend fun setReconnectOnNetworkChange(enabled: Boolean) =
@@ -198,6 +208,26 @@ class Repository(context: Context) {
 
     suspend fun setSelectedPackages(packages: Set<String>) {
         store.edit { it[Keys.splitPackages] = packages }
+    }
+
+    suspend fun addSplitTunnelNetwork(network: String) {
+        val trimmed = network.trim()
+        if (trimmed.isBlank()) return
+        store.edit { p ->
+            val current = p[Keys.splitNetworks] ?: emptySet()
+            p[Keys.splitNetworks] = current + trimmed
+        }
+    }
+
+    suspend fun removeSplitTunnelNetwork(network: String) {
+        store.edit { p ->
+            val current = p[Keys.splitNetworks] ?: emptySet()
+            p[Keys.splitNetworks] = current - network
+        }
+    }
+
+    suspend fun clearSplitTunnelNetworks() {
+        store.edit { it[Keys.splitNetworks] = emptySet() }
     }
 
     companion object {

@@ -36,6 +36,7 @@ private object Routes {
     const val PROFILES = "profiles"
     const val PROFILE = "profile"
     const val SPLIT = "split"
+    const val SPLIT_NETWORKS = "split_networks"
     const val LOGS = "logs"
     const val SETTINGS = "settings"
 }
@@ -60,6 +61,8 @@ fun OpenTunnelApp(
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     val prompt by viewModel.pendingPrompt.collectAsStateWithLifecycle()
     val editingProfileId by viewModel.editingProfileId.collectAsStateWithLifecycle()
+    val rxHistory by viewModel.rxHistory.collectAsStateWithLifecycle()
+    val txHistory by viewModel.txHistory.collectAsStateWithLifecycle()
 
     var previousStage by remember { mutableStateOf<ConnectionStage?>(null) }
 
@@ -119,6 +122,8 @@ fun OpenTunnelApp(
                         profile = profile,
                         profiles = profiles,
                         settings = settings,
+                        rxHistoryList = rxHistory,
+                        txHistoryList = txHistory,
                         onToggleConnection = {
                             if (status.stage.isActive) onRequestDisconnect() else onRequestConnect()
                         },
@@ -131,6 +136,7 @@ fun OpenTunnelApp(
                             navController.navigate(Routes.PROFILES)
                         },
                         onOpenSplitTunnel = { navController.navigate(Routes.SPLIT) },
+                        onOpenSplitNetworks = { navController.navigate(Routes.SPLIT_NETWORKS) },
                         onOpenLogs = { navController.navigate(Routes.LOGS) },
                         onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     )
@@ -183,6 +189,18 @@ fun OpenTunnelApp(
                         onChangeMode = viewModel::setSplitTunnelMode,
                         onTogglePackage = viewModel::togglePackage,
                         onClearAll = viewModel::clearSelectedPackages,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable(Routes.SPLIT_NETWORKS) {
+                    dev.opentunnel.vpn.ui.screens.SplitTunnelNetworksScreen(
+                        settings = settings,
+                        onToggleEnabled = viewModel::setSplitTunnelNetworksEnabled,
+                        onChangeMode = viewModel::setSplitTunnelNetworksMode,
+                        onAddNetwork = viewModel::addSplitTunnelNetwork,
+                        onRemoveNetwork = viewModel::removeSplitTunnelNetwork,
+                        onClearAll = viewModel::clearSplitTunnelNetworks,
                         onBack = { navController.popBackStack() },
                     )
                 }

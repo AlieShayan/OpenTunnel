@@ -90,12 +90,6 @@ private val SOFTWARE_TOKENS = listOf(
     "3" to "HOTP (Counter-based)",
 )
 
-private val SPLIT_TUNNEL_MODES = listOf(
-    "auto" to "Auto",
-    "exclude" to "Exclude selected apps",
-    "include" to "Only include selected apps",
-)
-
 private val BATCH_MODES = listOf(
     "disabled" to "Disabled",
     "enabled" to "Enabled",
@@ -357,23 +351,6 @@ fun ProfileScreen(
                                 value = draft.csdWrapper,
                                 onValueChange = { draft = draft.copy(csdWrapper = it) },
                                 label = { Text("Custom CSD wrapper") },
-                                singleLine = true,
-                                shape = MaterialTheme.shapes.small,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-
-                            LabelledDropdown(
-                                label = "Split tunnel mode",
-                                options = SPLIT_TUNNEL_MODES,
-                                selected = draft.profileSplitTunnelMode,
-                                onSelected = { draft = draft.copy(profileSplitTunnelMode = it) },
-                            )
-
-                            OutlinedTextField(
-                                value = draft.splitTunnelNetworks,
-                                onValueChange = { draft = draft.copy(splitTunnelNetworks = it) },
-                                label = { Text("Split tunnel networks") },
-                                placeholder = { Text("e.g. 192.168.1.0/24, 10.0.0.0/8") },
                                 singleLine = true,
                                 shape = MaterialTheme.shapes.small,
                                 modifier = Modifier.fillMaxWidth(),
