@@ -396,7 +396,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         const val ACTION_RECONNECT = "dev.opentunnel.vpn.RECONNECT"
 
         private const val STATS_INTERVAL_MS = 1_000L
-        private const val PING_INTERVAL_MS = 15_000L
+        private const val PING_INTERVAL_MS = 4_000L
         private const val FORCE_STOP_AFTER_MS = 6_000L
 
         fun connect(context: Context) {
