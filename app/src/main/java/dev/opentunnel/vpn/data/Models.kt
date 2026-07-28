@@ -91,6 +91,7 @@ data class VpnProfile(
      *   - "HIGH:!aNULL:!eNULL"    — restrict to high-strength only
      */
     val openSSLCiphers: String = "",
+    val customDnsServers: List<String> = emptyList(),
 ) {
     val isComplete: Boolean
         get() = server.isNotBlank() && username.isNotBlank()
@@ -131,6 +132,9 @@ data class AppSettings(
     val reconnectOnNetworkChange: Boolean = true,
     val showStatsInNotification: Boolean = true,
     val verboseLogging: Boolean = false,
+
+    val customDns: String = "",
+    val enableGeoIpLookup: Boolean = true,
 
     /** ID of the currently active profile. Empty means use the first available. */
     val activeProfileId: String = "",

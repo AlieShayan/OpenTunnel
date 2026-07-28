@@ -252,7 +252,10 @@ class TunnelRunner(
         lib.setReqMTU(reqMtu)
         VpnBus.log(LogLevel.DEBUG, "Requested MTU $reqMtu")
 
-        if (profile.dpdSeconds > 0) lib.setDPD(profile.dpdSeconds)
+        val dpd = if (profile.dpdSeconds > 0) profile.dpdSeconds else 30
+        lib.setDPD(dpd)
+        VpnBus.log(LogLevel.DEBUG, "DPD interval set to ${dpd}s")
+
         if (!profile.enableDtls) lib.disableDTLS()
         if (!profile.enableIpv6) lib.disableIPv6()
         if (profile.allowInsecureCrypto) {
@@ -456,13 +459,30 @@ class TunnelRunner(
     }
 
     private fun applyDns(builder: VpnService.Builder, ip: LibOpenConnect.IPInfo) {
+        val customDnsList = profile.customDnsServers.ifEmpty {
+            settings.customDns.split(',', ' ', ';').map { it.trim() }.filter { it.isNotEmpty() }
+        }
+
         var added = 0
-        for (server in ip.DNS.orEmpty()) {
-            if (Net.isValidIp(server)) {
-                runCatching { builder.addDnsServer(server) }.onSuccess { added++ }
+        if (customDnsList.isNotEmpty()) {
+            for (server in customDnsList) {
+                if (Net.isValidIp(server)) {
+                    runCatching { builder.addDnsServer(server) }.onSuccess { added++ }
+                }
+            }
+            if (added > 0) {
+                VpnBus.info("Applied $added custom DNS server(s): ${customDnsList.joinToString()}")
             }
         }
-        if (added == 0) VpnBus.log(LogLevel.DEBUG, "Gateway supplied no DNS servers")
+
+        if (added == 0) {
+            for (server in ip.DNS.orEmpty()) {
+                if (Net.isValidIp(server)) {
+                    runCatching { builder.addDnsServer(server) }.onSuccess { added++ }
+                }
+            }
+            if (added == 0) VpnBus.log(LogLevel.DEBUG, "Gateway supplied no DNS servers")
+        }
 
         val domains = buildList {
             ip.domain?.split(' ', ',', '\t')?.let { addAll(it) }

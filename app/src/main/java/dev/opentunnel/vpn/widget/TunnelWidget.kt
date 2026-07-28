@@ -39,12 +39,15 @@ open class TunnelWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_WIDGET_TOGGLE) {
-            val stage = VpnBus.status.value.stage
-            when {
-                stage == ConnectionStage.CONNECTED || stage.isBusy ->
-                    OpenTunnelVpnService.disconnect(context)
-                else ->
-                    OpenTunnelVpnService.connect(context)
+            // Verify intent is intended for our package
+            if (intent.packageName == null || intent.packageName == context.packageName) {
+                val stage = VpnBus.status.value.stage
+                when {
+                    stage == ConnectionStage.CONNECTED || stage.isBusy ->
+                        OpenTunnelVpnService.disconnect(context)
+                    else ->
+                        OpenTunnelVpnService.connect(context)
+                }
             }
         }
     }
@@ -127,7 +130,9 @@ open class TunnelWidget : AppWidgetProvider() {
             val togglePi = PendingIntent.getBroadcast(
                 context,
                 appWidgetId,
-                Intent(context, TunnelWidget::class.java).setAction(ACTION_WIDGET_TOGGLE),
+                Intent(context, TunnelWidget::class.java)
+                    .setAction(ACTION_WIDGET_TOGGLE)
+                    .setPackage(context.packageName),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             views.setOnClickPendingIntent(R.id.widget_btn_toggle, togglePi)

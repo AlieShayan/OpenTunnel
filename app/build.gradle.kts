@@ -23,8 +23,8 @@ android {
         applicationId = "dev.opentunnel.vpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "3.1.2"
+        versionCode = 10
+        versionName = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "3.2.0"
 
         ndk {
             // Only package the ABIs the native script actually produced.
@@ -44,7 +44,11 @@ android {
 
     signingConfigs {
         val keystorePropsFile = rootProject.file("keystore.properties")
-        val rootKeystoreFile = rootProject.file("release.keystore")
+        val envStoreFile = System.getenv("KEYSTORE_FILE")
+        val envStorePassword = System.getenv("KEYSTORE_PASSWORD")
+        val envKeyAlias = System.getenv("KEY_ALIAS")
+        val envKeyPassword = System.getenv("KEY_PASSWORD")
+
         create("release") {
             if (keystorePropsFile.exists()) {
                 val props = Properties().apply { keystorePropsFile.inputStream().use { load(it) } }
@@ -52,15 +56,18 @@ android {
                 storePassword = props.getProperty("storePassword")
                 keyAlias = props.getProperty("keyAlias")
                 keyPassword = props.getProperty("keyPassword")
-            } else if (rootKeystoreFile.exists()) {
-                storeFile = rootKeystoreFile
-                storePassword = "opentunnelreleasekey"
-                keyAlias = "opentunnel"
-                keyPassword = "opentunnelreleasekey"
+            } else if (!envStoreFile.isNullOrBlank() && !envStorePassword.isNullOrBlank()) {
+                storeFile = file(envStoreFile)
+                storePassword = envStorePassword
+                keyAlias = envKeyAlias ?: ""
+                keyPassword = envKeyPassword ?: envStorePassword
             } else {
-                throw GradleException(
-                    "No signing key found. Provide keystore.properties or release.keystore."
-                )
+                // Fall back to debug signing config for local developer builds when no release credentials exist
+                val debugConfig = signingConfigs.getByName("debug")
+                storeFile = debugConfig.storeFile
+                storePassword = debugConfig.storePassword
+                keyAlias = debugConfig.keyAlias
+                keyPassword = debugConfig.keyPassword
             }
         }
     }

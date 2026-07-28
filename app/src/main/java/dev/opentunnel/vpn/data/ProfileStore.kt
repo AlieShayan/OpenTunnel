@@ -89,7 +89,9 @@ class ProfileStore(context: Context) {
         val encrypted = profiles.map { p ->
             p.copy(
                 password = if (p.savePassword && p.password.isNotBlank())
-                    SecretBox.encrypt(p.password) else ""
+                    SecretBox.encrypt(p.password) else "",
+                tokenString = if (p.tokenString.isNotBlank())
+                    SecretBox.encrypt(p.tokenString) else "",
             )
         }
         return json.encodeToString(encrypted)
@@ -99,7 +101,15 @@ class ProfileStore(context: Context) {
         if (raw.isBlank()) return emptyList()
         return runCatching {
             json.decodeFromString<List<VpnProfile>>(raw).map { p ->
-                p.copy(password = SecretBox.decrypt(p.password))
+                val decryptedPassword = SecretBox.decrypt(p.password)
+                val decryptedToken = if (p.tokenString.isNotBlank()) {
+                    val d = SecretBox.decrypt(p.tokenString)
+                    if (d.isEmpty()) p.tokenString else d
+                } else ""
+                p.copy(
+                    password = decryptedPassword,
+                    tokenString = decryptedToken,
+                )
             }
         }.getOrElse { emptyList() }
     }
