@@ -19,8 +19,10 @@ import dev.opentunnel.vpn.core.NativeLibrary
 import dev.opentunnel.vpn.core.TunnelHost
 import dev.opentunnel.vpn.core.TunnelRunner
 import dev.opentunnel.vpn.core.VpnBus
+import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.data.Repository
 import dev.opentunnel.vpn.util.LocationResolver
+import dev.opentunnel.vpn.util.Strings
 import dev.opentunnel.vpn.util.SystemCaBundle
 import dev.opentunnel.vpn.widget.TunnelWidget
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +43,13 @@ import kotlinx.coroutines.launch
  * - Disconnect/cancel is honoured at ANY stage including PREPARING/CONNECTING/AUTHENTICATING.
  * - After the tunnel reaches CONNECTED, a background geo-IP lookup populates
  *   [TunnelInfo.locationName] and [TunnelInfo.locationFlag] in [VpnBus].
+ *
+ * Fixes (fix/code-quality-improvements):
+ * - Geo-IP lookup is capped at MAX_LOCATION_RETRIES (3) to prevent infinite retry loops.
+ * - measurePing() now probes the connected server IP first, then falls back to
+ *   public resolvers for a more representative latency reading.
+ * - Notification prompt strings now go through Strings.kt so they respect the
+ *   user-selected app language.
  */
 class OpenTunnelVpnService : VpnService(), TunnelHost {
 
@@ -61,6 +70,9 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     private var lastNetworkId: Long = -1L
     private var reconnectOnNetworkChange = true
     private var showStatsInNotification = true
+
+    /** Cached language preference so notifications can be localised without a suspend call. */
+    private var appLanguage: AppLanguage = AppLanguage.SYSTEM
 
     override fun onCreate() {
         super.onCreate()
@@ -125,6 +137,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                 val settings = repository.currentSettings()
                 reconnectOnNetworkChange = settings.reconnectOnNetworkChange
                 showStatsInNotification = settings.showStatsInNotification
+                appLanguage = settings.appLanguage
 
                 if (!profile.isComplete) {
                     VpnBus.setError("Add a server address and username before connecting.")
@@ -235,11 +248,14 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     private var locationAttemptCount = 0
 
     private fun startLocationLookup() {
+        // Cap retries: stop trying after MAX_LOCATION_RETRIES consecutive failures.
+        if (locationAttemptCount >= MAX_LOCATION_RETRIES) return
         if (locationJob?.isActive == true) return
         locationJob = scope.launch {
-            VpnBus.info("Resolving connection location…")
+            VpnBus.info("Resolving connection location\u2026")
             val loc = LocationResolver.resolve()
             if (loc != null) {
+                locationAttemptCount = 0
                 VpnBus.updateInfo { info ->
                     info.copy(
                         outboundIp = loc.ip.ifBlank { info.ipv4 ?: info.ipv6 },
@@ -251,8 +267,12 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                 TunnelWidget.notifyAll(this@OpenTunnelVpnService)
             } else {
                 locationAttemptCount++
-                VpnBus.info("Could not resolve connection location")
-                delay(15_000L)
+                VpnBus.info("Could not resolve connection location (attempt $locationAttemptCount/$MAX_LOCATION_RETRIES)")
+                if (locationAttemptCount < MAX_LOCATION_RETRIES) {
+                    delay(15_000L)
+                    // Status collector will trigger the next attempt naturally when
+                    // locationName is still null, so no explicit recursive call needed.
+                }
             }
         }
     }
@@ -264,13 +284,14 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                 if (prompt == null) {
                     Notifications.clearActionRequired(this@OpenTunnelVpnService)
                 } else {
+                    val lang = appLanguage
                     Notifications.postActionRequired(
                         this@OpenTunnelVpnService,
                         when (prompt) {
                             is dev.opentunnel.vpn.core.UserPrompt.Auth ->
-                                "The VPN gateway is asking for more sign-in details."
+                                Strings.promptAuthNotification(lang)
                             is dev.opentunnel.vpn.core.UserPrompt.CertTrust ->
-                                "The gateway's certificate needs to be reviewed before connecting."
+                                Strings.promptCertTrustNotification(lang)
                         },
                     )
                 }
@@ -304,13 +325,26 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         }
     }
 
+    /**
+     * Measures round-trip latency by attempting a TCP connect to several
+     * endpoints. The connected server IP (from VpnBus) is tried first so the
+     * result reflects the actual VPN path, then public resolvers are used as
+     * fallbacks.
+     */
     private fun measurePing(): Long {
-        val targets = listOf(
-            "1.1.1.1" to 443,
-            "1.1.1.1" to 53,
-            "8.8.8.8" to 53,
-            "1.0.0.1" to 443,
-        )
+        // Prefer the server we're already connected to for the most meaningful result.
+        val serverIp = VpnBus.status.value.info.ipv4
+
+        val targets = buildList {
+            if (!serverIp.isNullOrBlank()) {
+                add(serverIp to 443)
+                add(serverIp to 80)
+            }
+            add("1.1.1.1" to 443)
+            add("1.1.1.1" to 53)
+            add("8.8.8.8" to 53)
+            add("1.0.0.1" to 443)
+        }
         for ((host, port) in targets) {
             val ms = runCatching {
                 val start = android.os.SystemClock.elapsedRealtime()
@@ -334,7 +368,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
             override fun onAvailable(network: Network) {
                 val id = network.networkHandle
                 if (lastNetworkId != -1L && lastNetworkId != id && reconnectOnNetworkChange) {
-                    VpnBus.info("Underlying network changed — re-establishing the tunnel")
+                    VpnBus.info("Underlying network changed \u2014 re-establishing the tunnel")
                     runner?.requestReconnect()
                 }
                 lastNetworkId = id
@@ -376,6 +410,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
 
     override fun onTunnelFinished(error: String?) {
         runner = null
+        locationAttemptCount = 0
         locationJob?.cancel()
         locationJob = null
         scope.launch {
@@ -398,6 +433,9 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         private const val STATS_INTERVAL_MS = 1_000L
         private const val PING_INTERVAL_MS = 4_000L
         private const val FORCE_STOP_AFTER_MS = 6_000L
+
+        /** Maximum number of consecutive geo-IP lookup failures before giving up. */
+        private const val MAX_LOCATION_RETRIES = 3
 
         fun connect(context: Context) {
             val intent = Intent(context, OpenTunnelVpnService::class.java).setAction(ACTION_CONNECT)

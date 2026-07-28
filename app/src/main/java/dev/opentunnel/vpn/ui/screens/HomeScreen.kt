@@ -76,6 +76,7 @@ import dev.opentunnel.vpn.ui.components.SettingRow
 import dev.opentunnel.vpn.ui.theme.LocalStatusPalette
 import dev.opentunnel.vpn.ui.theme.MonoNumberStyle
 import dev.opentunnel.vpn.util.Formatters
+import dev.opentunnel.vpn.util.Strings
 import kotlinx.coroutines.delay
 
 @Composable
@@ -98,6 +99,7 @@ fun HomeScreen(
 ) {
     val palette = LocalStatusPalette.current
     val scheme = MaterialTheme.colorScheme
+    val lang = settings.appLanguage
 
     val ambient by animateColorAsState(
         targetValue = when (status.stage) {
@@ -160,8 +162,8 @@ fun HomeScreen(
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 LocationBadge(
-                    flag = status.info.locationFlag ?: "🌐",
-                    name = status.info.locationName ?: dev.opentunnel.vpn.util.Strings.connected(settings.appLanguage),
+                    flag = status.info.locationFlag ?: "\uD83C\uDF10",
+                    name = status.info.locationName ?: Strings.connected(settings.appLanguage),
                     pingMs = status.info.pingMs,
                 )
             }
@@ -209,16 +211,16 @@ fun HomeScreen(
                 )
                 SettingRow(
                     icon = Icons.Rounded.Apps,
-                    title = dev.opentunnel.vpn.util.Strings.splitTunnelTitle(settings.appLanguage),
-                    subtitle = splitTunnelSummary(settings),
+                    title = Strings.splitTunnelTitle(lang),
+                    subtitle = splitTunnelSummary(settings, lang),
                     iconTint = scheme.tertiary,
                     iconBackground = scheme.tertiary.copy(alpha = 0.14f),
                     onClick = onOpenSplitTunnel,
                 )
                 SettingRow(
                     icon = Icons.Rounded.Public,
-                    title = if (settings.appLanguage == dev.opentunnel.vpn.data.AppLanguage.PERSIAN) "تونل‌سازی شبکه‌ها و سایت‌ها" else "Network & Site Split Tunneling",
-                    subtitle = splitTunnelNetworksSummary(settings),
+                    title = if (Strings.isRtl(lang)) "تونل‌سازی شبکه‌ها و سایت‌ها" else "Network & Site Split Tunneling",
+                    subtitle = splitTunnelNetworksSummary(settings, lang),
                     iconTint = scheme.primary,
                     iconBackground = scheme.primary.copy(alpha = 0.14f),
                     onClick = onOpenSplitNetworks,
@@ -323,15 +325,15 @@ private fun ProfilePickerRow(
             icon = Icons.Rounded.Public,
             title = profile.displayName,
             subtitle = when {
-                !profile.isComplete -> "Tap to add your server, username and password"
-                profile.username.isNotBlank() -> "${profile.username} · ${profile.protocol}"
+                !profile.isComplete -> Strings.tapToSetupProfile(lang)
+                profile.username.isNotBlank() -> "${profile.username} \u00B7 ${profile.protocol}"
                 else -> profile.protocol
             },
             trailing = {
                 IconButton(onClick = { showSheet = true }) {
                     Icon(
                         Icons.Rounded.ExpandMore,
-                        contentDescription = dev.opentunnel.vpn.util.Strings.selectProfileTitle(lang),
+                        contentDescription = Strings.selectProfileTitle(lang),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -354,7 +356,7 @@ private fun ProfilePickerRow(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        text = dev.opentunnel.vpn.util.Strings.selectProfileTitle(lang),
+                        text = Strings.selectProfileTitle(lang),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
@@ -416,7 +418,7 @@ private fun ProfilePickerRow(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            text = dev.opentunnel.vpn.util.Strings.manageProfilesAction(lang),
+                            text = Strings.manageProfilesAction(lang),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -464,13 +466,13 @@ private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
                 if (pingMs >= 0) {
                     if (name.isNotBlank()) {
                         Text(
-                            text = "•",
+                            text = "\u2022",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Text(
-                        text = "⚡ $pingMs ms",
+                        text = "\u26A1 $pingMs ms",
                         style = MaterialTheme.typography.bodyMedium.merge(MonoNumberStyle),
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
@@ -481,7 +483,7 @@ private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
     }
 }
 
-// ── Top bar ────────────────────────────────────────────────----------------
+// ── Top bar ────────────────────────────────────────────────────────────────
 
 @Composable
 private fun HomeTopBar() {
@@ -499,7 +501,7 @@ private fun HomeTopBar() {
             textAlign = TextAlign.Center,
         )
         Text(
-            text = "AnyConnect · openconnect",
+            text = "AnyConnect \u00B7 openconnect",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -514,15 +516,15 @@ private fun StatusLine(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLa
     val palette = LocalStatusPalette.current
 
     val label = when (status.stage) {
-        ConnectionStage.CONNECTED -> status.info.server ?: dev.opentunnel.vpn.util.Strings.connected(lang)
-        ConnectionStage.IDLE -> dev.opentunnel.vpn.util.Strings.notConnected(lang)
-        ConnectionStage.ERROR -> dev.opentunnel.vpn.util.Strings.connectionFailed(lang)
-        ConnectionStage.AUTHENTICATING -> dev.opentunnel.vpn.util.Strings.authenticating(lang)
-        ConnectionStage.PREPARING -> dev.opentunnel.vpn.util.Strings.preparing(lang)
-        ConnectionStage.CONNECTING -> dev.opentunnel.vpn.util.Strings.connecting(lang)
-        ConnectionStage.DISCONNECTING -> dev.opentunnel.vpn.util.Strings.disconnecting(lang)
-        ConnectionStage.RECONNECTING -> dev.opentunnel.vpn.util.Strings.reconnecting(lang)
-        else -> status.detail ?: dev.opentunnel.vpn.util.Strings.connecting(lang)
+        ConnectionStage.CONNECTED -> status.info.server ?: Strings.connected(lang)
+        ConnectionStage.IDLE -> Strings.notConnected(lang)
+        ConnectionStage.ERROR -> Strings.connectionFailed(lang)
+        ConnectionStage.AUTHENTICATING -> Strings.authenticating(lang)
+        ConnectionStage.PREPARING -> Strings.preparing(lang)
+        ConnectionStage.CONNECTING -> Strings.connecting(lang)
+        ConnectionStage.DISCONNECTING -> Strings.disconnecting(lang)
+        ConnectionStage.RECONNECTING -> Strings.reconnecting(lang)
+        else -> status.detail ?: Strings.connecting(lang)
     }
 
     val tint = when (status.stage) {
@@ -570,7 +572,7 @@ private fun TrafficRow(stats: TrafficStats, lang: dev.opentunnel.vpn.data.AppLan
     ) {
         TrafficTile(
             modifier = Modifier.weight(1f),
-            label = dev.opentunnel.vpn.util.Strings.downloaded(lang),
+            label = Strings.downloaded(lang),
             total = Formatters.bytes(stats.rxBytes),
             rate = Formatters.rate(stats.rxRate),
             tint = LocalStatusPalette.current.connected,
@@ -578,7 +580,7 @@ private fun TrafficRow(stats: TrafficStats, lang: dev.opentunnel.vpn.data.AppLan
         )
         TrafficTile(
             modifier = Modifier.weight(1f),
-            label = dev.opentunnel.vpn.util.Strings.uploaded(lang),
+            label = Strings.uploaded(lang),
             total = Formatters.bytes(stats.txBytes),
             rate = Formatters.rate(stats.txRate),
             tint = MaterialTheme.colorScheme.secondary,
@@ -665,44 +667,44 @@ private fun ErrorBanner(message: String) {
 @Composable
 private fun ConnectionDetails(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLanguage) {
     val info = status.info
-    SectionCard(title = dev.opentunnel.vpn.util.Strings.connectionDetails(lang)) {
+    SectionCard(title = Strings.connectionDetails(lang)) {
         Column(Modifier.padding(vertical = 6.dp)) {
-            info.ipv4?.takeIf { it.isNotBlank() }?.let { DetailRow(dev.opentunnel.vpn.util.Strings.ipv4Address(lang), it) }
-            info.ipv6?.takeIf { it.isNotBlank() }?.let { DetailRow(dev.opentunnel.vpn.util.Strings.ipv6Address(lang), it) }
-            if (info.dns.isNotEmpty()) DetailRow(dev.opentunnel.vpn.util.Strings.dnsServers(lang), info.dns.joinToString("\n"))
-            info.domain?.takeIf { it.isNotBlank() }?.let { DetailRow(dev.opentunnel.vpn.util.Strings.searchDomain(lang), it) }
-            if (info.mtu > 0) DetailRow(dev.opentunnel.vpn.util.Strings.mtuLabel(lang), info.mtu.toString())
-            info.cstpCipher?.takeIf { it.isNotBlank() }?.let { DetailRow(dev.opentunnel.vpn.util.Strings.tlsChannel(lang), it) }
+            info.ipv4?.takeIf { it.isNotBlank() }?.let { DetailRow(Strings.ipv4Address(lang), it) }
+            info.ipv6?.takeIf { it.isNotBlank() }?.let { DetailRow(Strings.ipv6Address(lang), it) }
+            if (info.dns.isNotEmpty()) DetailRow(Strings.dnsServers(lang), info.dns.joinToString("\n"))
+            info.domain?.takeIf { it.isNotBlank() }?.let { DetailRow(Strings.searchDomain(lang), it) }
+            if (info.mtu > 0) DetailRow(Strings.mtuLabel(lang), info.mtu.toString())
+            info.cstpCipher?.takeIf { it.isNotBlank() }?.let { DetailRow(Strings.tlsChannel(lang), it) }
             val dtls = info.dtlsCipher?.takeIf { it.isNotBlank() }
-            DetailRow(dev.opentunnel.vpn.util.Strings.dtlsChannel(lang), dtls ?: "not established (TLS only)")
+            DetailRow(Strings.dtlsChannel(lang), dtls ?: Strings.dtlsNotEstablished(lang))
             if (info.serverRoutes.isNotEmpty()) {
-                DetailRow("Gateway routes", info.serverRoutes.joinToString("\n"))
+                DetailRow(Strings.gatewayRoutes(lang), info.serverRoutes.joinToString("\n"))
             }
             if (info.excludedApps > 0) {
-                DetailRow("Apps outside the tunnel", info.excludedApps.toString())
+                DetailRow(Strings.appsOutsideTunnel(lang), info.excludedApps.toString())
             }
             info.locationName?.let { name ->
                 val display = if (info.locationFlag != null) "${info.locationFlag} $name" else name
-                DetailRow(dev.opentunnel.vpn.util.Strings.locationLabel(lang), display)
+                DetailRow(Strings.locationLabel(lang), display)
             }
             if (info.pingMs >= 0) {
-                DetailRow(dev.opentunnel.vpn.util.Strings.pingLabel(lang), "${info.pingMs} ms")
+                DetailRow(Strings.pingLabel(lang), "${info.pingMs} ms")
             }
         }
     }
 }
 
-private fun splitTunnelSummary(settings: AppSettings): String = when {
-    !settings.splitTunnelEnabled -> "Off — every app uses the VPN"
-    settings.selectedPackages.isEmpty() -> "On, but no apps selected yet"
+private fun splitTunnelSummary(settings: AppSettings, lang: dev.opentunnel.vpn.data.AppLanguage): String = when {
+    !settings.splitTunnelEnabled -> Strings.splitTunnelOffSummary(lang)
+    settings.selectedPackages.isEmpty() -> Strings.splitTunnelNoAppsSelectedSummary(lang)
     settings.splitTunnelMode == SplitTunnelMode.EXCLUDE_SELECTED ->
         "${settings.selectedPackages.size} app(s) bypass the VPN"
     else -> "Only ${settings.selectedPackages.size} app(s) use the VPN"
 }
 
-private fun splitTunnelNetworksSummary(settings: AppSettings): String = when {
-    !settings.splitTunnelNetworksEnabled -> "Off — all networks route through VPN"
-    settings.splitTunnelNetworks.isEmpty() -> "On, but no networks or sites added"
+private fun splitTunnelNetworksSummary(settings: AppSettings, lang: dev.opentunnel.vpn.data.AppLanguage): String = when {
+    !settings.splitTunnelNetworksEnabled -> Strings.splitTunnelNetworksOffSummary(lang)
+    settings.splitTunnelNetworks.isEmpty() -> Strings.splitTunnelNetworksNoEntriesSummary(lang)
     settings.splitTunnelNetworksMode == SplitTunnelMode.EXCLUDE_SELECTED ->
         "${settings.splitTunnelNetworks.size} network(s)/site(s) bypass the VPN"
     else -> "Only ${settings.splitTunnelNetworks.size} network(s)/site(s) use the VPN"

@@ -129,7 +129,7 @@ object Strings {
     fun splitTunnelEmptyDisabled(lang: AppLanguage): String =
         if (isRtl(lang)) "برای تعیین برنامه‌های خارج از ${ltr("VPN")}، تونل‌سازی جداگانه را روشن کنید." else "Turn split tunnelling on to choose which apps skip the VPN."
     fun splitTunnelNoMatches(lang: AppLanguage, query: String): String =
-        if (isRtl(lang)) "هیچ برنامه‌ای با «$query» مطابقت نداشت." else "No apps match “$query”."
+        if (isRtl(lang)) "هیچ برنامه‌ای با «$query» مطابقت نداشت." else "No apps match \"$query\"."
 
     // ── SettingsScreen ───────────────────────────────────────────────────────
     fun appearance(lang: AppLanguage): String = if (isRtl(lang)) "ظاهر و پوسته" else "Appearance"
@@ -181,5 +181,46 @@ object Strings {
     fun logLevelInfo(lang: AppLanguage): String = if (isRtl(lang)) "اطلاعات" else "Info"
     fun logLevelApp(lang: AppLanguage): String = if (isRtl(lang)) "برنامه" else "App"
     fun autoScrollLabel(lang: AppLanguage): String = if (isRtl(lang)) "پیمایش خودکار" else "Auto-scroll"
-}
 
+    // ── HomeScreen — previously hardcoded strings ────────────────────────────
+    /** Shown in the profile row when the profile has no server/username yet. */
+    fun tapToSetupProfile(lang: AppLanguage): String =
+        if (isRtl(lang)) "برای افزودن سرور، نام کاربری و رمز عبور لمس کنید" else "Tap to add your server, username and password"
+
+    /** Shown in ConnectionDetails when DTLS is not active. */
+    fun dtlsNotEstablished(lang: AppLanguage): String =
+        if (isRtl(lang)) "برقرار نشده (فقط ${ltr("TLS")})" else "not established (TLS only)"
+
+    /** Label for the gateway-pushed routes row in ConnectionDetails. */
+    fun gatewayRoutes(lang: AppLanguage): String =
+        if (isRtl(lang)) "مسیرهای گیت‌وی" else "Gateway routes"
+
+    /** Label for the apps-outside-tunnel count in ConnectionDetails. */
+    fun appsOutsideTunnel(lang: AppLanguage): String =
+        if (isRtl(lang)) "برنامه‌های خارج از تونل" else "Apps outside the tunnel"
+
+    /** Summary shown on HomeScreen when app split-tunnel is disabled. */
+    fun splitTunnelOffSummary(lang: AppLanguage): String =
+        if (isRtl(lang)) "خاموش — تمام برنامه‌ها از ${ltr("VPN")} استفاده می‌کنند" else "Off — every app uses the VPN"
+
+    /** Summary shown on HomeScreen when app split-tunnel is on but no apps selected. */
+    fun splitTunnelNoAppsSelectedSummary(lang: AppLanguage): String =
+        if (isRtl(lang)) "روشن، اما هیچ برنامه‌ای انتخاب نشده" else "On, but no apps selected yet"
+
+    /** Summary shown on HomeScreen when network split-tunnel is disabled. */
+    fun splitTunnelNetworksOffSummary(lang: AppLanguage): String =
+        if (isRtl(lang)) "خاموش — همه ترافیک از ${ltr("VPN")} عبور می‌کند" else "Off — all networks route through VPN"
+
+    /** Summary shown on HomeScreen when network split-tunnel is on but no networks added. */
+    fun splitTunnelNetworksNoEntriesSummary(lang: AppLanguage): String =
+        if (isRtl(lang)) "روشن، اما هیچ شبکه یا سایتی اضافه نشده" else "On, but no networks or sites added"
+
+    // ── Service Notification Prompts ─────────────────────────────────────────
+    /** Notification body when the gateway asks for extra credentials at runtime. */
+    fun promptAuthNotification(lang: AppLanguage): String =
+        if (isRtl(lang)) "درگاه ${ltr("VPN")} اطلاعات ورود بیشتری می‌خواهد." else "The VPN gateway is asking for more sign-in details."
+
+    /** Notification body when the gateway certificate needs user review. */
+    fun promptCertTrustNotification(lang: AppLanguage): String =
+        if (isRtl(lang)) "گواهی درگاه باید قبل از اتصال بررسی شود." else "The gateway's certificate needs to be reviewed before connecting."
+}
