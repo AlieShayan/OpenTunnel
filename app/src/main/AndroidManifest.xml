@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Keeps the NDK tunnel thread alive during screen-off / deep sleep. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!--
       Split tunnelling needs to show the user every app that can reach the

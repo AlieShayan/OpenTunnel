@@ -11,6 +11,7 @@ import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.ServiceCompat
 import androidx.core.content.getSystemService
 import dev.opentunnel.vpn.core.ConnectionStage
@@ -39,17 +40,13 @@ import kotlinx.coroutines.launch
  * Owns the tunnel's lifetime: foreground notification, network monitoring, and
  * the worker thread that runs libopenconnect.
  *
- * v1.2.0 additions:
- * - Disconnect/cancel is honoured at ANY stage including PREPARING/CONNECTING/AUTHENTICATING.
- * - After the tunnel reaches CONNECTED, a background geo-IP lookup populates
- *   [TunnelInfo.locationName] and [TunnelInfo.locationFlag] in [VpnBus].
- *
- * Fixes (fix/code-quality-improvements):
- * - Geo-IP lookup is capped at MAX_LOCATION_RETRIES (3) to prevent infinite retry loops.
- * - measurePing() now probes the connected server IP first, then falls back to
- *   public resolvers for a more representative latency reading.
- * - Notification prompt strings now go through Strings.kt so they respect the
- *   user-selected app language.
+ * Stability guarantees:
+ * - A PARTIAL_WAKE_LOCK is held for the entire tunnel lifetime so the NDK thread
+ *   never freezes when the screen turns off or the device enters deep sleep.
+ * - Battery optimisation exemption is requested once after the tunnel first
+ *   reaches CONNECTED so subsequent reconnects are not delayed by Doze.
+ * - FORCE_STOP_AFTER_MS is generous (12 s) so TLS teardown can finish cleanly
+ *   on slow networks before the hard kill path fires.
  */
 class OpenTunnelVpnService : VpnService(), TunnelHost {
 
@@ -74,6 +71,16 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     /** Cached language preference so notifications can be localised without a suspend call. */
     private var appLanguage: AppLanguage = AppLanguage.SYSTEM
 
+    /**
+     * PARTIAL_WAKE_LOCK keeps the CPU running while the screen is off so the
+     * NDK tunnel thread inside libopenconnect never freezes mid-session.
+     * Acquired in startTunnel(), released in stopSelfSafely().
+     */
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    /** True once we've already asked the user for battery-opt exemption this session. */
+    private var batteryOptRequested = false
+
     override fun onCreate() {
         super.onCreate()
         repository = Repository.get(this)
@@ -85,7 +92,6 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_DISCONNECT -> {
-                // Honour disconnect at ANY stage — including while still setting up.
                 stopTunnel()
                 return START_NOT_STICKY
             }
@@ -114,6 +120,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         statsJob?.cancel()
         locationJob?.cancel()
         runner?.requestDisconnect()
+        releaseWakeLock()
         scope.cancel()
         super.onDestroy()
     }
@@ -129,6 +136,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         VpnBus.reset()
         VpnBus.setStage(ConnectionStage.PREPARING)
         goForeground()
+        acquireWakeLock()
 
         scope.launch {
             startingUp = true
@@ -165,12 +173,10 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     private fun stopTunnel() {
         val tunnel = runner
         if (tunnel == null) {
-            // Either not yet started or still in startingUp phase — clean up immediately.
             stopSelfSafely()
             return
         }
         tunnel.requestDisconnect()
-        // onTunnelFinished() tears the service down once the thread unwinds.
         scope.launch {
             delay(FORCE_STOP_AFTER_MS)
             if (runner === tunnel) {
@@ -182,12 +188,10 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
 
     private fun stopSelfSafely() {
         stopNetworkMonitoring()
-        statsJob?.cancel()
-        statsJob = null
-        locationJob?.cancel()
-        locationJob = null
-        pingJob?.cancel()
-        pingJob = null
+        statsJob?.cancel(); statsJob = null
+        locationJob?.cancel(); locationJob = null
+        pingJob?.cancel(); pingJob = null
+        releaseWakeLock()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         TunnelWidget.notifyAll(this)
         stopSelf()
@@ -209,6 +213,58 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
             )
         } else {
             startForeground(Notifications.STATUS_NOTIFICATION_ID, notification)
+        }
+    }
+
+    // ── WakeLock ──────────────────────────────────────────────────────────
+
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val pm = getSystemService<PowerManager>() ?: return
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "OpenTunnel:TunnelWakeLock",
+        ).also {
+            it.setReferenceCounted(false)
+            it.acquire()   // released in stopSelfSafely() / onDestroy()
+        }
+        VpnBus.info("WakeLock acquired — tunnel will stay active during screen-off")
+    }
+
+    private fun releaseWakeLock() {
+        val wl = wakeLock ?: return
+        wakeLock = null
+        if (wl.isHeld) {
+            runCatching { wl.release() }
+            VpnBus.info("WakeLock released")
+        }
+    }
+
+    // ── Battery optimisation ─────────────────────────────────────────────
+
+    /**
+     * Shows the system "Ignore battery optimisations?" dialog once, the first
+     * time the tunnel reaches CONNECTED. We do this after CONNECTED (not at
+     * startup) so the user already sees the VPN working and understands why
+     * the permission matters.
+     */
+    private fun requestBatteryOptExemptionIfNeeded() {
+        if (batteryOptRequested) return
+        batteryOptRequested = true
+        val pm = getSystemService<PowerManager>() ?: return
+        if (pm.isIgnoringBatteryOptimizations(packageName)) {
+            VpnBus.info("Battery optimisation already exempted")
+            return
+        }
+        runCatching {
+            val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = android.net.Uri.parse("package:$packageName")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            VpnBus.info("Requested battery optimisation exemption")
+        }.onFailure {
+            VpnBus.info("Could not open battery optimisation dialog: ${it.message}")
         }
     }
 
@@ -234,12 +290,16 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                     }
                     TunnelWidget.notifyAll(this@OpenTunnelVpnService)
 
-                    // Kick off geo-IP lookup once the tunnel is fully connected.
-                    if (status.stage == ConnectionStage.CONNECTED &&
-                        status.info.locationName == null &&
-                        repository.currentSettings().enableGeoIpLookup
-                    ) {
-                        startLocationLookup()
+                    if (status.stage == ConnectionStage.CONNECTED) {
+                        // Ask once for battery-opt exemption so Doze never
+                        // throttles the tunnel after the first screen-off.
+                        requestBatteryOptExemptionIfNeeded()
+
+                        if (status.info.locationName == null &&
+                            repository.currentSettings().enableGeoIpLookup
+                        ) {
+                            startLocationLookup()
+                        }
                     }
                 }
         }
@@ -248,7 +308,6 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     private var locationAttemptCount = 0
 
     private fun startLocationLookup() {
-        // Cap retries: stop trying after MAX_LOCATION_RETRIES consecutive failures.
         if (locationAttemptCount >= MAX_LOCATION_RETRIES) return
         if (locationJob?.isActive == true) return
         locationJob = scope.launch {
@@ -270,14 +329,11 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                 VpnBus.info("Could not resolve connection location (attempt $locationAttemptCount/$MAX_LOCATION_RETRIES)")
                 if (locationAttemptCount < MAX_LOCATION_RETRIES) {
                     delay(15_000L)
-                    // Status collector will trigger the next attempt naturally when
-                    // locationName is still null, so no explicit recursive call needed.
                 }
             }
         }
     }
 
-    /** Nudge the user back into the app when the tunnel needs an answer. */
     private fun observePrompts() {
         scope.launch {
             Interaction.pending.collect { prompt ->
@@ -325,16 +381,8 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         }
     }
 
-    /**
-     * Measures round-trip latency by attempting a TCP connect to several
-     * endpoints. The connected server IP (from VpnBus) is tried first so the
-     * result reflects the actual VPN path, then public resolvers are used as
-     * fallbacks.
-     */
     private fun measurePing(): Long {
-        // Prefer the server we're already connected to for the most meaningful result.
         val serverIp = VpnBus.status.value.info.ipv4
-
         val targets = buildList {
             if (!serverIp.isNullOrBlank()) {
                 add(serverIp to 443)
@@ -368,7 +416,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
             override fun onAvailable(network: Network) {
                 val id = network.networkHandle
                 if (lastNetworkId != -1L && lastNetworkId != id && reconnectOnNetworkChange) {
-                    VpnBus.info("Underlying network changed \u2014 re-establishing the tunnel")
+                    VpnBus.info("Underlying network changed — re-establishing the tunnel")
                     runner?.requestReconnect()
                 }
                 lastNetworkId = id
@@ -426,15 +474,17 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     }
 
     companion object {
-        const val ACTION_CONNECT = "dev.opentunnel.vpn.CONNECT"
+        const val ACTION_CONNECT    = "dev.opentunnel.vpn.CONNECT"
         const val ACTION_DISCONNECT = "dev.opentunnel.vpn.DISCONNECT"
-        const val ACTION_RECONNECT = "dev.opentunnel.vpn.RECONNECT"
+        const val ACTION_RECONNECT  = "dev.opentunnel.vpn.RECONNECT"
 
-        private const val STATS_INTERVAL_MS = 1_000L
-        private const val PING_INTERVAL_MS = 4_000L
-        private const val FORCE_STOP_AFTER_MS = 6_000L
+        private const val STATS_INTERVAL_MS   = 1_000L
+        private const val PING_INTERVAL_MS    = 4_000L
 
-        /** Maximum number of consecutive geo-IP lookup failures before giving up. */
+        /** Grace period before a hard kill when stopTunnel() is called. */
+        private const val FORCE_STOP_AFTER_MS = 12_000L
+
+        /** Maximum consecutive geo-IP lookup failures before giving up. */
         private const val MAX_LOCATION_RETRIES = 3
 
         fun connect(context: Context) {

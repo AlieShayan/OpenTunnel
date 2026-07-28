@@ -18,8 +18,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 interface TunnelHost {
     fun newBuilder(): VpnService.Builder
     fun protectSocket(socket: Int): Boolean
-
-    /** Path to a PEM bundle of the device's trust anchors, or null. */
     fun caBundlePath(): String?
     fun persistCertificatePin(fingerprint: String)
     fun onTunnelFinished(error: String?)
@@ -36,18 +34,9 @@ private interface SessionCallbacks {
     fun onProcessAuthForm(form: LibOpenConnect.AuthForm?): Int
 }
 
-/**
- * Thin subclass of the upstream JNI binding that forwards every callback to a
- * [SessionCallbacks]. Two constructors mirror the two upstream ones so a custom
- * user agent can be supplied without ever passing null down into JNI (the C
- * side calls GetStringUTFChars unconditionally).
- */
 private class Session : LibOpenConnect {
-
     lateinit var callbacks: SessionCallbacks
-
     constructor(userAgent: String) : super(userAgent)
-
     override fun onProgress(level: Int, msg: String?) = callbacks.onProgress(level, msg)
     override fun onProtectSocket(fd: Int) = callbacks.onProtectSocket(fd)
     override fun onStatsUpdate(stats: LibOpenConnect.VPNStats?) = callbacks.onStatsUpdate(stats)
@@ -61,13 +50,8 @@ private class Session : LibOpenConnect {
 /**
  * Drives one libopenconnect session on its own thread.
  *
- * Sequence mirrors the upstream Android reference client:
- *
- *   parseURL → obtainCookie (auth) → makeCSTPConnection → getIPInfo →
- *   VpnService.Builder.establish() → setupTunFD → setupDTLS → mainloop
- *
- * mainloop() blocks until the session ends; transport-level reconnects happen
- * inside the library and reuse the same tun fd.
+ * DTLS_ATTEMPT_SECONDS is kept short (20 s) so that the "connecting" phase
+ * never feels frozen; TLS fallback is seamless when DTLS is unavailable.
  */
 class TunnelRunner(
     private val host: TunnelHost,
@@ -78,20 +62,12 @@ class TunnelRunner(
     private val disconnectRequested = AtomicBoolean(false)
     private val userCancelled = AtomicBoolean(false)
 
-    @Volatile
-    private var session: Session? = null
-
-    @Volatile
-    private var tunFd: ParcelFileDescriptor? = null
-
-    /** Password for this attempt — from the profile, or from a prompt. */
-    @Volatile
-    private var password: String = profile.password
+    @Volatile private var session: Session? = null
+    @Volatile private var tunFd: ParcelFileDescriptor? = null
+    @Volatile private var password: String = profile.password
 
     private var passwordConsumed = false
     private var authGroupApplied = false
-
-    // ── control surface (callable from any thread) ──────────────────────────
 
     fun requestDisconnect() {
         if (!disconnectRequested.compareAndSet(false, true)) return
@@ -100,7 +76,6 @@ class TunnelRunner(
         runCatching { session?.cancel() }
     }
 
-    /** Ask libopenconnect to drop and re-establish the transport. */
     fun requestReconnect() {
         if (disconnectRequested.get()) return
         VpnBus.setStage(ConnectionStage.RECONNECTING)
@@ -110,8 +85,6 @@ class TunnelRunner(
     fun pollStats() {
         runCatching { session?.requestStats() }
     }
-
-    // ── main flow ───────────────────────────────────────────────────────────
 
     override fun run() {
         var failure: String? = null
@@ -148,16 +121,12 @@ class TunnelRunner(
         val url = resolveServerUrl(rawUrl, lib)
         VpnBus.info("Connecting to $url")
         if (lib.parseURL(url) != 0) {
-            return "Could not parse the server address “${profile.server}”."
+            return "Could not parse the server address \u201c${profile.server}\u201d."
         }
 
         VpnBus.setStage(ConnectionStage.AUTHENTICATING)
         var cookieResult = lib.obtainCookie()
 
-        // ── SSL retry: if the first attempt failed and insecure-crypto was not
-        // already enabled, retry once with it on.  This widens the TLS cipher
-        // list in ClientHello so carrier DPI on WiFi hotspots is more likely
-        // to let the handshake through.
         if (cookieResult < 0 && !disconnectRequested.get() && !userCancelled.get()
             && !profile.allowInsecureCrypto && !profile.wifiCompatMode
         ) {
@@ -165,7 +134,7 @@ class TunnelRunner(
             lib.setAllowInsecureCrypto(true)
             runCatching { lib.setSystemTrust(true) }
             runCatching { lib.resetSSL() }
-            passwordConsumed = false        // allow the password to be reused
+            passwordConsumed = false
             cookieResult = lib.obtainCookie()
         }
 
@@ -199,15 +168,11 @@ class TunnelRunner(
         VpnBus.setConnected(SystemClock.elapsedRealtime(), describe(lib, ipInfo))
         VpnBus.info("Tunnel is up")
 
-        // mainloop() returns >= 0 when it has paused and wants to be called
-        // again, and < 0 once the session is finished (including after cancel()).
         while (true) {
             if (lib.mainloop(RECONNECT_TIMEOUT_SECONDS, LibOpenConnect.RECONNECT_INTERVAL_MIN) < 0) break
         }
         return null
     }
-
-    // ── configuration ───────────────────────────────────────────────────────
 
     private fun applyPreferences(lib: Session) {
         lib.setLogLevel(
@@ -215,7 +180,7 @@ class TunnelRunner(
         )
 
         if (lib.setProtocol(profile.protocol) != 0) {
-            VpnBus.error("Protocol “${profile.protocol}” is not supported; falling back to anyconnect")
+            VpnBus.error("Protocol \u201c${profile.protocol}\u201d is not supported; falling back to anyconnect")
             lib.setProtocol("anyconnect")
         }
 
@@ -263,8 +228,6 @@ class TunnelRunner(
             VpnBus.log(LogLevel.DEBUG, "Legacy cipher suites enabled for this profile")
         }
 
-        // WiFi / hotspot compatibility mode: broaden the TLS ClientHello so
-        // carrier DPI middleboxes treat it as ordinary browser traffic.
         if (profile.wifiCompatMode) {
             lib.setAllowInsecureCrypto(true)
             runCatching { lib.setSystemTrust(true) }
@@ -272,7 +235,6 @@ class TunnelRunner(
         }
     }
 
-    /** openconnect wants a URL; people type "vpn.example.com". */
     private fun normaliseServer(raw: String): String {
         val value = raw.trim()
         return when {
@@ -287,25 +249,23 @@ class TunnelRunner(
         return runCatching {
             val uri = java.net.URI(rawUrl)
             val host = uri.host ?: return rawUrl
-            if (Net.isValidIp(host)) return rawUrl   // already an IP
+            if (Net.isValidIp(host)) return rawUrl
 
             lib.setHostname(host)
 
-            // Try system DNS first
             val systemIp = runCatching {
                 java.net.InetAddress.getByName(host).hostAddress
             }.getOrNull()
 
             if (systemIp != null && systemIp.isNotBlank()) {
-                VpnBus.log(LogLevel.DEBUG, "Resolved $host → $systemIp (system DNS)")
+                VpnBus.log(LogLevel.DEBUG, "Resolved $host \u2192 $systemIp (system DNS)")
                 return buildResolvedUrl(uri, systemIp)
             }
 
-            // System DNS failed - fallback to DoH via Cloudflare / Google
             VpnBus.log(LogLevel.DEBUG, "System DNS failed for $host, trying DoH fallback")
             val dohIp = resolveViaDoh(host)
             if (dohIp != null) {
-                VpnBus.log(LogLevel.DEBUG, "Resolved $host → $dohIp (DoH fallback)")
+                VpnBus.log(LogLevel.DEBUG, "Resolved $host \u2192 $dohIp (DoH fallback)")
                 return buildResolvedUrl(uri, dohIp)
             }
 
@@ -315,16 +275,12 @@ class TunnelRunner(
     }
 
     private fun buildResolvedUrl(uri: java.net.URI, ip: String): String {
-        val safeIp = if (ip.contains(':')) "[$ip]" else ip  // IPv6 needs brackets
+        val safeIp = if (ip.contains(':')) "[$ip]" else ip
         val port = if (uri.port > 0) ":${uri.port}" else ""
         val path = uri.rawPath.ifEmpty { "/" }
         return "https://$safeIp$port$path"
     }
 
-    /**
-     * DNS-over-HTTPS fallback via Cloudflare 1.1.1.1.
-     * VpnService.protect() is NOT called here because the VPN tunnel is not yet up.
-     */
     private fun resolveViaDoh(hostname: String): String? {
         val encodedName = java.net.URLEncoder.encode(hostname, "UTF-8")
         val dohUrls = listOf(
@@ -340,7 +296,6 @@ class TunnelRunner(
                 conn.connect()
                 val body = conn.inputStream.bufferedReader().readText()
                 conn.disconnect()
-                // Simple JSON regex parsing to extract first A record
                 val regex = Regex(""""data"\s*:\s*"([\d.]+)"""")
                 regex.find(body)?.groupValues?.get(1)
             }.getOrNull()
@@ -348,8 +303,6 @@ class TunnelRunner(
         }
         return null
     }
-
-    // ── tun setup ───────────────────────────────────────────────────────────
 
     private fun establishTun(ip: LibOpenConnect.IPInfo): ParcelFileDescriptor? {
         val builder = host.newBuilder()
@@ -415,20 +368,20 @@ class TunnelRunner(
                 if (item.isBlank()) continue
                 val cidr = Net.parseCidr(item)
                     ?: if (Net.isValidIp(item)) Cidr(item, 32, item.contains(':')) else null
-                if (cidr != null) {
-                    customCidrs.add(cidr)
-                }
+                if (cidr != null) customCidrs.add(cidr)
             }
         }
 
-        if (settings.splitTunnelNetworksEnabled && settings.splitTunnelNetworksMode == SplitTunnelMode.INCLUDE_SELECTED && customCidrs.isNotEmpty()) {
+        if (settings.splitTunnelNetworksEnabled &&
+            settings.splitTunnelNetworksMode == SplitTunnelMode.INCLUDE_SELECTED &&
+            customCidrs.isNotEmpty()
+        ) {
             customCidrs.forEach { addRoute(builder, it) }
             VpnBus.info("Installed ${customCidrs.size} split-tunnel network route(s)")
             return
         }
 
         if (serverIncludes.isNotEmpty()) {
-            // The gateway is already doing route-based split tunnelling.
             serverIncludes.forEach { addRoute(builder, it) }
             VpnBus.info("Gateway supplied ${serverIncludes.size} split-tunnel route(s)")
             return
@@ -437,9 +390,9 @@ class TunnelRunner(
         val excludes = buildList {
             addAll(serverExcludes)
             if (settings.bypassLocalNetworks) addAll(Net.LOCAL_NETWORKS)
-            if (settings.splitTunnelNetworksEnabled && settings.splitTunnelNetworksMode == SplitTunnelMode.EXCLUDE_SELECTED) {
-                addAll(customCidrs)
-            }
+            if (settings.splitTunnelNetworksEnabled &&
+                settings.splitTunnelNetworksMode == SplitTunnelMode.EXCLUDE_SELECTED
+            ) addAll(customCidrs)
         }
 
         if (excludes.isEmpty()) {
@@ -465,7 +418,6 @@ class TunnelRunner(
             }
             VpnBus.info("Kept $excluded range(s) off the tunnel")
         } else {
-            // No excludeRoute() before Android 13 — install the complement.
             val routes = Net.ipv4DefaultMinus(excludes)
             routes.forEach { addRoute(builder, it) }
             if (profile.enableIpv6) addRoute(builder, Cidr("::", 0, true))
@@ -475,9 +427,7 @@ class TunnelRunner(
 
     private fun addRoute(builder: VpnService.Builder, route: Cidr) {
         runCatching { builder.addRoute(route.address, route.prefixLength) }
-            .onFailure {
-                VpnBus.log(LogLevel.DEBUG, "Skipped route ${route.address}/${route.prefixLength}")
-            }
+            .onFailure { VpnBus.log(LogLevel.DEBUG, "Skipped route ${route.address}/${route.prefixLength}") }
     }
 
     private fun applyDns(builder: VpnService.Builder, ip: LibOpenConnect.IPInfo) {
@@ -492,9 +442,7 @@ class TunnelRunner(
                     runCatching { builder.addDnsServer(server) }.onSuccess { added++ }
                 }
             }
-            if (added > 0) {
-                VpnBus.info("Applied $added custom DNS server(s): ${customDnsList.joinToString()}")
-            }
+            if (added > 0) VpnBus.info("Applied $added custom DNS server(s): ${customDnsList.joinToString()}")
         }
 
         if (added == 0) {
@@ -539,13 +487,9 @@ class TunnelRunner(
                     SplitTunnelMode.INCLUDE_SELECTED -> builder.addAllowedApplication(packageName)
                 }
                 applied++
-            } catch (e: Exception) {
-                stale += packageName
-            }
+            } catch (e: Exception) { stale += packageName }
         }
-        if (stale.isNotEmpty()) {
-            VpnBus.log(LogLevel.DEBUG, "Ignored uninstalled app(s): ${stale.joinToString()}")
-        }
+        if (stale.isNotEmpty()) VpnBus.log(LogLevel.DEBUG, "Ignored uninstalled app(s): ${stale.joinToString()}")
         VpnBus.updateInfo { it.copy(excludedApps = applied) }
         VpnBus.info(
             when (settings.splitTunnelMode) {
@@ -575,14 +519,8 @@ class TunnelRunner(
     private fun closeTun() {
         val fd = tunFd ?: return
         tunFd = null
-        try {
-            fd.close()
-        } catch (e: IOException) {
-            // The library may already have closed it.
-        }
+        try { fd.close() } catch (e: IOException) { /* library may have already closed it */ }
     }
-
-    // ── libopenconnect callbacks ────────────────────────────────────────────
 
     private inner class Callbacks : SessionCallbacks {
 
@@ -591,10 +529,10 @@ class TunnelRunner(
             if (text.isEmpty()) return
             VpnBus.log(
                 when (level) {
-                    LibOpenConnect.PRG_ERR -> LogLevel.ERROR
-                    LibOpenConnect.PRG_INFO -> LogLevel.INFO
+                    LibOpenConnect.PRG_ERR   -> LogLevel.ERROR
+                    LibOpenConnect.PRG_INFO  -> LogLevel.INFO
                     LibOpenConnect.PRG_DEBUG -> LogLevel.DEBUG
-                    else -> LogLevel.TRACE
+                    else                     -> LogLevel.TRACE
                 },
                 text,
             )
@@ -602,15 +540,15 @@ class TunnelRunner(
 
         override fun onProtectSocket(fd: Int) {
             if (!host.protectSocket(fd)) {
-                VpnBus.error("VpnService.protect() failed — the tunnel socket may loop back on itself")
+                VpnBus.error("VpnService.protect() failed \u2014 the tunnel socket may loop back on itself")
             }
         }
 
         override fun onStatsUpdate(stats: LibOpenConnect.VPNStats?) {
             stats ?: return
             VpnBus.updateStats(
-                rxBytes = stats.rxBytes,
-                txBytes = stats.txBytes,
+                rxBytes  = stats.rxBytes,
+                txBytes  = stats.txBytes,
                 rxPackets = stats.rxPkts,
                 txPackets = stats.txPkts,
                 nowElapsed = SystemClock.elapsedRealtime(),
@@ -626,7 +564,6 @@ class TunnelRunner(
             )
         }
 
-        /** libopenconnect wants a (new) tun device mid-session. */
         override fun onSetupTun() {
             val lib = session ?: return
             VpnBus.setStage(ConnectionStage.RECONNECTING)
@@ -683,8 +620,6 @@ class TunnelRunner(
             form.banner?.trim()?.takeIf { it.isNotEmpty() }?.let { VpnBus.info(it) }
             form.error?.trim()?.takeIf { it.isNotEmpty() }?.let { VpnBus.error(it) }
 
-            // Gateways that offer tunnel groups send a SELECT first. If the
-            // profile names one, apply it and ask for the form again.
             val groupOpt = form.authgroupOpt
             if (groupOpt != null && profile.authGroup.isNotBlank() && !authGroupApplied) {
                 val match = matchChoice(groupOpt.choices, profile.authGroup)
@@ -692,7 +627,7 @@ class TunnelRunner(
                     authGroupApplied = true
                     if (groupOpt.value != match.name) {
                         groupOpt.value = match.name
-                        VpnBus.info("Selected authentication group “${match.label ?: match.name}”")
+                        VpnBus.info("Selected authentication group \u201c${match.label ?: match.name}\u201d")
                         return LibOpenConnect.OC_FORM_RESULT_NEWGROUP
                     }
                 }
@@ -706,30 +641,24 @@ class TunnelRunner(
                     LibOpenConnect.OC_FORM_OPT_TEXT ->
                         if (profile.username.isNotBlank() && looksLikeUsername(opt)) {
                             opt.value = profile.username
-                        } else {
-                            unfilled += opt
-                        }
+                        } else { unfilled += opt }
 
                     LibOpenConnect.OC_FORM_OPT_PASSWORD ->
                         if (password.isNotEmpty() && !passwordConsumed && !looksLikeToken(opt)) {
                             opt.value = password
                             passwordConsumed = true
-                        } else {
-                            unfilled += opt
-                        }
+                        } else { unfilled += opt }
 
                     LibOpenConnect.OC_FORM_OPT_SELECT -> {
                         val choices = opt.choices.orEmpty()
                         val match = profile.authGroup.takeIf { it.isNotBlank() }
                             ?.let { matchChoice(opt.choices, it) }
                         when {
-                            match != null -> opt.value = match.name
-                            choices.size == 1 -> opt.value = choices[0].name
-                            else -> unfilled += opt
+                            match != null       -> opt.value = match.name
+                            choices.size == 1   -> opt.value = choices[0].name
+                            else                -> unfilled += opt
                         }
                     }
-                    // HIDDEN options already carry their value; TOKEN options
-                    // belong to software tokens this app does not configure.
                     else -> Unit
                 }
             }
@@ -738,12 +667,12 @@ class TunnelRunner(
             if (disconnectRequested.get()) return LibOpenConnect.OC_FORM_RESULT_CANCELLED
 
             val prompt = UserPrompt.Auth(
-                id = Interaction.nextId(),
-                title = form.authID?.trim()?.takeIf { it.isNotEmpty() } ?: "Sign in",
-                banner = form.banner?.trim()?.takeIf { it.isNotEmpty() },
+                id      = Interaction.nextId(),
+                title   = form.authID?.trim()?.takeIf { it.isNotEmpty() } ?: "Sign in",
+                banner  = form.banner?.trim()?.takeIf { it.isNotEmpty() },
                 message = form.message?.trim()?.takeIf { it.isNotEmpty() },
-                error = form.error?.trim()?.takeIf { it.isNotEmpty() },
-                fields = unfilled.map { opt -> toPromptField(opt) },
+                error   = form.error?.trim()?.takeIf { it.isNotEmpty() },
+                fields  = unfilled.map { opt -> toPromptField(opt) },
             )
 
             return when (val result = Interaction.await(prompt)) {
@@ -758,7 +687,6 @@ class TunnelRunner(
                     }
                     LibOpenConnect.OC_FORM_RESULT_OK
                 }
-
                 else -> {
                     userCancelled.set(true)
                     LibOpenConnect.OC_FORM_RESULT_CANCELLED
@@ -767,41 +695,29 @@ class TunnelRunner(
         }
 
         private fun toPromptField(opt: LibOpenConnect.FormOpt) = PromptField(
-            name = opt.name.orEmpty(),
-            label = opt.label?.trim()?.removeSuffix(":")?.takeIf { it.isNotEmpty() }
-                ?: opt.name.orEmpty(),
-            type = when (opt.type) {
+            name   = opt.name.orEmpty(),
+            label  = opt.label?.trim()?.removeSuffix(":")?.takeIf { it.isNotEmpty() } ?: opt.name.orEmpty(),
+            type   = when (opt.type) {
                 LibOpenConnect.OC_FORM_OPT_PASSWORD -> PromptFieldType.PASSWORD
-                LibOpenConnect.OC_FORM_OPT_SELECT -> PromptFieldType.SELECT
-                else -> PromptFieldType.TEXT
+                LibOpenConnect.OC_FORM_OPT_SELECT   -> PromptFieldType.SELECT
+                else                                -> PromptFieldType.TEXT
             },
-            prefill = if (opt.type == LibOpenConnect.OC_FORM_OPT_TEXT && looksLikeUsername(opt)) {
-                profile.username
-            } else {
-                ""
-            },
+            prefill = if (opt.type == LibOpenConnect.OC_FORM_OPT_TEXT && looksLikeUsername(opt)) profile.username else "",
             choices = opt.choices.orEmpty().map { PromptChoice(it.name.orEmpty(), it.label ?: it.name.orEmpty()) },
         )
 
-        private fun matchChoice(
-            choices: List<LibOpenConnect.FormChoice>?,
-            wanted: String,
-        ): LibOpenConnect.FormChoice? = choices.orEmpty().firstOrNull {
-            it.name.equals(wanted, ignoreCase = true) || it.label.equals(wanted, ignoreCase = true)
-        }
+        private fun matchChoice(choices: List<LibOpenConnect.FormChoice>?, wanted: String): LibOpenConnect.FormChoice? =
+            choices.orEmpty().firstOrNull {
+                it.name.equals(wanted, ignoreCase = true) || it.label.equals(wanted, ignoreCase = true)
+            }
 
         private fun looksLikeUsername(opt: LibOpenConnect.FormOpt): Boolean {
-            val name = opt.name.orEmpty().lowercase()
+            val name  = opt.name.orEmpty().lowercase()
             val label = opt.label.orEmpty().lowercase()
             return name.contains("user") || name.contains("uname") || name.contains("login") ||
-                name == "id" || label.contains("user") || label.contains("login") ||
-                label.contains("email")
+                name == "id" || label.contains("user") || label.contains("login") || label.contains("email")
         }
 
-        /**
-         * A second PASSWORD field is usually a one-time code, and shovelling the
-         * saved password into it would burn the login attempt.
-         */
         private fun looksLikeToken(opt: LibOpenConnect.FormOpt): Boolean {
             val text = (opt.name.orEmpty() + " " + opt.label.orEmpty()).lowercase()
             return text.contains("token") || text.contains("otp") ||
@@ -815,12 +731,11 @@ class TunnelRunner(
         get() = "AnyConnect Android 4.10.05065"
 
     private companion object {
-        const val DTLS_ATTEMPT_SECONDS = 60
+        /** Reduced from 60 s — DTLS is optional; TLS fallback is seamless. */
+        const val DTLS_ATTEMPT_SECONDS     = 20
         const val RECONNECT_TIMEOUT_SECONDS = 300
-        const val MIN_MTU = 1280
-        const val DEFAULT_MTU = 1350
-
-        /** Opaque, stable-per-build device id for the AnyConnect mobile header. */
-        const val DEVICE_ID = "0123456789ABCDEF0123456789ABCDEF01234567"
+        const val MIN_MTU                  = 1280
+        const val DEFAULT_MTU              = 1350
+        const val DEVICE_ID                = "0123456789ABCDEF0123456789ABCDEF01234567"
     }
 }
