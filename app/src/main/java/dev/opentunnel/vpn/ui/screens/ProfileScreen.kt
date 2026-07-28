@@ -110,6 +110,7 @@ fun ProfileScreen(
     var draft by remember(profile) { mutableStateOf(profile) }
     var showPassword by remember { mutableStateOf(false) }
     var showAdvanced by remember { mutableStateOf(true) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val caCertLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { draft = draft.copy(caCertPath = it.toString()) }
     }
