@@ -371,12 +371,39 @@ class TunnelRunner(
             for (entry in settings.splitTunnelNetworks) {
                 val item = entry.trim()
                 if (item.isBlank()) continue
-                // Wildcard domain entries (e.g. *.ir) are NOT IP routes — skip them here;
-                // they are handled as search domains in applyDns().
-                if (isWildcardDomain(item)) continue
+
                 val cidr = Net.parseCidr(item)
-                    ?: if (Net.isValidIp(item)) Cidr(item, 32, item.contains(':')) else null
-                if (cidr != null) customCidrs.add(cidr)
+                    ?: if (Net.isValidIp(item)) Cidr(item, if (item.contains(':')) 128 else 32, item.contains(':')) else null
+
+                if (cidr != null) {
+                    customCidrs.add(cidr)
+                } else {
+                    val cleanDomain = item.removePrefix("*.").removePrefix(".")
+                    if (cleanDomain.isNotBlank()) {
+                        val addrs = runCatching { java.net.InetAddress.getAllByName(cleanDomain) }.getOrNull()
+                        if (!addrs.isNullOrEmpty()) {
+                            for (addr in addrs) {
+                                val hostAddr = addr.hostAddress ?: continue
+                                val isIpv6 = addr is java.net.Inet6Address
+                                val resolved = Cidr(hostAddr, if (isIpv6) 128 else 32, isIpv6)
+                                if (resolved !in customCidrs) customCidrs.add(resolved)
+                            }
+                            VpnBus.info("Resolved domain '$cleanDomain' to ${addrs.size} IP address(es)")
+                        }
+
+                        if (cleanDomain.equals("ir", ignoreCase = true) || item.endsWith(".ir", ignoreCase = true)) {
+                            val topIrHosts = listOf("nic.ir", "post.ir", "gov.ir", "telecom.ir", "bankmarkazi.ir", "snapp.ir", "digikala.com")
+                            for (h in topIrHosts) {
+                                runCatching { java.net.InetAddress.getAllByName(h) }.getOrNull()?.forEach { addr ->
+                                    val hostAddr = addr.hostAddress ?: return@forEach
+                                    val isIpv6 = addr is java.net.Inet6Address
+                                    val c = Cidr(hostAddr, if (isIpv6) 128 else 32, isIpv6)
+                                    if (c !in customCidrs) customCidrs.add(c)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

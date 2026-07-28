@@ -22,6 +22,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
@@ -30,6 +40,7 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Article
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
@@ -38,6 +49,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import dev.opentunnel.vpn.core.LogLine
+import dev.opentunnel.vpn.data.AppLanguage
+import dev.opentunnel.vpn.ui.theme.ThemeMode
+import kotlinx.coroutines.launch
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -209,6 +227,11 @@ fun HomeScreen(
                     onOpenProfile = onOpenProfile,
                     onOpenProfileManagement = onOpenProfileManagement,
                 )
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            SectionCard {
                 SettingRow(
                     icon = Icons.Rounded.Apps,
                     title = Strings.splitTunnelTitle(lang),
@@ -219,7 +242,7 @@ fun HomeScreen(
                 )
                 SettingRow(
                     icon = Icons.Rounded.Public,
-                    title = if (Strings.isRtl(lang)) "تونل‌سازی شبکه‌ها و سایت‌ها" else "Network & Site Split Tunneling",
+                    title = if (Strings.isRtl(lang)) "اسپلیت تانلینگ شبکه و سایت" else "Network & Site Split Tunneling",
                     subtitle = splitTunnelNetworksSummary(settings, lang),
                     iconTint = scheme.primary,
                     iconBackground = scheme.primary.copy(alpha = 0.14f),
@@ -264,41 +287,202 @@ fun HomeScreen(
             Spacer(Modifier.height(80.dp))
         }
 
-        // ── Floating Bottom Capsule ───────────────────────────────────────────────
-        val haptic = LocalHapticFeedback.current
-        Surface(
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainPagerScreen(
+    status: TunnelStatus,
+    stats: TrafficStats,
+    logs: List<LogLine>,
+    profile: VpnProfile,
+    profiles: List<VpnProfile>,
+    settings: AppSettings,
+    rxHistoryList: List<Long> = emptyList(),
+    txHistoryList: List<Long> = emptyList(),
+    onToggleConnection: () -> Unit,
+    onSelectProfile: (String) -> Unit,
+    onOpenProfile: () -> Unit,
+    onOpenProfileManagement: () -> Unit,
+    onOpenSplitTunnel: () -> Unit,
+    onOpenSplitNetworks: () -> Unit,
+    onClearLogs: () -> Unit,
+    onThemeMode: (ThemeMode) -> Unit,
+    onAppLanguage: (AppLanguage) -> Unit,
+    onDynamicColor: (Boolean) -> Unit,
+    onBypassLocalNetworks: (Boolean) -> Unit,
+    onConnectOnBoot: (Boolean) -> Unit,
+    onReconnectOnNetworkChange: (Boolean) -> Unit,
+    onShowStatsInNotification: (Boolean) -> Unit,
+    onVerboseLogging: (Boolean) -> Unit,
+    onHapticFeedbackEnabled: (Boolean) -> Unit,
+) {
+    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
+    val scope = rememberCoroutineScope()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+        ) { page ->
+            when (page) {
+                0 -> LogScreen(
+                    logs = logs,
+                    appLanguage = settings.appLanguage,
+                    hapticFeedbackEnabled = settings.hapticFeedbackEnabled,
+                    onClear = onClearLogs,
+                    onBack = {
+                        scope.launch { pagerState.animateScrollToPage(1) }
+                    },
+                )
+                1 -> HomeScreen(
+                    status = status,
+                    stats = stats,
+                    profile = profile,
+                    profiles = profiles,
+                    settings = settings,
+                    rxHistoryList = rxHistoryList,
+                    txHistoryList = txHistoryList,
+                    onToggleConnection = onToggleConnection,
+                    onSelectProfile = onSelectProfile,
+                    onOpenProfile = onOpenProfile,
+                    onOpenProfileManagement = onOpenProfileManagement,
+                    onOpenSplitTunnel = onOpenSplitTunnel,
+                    onOpenSplitNetworks = onOpenSplitNetworks,
+                    onOpenLogs = {
+                        scope.launch { pagerState.animateScrollToPage(0) }
+                    },
+                    onOpenSettings = {
+                        scope.launch { pagerState.animateScrollToPage(2) }
+                    },
+                )
+                2 -> SettingsScreen(
+                    settings = settings,
+                    onThemeMode = onThemeMode,
+                    onAppLanguage = onAppLanguage,
+                    onDynamicColor = onDynamicColor,
+                    onBypassLocalNetworks = onBypassLocalNetworks,
+                    onConnectOnBoot = onConnectOnBoot,
+                    onReconnectOnNetworkChange = onReconnectOnNetworkChange,
+                    onShowStatsInNotification = onShowStatsInNotification,
+                    onVerboseLogging = onVerboseLogging,
+                    onHapticFeedbackEnabled = onHapticFeedbackEnabled,
+                    onBack = {
+                        scope.launch { pagerState.animateScrollToPage(1) }
+                    },
+                )
+            }
+        }
+
+        FloatingCapsuleNavigation(
+            pagerState = pagerState,
+            onNavigateToPage = { index ->
+                scope.launch { pagerState.animateScrollToPage(index) }
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 24.dp, end = 20.dp),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-            tonalElevation = 6.dp,
-            shadowElevation = 8.dp,
+        )
+    }
+}
+
+@Composable
+private fun FloatingCapsuleNavigation(
+    pagerState: PagerState,
+    onNavigateToPage: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = LocalHapticFeedback.current
+
+    val position by remember(pagerState) {
+        derivedStateOf {
+            pagerState.currentPage + pagerState.currentPageOffsetFraction
+        }
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        tonalElevation = 8.dp,
+        shadowElevation = 10.dp,
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            contentAlignment = Alignment.CenterStart,
         ) {
+            val itemWidth = 48.dp
+            val itemSpacing = 4.dp
+            val indicatorSize = 42.dp
+
+            val indicatorOffset = (itemWidth + itemSpacing) * position + (itemWidth - indicatorSize) / 2
+
+            Box(
+                modifier = Modifier
+                    .offset(x = indicatorOffset)
+                    .size(indicatorSize)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.70f),
+                            )
+                        )
+                    )
+                    .border(
+                        1.5.dp,
+                        Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.35f),
+                            )
+                        ),
+                        CircleShape
+                    )
+            )
+
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(itemSpacing),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                IconButton(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onOpenLogs()
-                }) {
-                    Icon(
-                        Icons.Rounded.Article,
-                        contentDescription = "Connection Log",
-                        tint = MaterialTheme.colorScheme.onSurface,
+                val items = listOf(
+                    Icons.Rounded.Article to "Connection Logs",
+                    Icons.Rounded.Home to "Home",
+                    Icons.Rounded.Settings to "Settings",
+                )
+
+                items.forEachIndexed { index, (icon, contentDesc) ->
+                    val isSelected = pagerState.currentPage == index
+                    val scale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.15f else 1.0f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "iconScale",
                     )
-                }
-                IconButton(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onOpenSettings()
-                }) {
-                    Icon(
-                        Icons.Rounded.Settings,
-                        contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(itemWidth)
+                            .clip(CircleShape)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onNavigateToPage(index)
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = contentDesc,
+                            tint = if (isSelected) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                            },
+                            modifier = Modifier.scale(scale),
+                        )
+                    }
                 }
             }
         }

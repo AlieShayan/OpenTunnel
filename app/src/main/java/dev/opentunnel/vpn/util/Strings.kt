@@ -25,7 +25,7 @@ object Strings {
         } else {
             if (name.isNotBlank()) "Editing \"$name\"" else "New profile"
         }
-    fun splitTunnelTitle(lang: AppLanguage): String = if (isRtl(lang)) "تونل‌سازی جداگانه" else "Split tunnelling"
+    fun splitTunnelTitle(lang: AppLanguage): String = if (isRtl(lang)) "اسپلیت تانلینگ برنامه" else "App Split Tunneling"
     fun logsTitle(lang: AppLanguage): String = if (isRtl(lang)) "لاگ‌های اتصال" else "Connection log"
     fun settingsTitle(lang: AppLanguage): String = if (isRtl(lang)) "تنظیمات" else "Settings"
 

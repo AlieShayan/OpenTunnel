@@ -116,9 +116,10 @@ fun OpenTunnelApp(
                 },
             ) {
                 composable(Routes.HOME) {
-                    HomeScreen(
+                    dev.opentunnel.vpn.ui.screens.MainPagerScreen(
                         status = status,
                         stats = stats,
+                        logs = logs,
                         profile = profile,
                         profiles = profiles,
                         settings = settings,
@@ -137,8 +138,16 @@ fun OpenTunnelApp(
                         },
                         onOpenSplitTunnel = { navController.navigate(Routes.SPLIT) },
                         onOpenSplitNetworks = { navController.navigate(Routes.SPLIT_NETWORKS) },
-                        onOpenLogs = { navController.navigate(Routes.LOGS) },
-                        onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                        onClearLogs = viewModel::clearLogs,
+                        onThemeMode = viewModel::setThemeMode,
+                        onAppLanguage = viewModel::setAppLanguage,
+                        onDynamicColor = viewModel::setDynamicColor,
+                        onBypassLocalNetworks = viewModel::setBypassLocalNetworks,
+                        onConnectOnBoot = viewModel::setConnectOnBoot,
+                        onReconnectOnNetworkChange = viewModel::setReconnectOnNetworkChange,
+                        onShowStatsInNotification = viewModel::setShowStatsInNotification,
+                        onVerboseLogging = viewModel::setVerboseLogging,
+                        onHapticFeedbackEnabled = viewModel::setHapticFeedbackEnabled,
                     )
                 }
 
