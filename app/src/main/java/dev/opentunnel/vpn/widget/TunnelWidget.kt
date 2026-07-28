@@ -40,7 +40,7 @@ open class TunnelWidget : AppWidgetProvider() {
         super.onReceive(context, intent)
         if (intent.action == ACTION_WIDGET_TOGGLE) {
             // Verify intent is intended for our package
-            if (intent.packageName == null || intent.packageName == context.packageName) {
+            if (intent.getPackage() == null || intent.getPackage() == context.packageName) {
                 val stage = VpnBus.status.value.stage
                 when {
                     stage == ConnectionStage.CONNECTED || stage.isBusy ->
