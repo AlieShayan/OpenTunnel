@@ -53,6 +53,12 @@ class ProfileStore(context: Context) {
         return toSave
     }
 
+    suspend fun saveAll(profiles: List<VpnProfile>) {
+        store.edit { prefs ->
+            prefs[Keys.profilesJson] = encode(profiles)
+        }
+    }
+
     suspend fun exportJson(): String {
         return json.encodeToString(allProfiles().map { it.copy(password = "") })
     }

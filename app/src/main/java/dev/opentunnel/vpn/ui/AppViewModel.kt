@@ -97,6 +97,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.saveProfile(profile) }
     }
 
+    fun reorderProfiles(profiles: List<VpnProfile>) {
+        viewModelScope.launch { repository.reorderProfiles(profiles) }
+    }
+
     fun deleteProfile(profileId: String) {
         viewModelScope.launch { repository.deleteProfile(profileId) }
     }

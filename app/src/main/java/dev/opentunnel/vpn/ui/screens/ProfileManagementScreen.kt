@@ -1,6 +1,8 @@
 package dev.opentunnel.vpn.ui.screens
 
+import android.os.SystemClock
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,14 +17,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -40,21 +47,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import dev.opentunnel.vpn.data.VpnProfile
 import dev.opentunnel.vpn.data.AppLanguage
-import dev.opentunnel.vpn.util.Strings
+import dev.opentunnel.vpn.data.VpnProfile
 import dev.opentunnel.vpn.ui.components.SectionCard
-
-import androidx.compose.foundation.lazy.rememberLazyListState
+import dev.opentunnel.vpn.ui.theme.MonoNumberStyle
 import dev.opentunnel.vpn.util.RememberLazyListHaptic
+import dev.opentunnel.vpn.util.Strings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,12 +83,15 @@ fun ProfileManagementScreen(
     onDeleteProfile: (String) -> Unit,
     onExportProfiles: ((String) -> Unit) -> Unit,
     onImportProfiles: (String, (Int) -> Unit) -> Unit,
+    onReorderProfiles: (List<VpnProfile>) -> Unit = {},
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
     val lang = appLanguage
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     RememberLazyListHaptic(listState, hapticFeedbackEnabled)
 
@@ -83,6 +100,8 @@ fun ProfileManagementScreen(
     var showImportDialog by remember { mutableStateOf(false) }
     var importJsonInput by remember { mutableStateOf("") }
     var profileToDelete by remember { mutableStateOf<VpnProfile?>(null) }
+    var profilePings by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
+    var isPinging by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -112,11 +131,74 @@ fun ProfileManagementScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddProfile,
-                containerColor = MaterialTheme.colorScheme.primary,
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Add, contentDescription = Strings.addProfile(lang))
+                Surface(
+                    onClick = {
+                        if (!isPinging && profiles.isNotEmpty()) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            scope.launch {
+                                isPinging = true
+                                val results = withContext(Dispatchers.IO) {
+                                    profiles.map { p ->
+                                        async { p.id to measureServerPing(p.server) }
+                                    }.awaitAll().toMap()
+                                }
+                                profilePings = results
+                                val sorted = profiles.sortedWith(
+                                    compareBy<VpnProfile> {
+                                        val ping = results[it.id] ?: -1L
+                                        if (ping >= 0) ping else Long.MAX_VALUE
+                                    }.thenBy { it.displayName }
+                                )
+                                onReorderProfiles(sorted)
+                                isPinging = false
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(32.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                    tonalElevation = 8.dp,
+                    shadowElevation = 10.dp,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (isPinging) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Rounded.Speed,
+                                contentDescription = "Ping & Sort Profiles",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                        Text(
+                            text = if (Strings.isRtl(lang)) "پینگ و مرتب‌سازی" else "Ping & Sort",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+
+                FloatingActionButton(
+                    onClick = onAddProfile,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    shape = CircleShape,
+                ) {
+                    Icon(Icons.Rounded.Add, contentDescription = Strings.addProfile(lang))
+                }
             }
         },
     ) { padding ->
@@ -204,6 +286,24 @@ fun ProfileManagementScreen(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                         )
+                                    }
+                                    val pingMs = profilePings[p.id]
+                                    if (pingMs != null) {
+                                        Spacer(Modifier.height(4.dp))
+                                        if (pingMs >= 0) {
+                                            Text(
+                                                text = "⚡ $pingMs ms",
+                                                style = MaterialTheme.typography.bodySmall.merge(MonoNumberStyle),
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        } else {
+                                            Text(
+                                                text = "⚡ Timeout",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                            )
+                                        }
                                     }
                                 }
 
@@ -327,4 +427,20 @@ fun ProfileManagementScreen(
             },
         )
     }
+}
+
+private fun measureServerPing(server: String): Long {
+    if (server.isBlank()) return -1L
+    val clean = server.removePrefix("https://").removePrefix("http://").substringBefore("/")
+    val hostPort = clean.split(":")
+    val host = hostPort.getOrNull(0)?.takeIf { it.isNotBlank() } ?: return -1L
+    val port = hostPort.getOrNull(1)?.toIntOrNull() ?: 443
+
+    val start = SystemClock.elapsedRealtime()
+    return runCatching {
+        java.net.Socket().use { socket ->
+            socket.connect(java.net.InetSocketAddress(host, port), 2500)
+        }
+        SystemClock.elapsedRealtime() - start
+    }.getOrDefault(-1L)
 }

@@ -42,6 +42,8 @@ import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -231,23 +233,73 @@ fun HomeScreen(
 
             Spacer(Modifier.height(14.dp))
 
-            SectionCard {
-                SettingRow(
-                    icon = Icons.Rounded.Apps,
-                    title = Strings.splitTunnelTitle(lang),
-                    subtitle = splitTunnelSummary(settings, lang),
-                    iconTint = scheme.tertiary,
-                    iconBackground = scheme.tertiary.copy(alpha = 0.14f),
-                    onClick = onOpenSplitTunnel,
-                )
-                SettingRow(
-                    icon = Icons.Rounded.Public,
-                    title = if (Strings.isRtl(lang)) "اسپلیت تانلینگ شبکه و سایت" else "Network & Site Split Tunneling",
-                    subtitle = splitTunnelNetworksSummary(settings, lang),
-                    iconTint = scheme.primary,
-                    iconBackground = scheme.primary.copy(alpha = 0.14f),
-                    onClick = onOpenSplitNetworks,
-                )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                SectionCard(
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    SettingRow(
+                        icon = Icons.Rounded.Apps,
+                        title = Strings.splitTunnelTitle(lang),
+                        subtitle = splitTunnelSummary(settings, lang),
+                        iconTint = scheme.tertiary,
+                        iconBackground = scheme.tertiary.copy(alpha = 0.14f),
+                        onClick = onOpenSplitTunnel,
+                    )
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .offset(y = (-6).dp)
+                        .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp, topStart = 4.dp, topEnd = 4.dp))
+                        .clickable { onOpenProfileManagement() },
+                    shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp, topStart = 4.dp, topEnd = 4.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                    tonalElevation = 3.dp,
+                    shadowElevation = 3.dp,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = scheme.primary.copy(alpha = 0.12f),
+                                modifier = Modifier.size(28.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Tune,
+                                        contentDescription = null,
+                                        tint = scheme.primary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
+                            Text(
+                                text = Strings.manageProfilesAction(lang),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Icon(
+                            imageVector = if (Strings.isRtl(lang)) Icons.Rounded.ChevronLeft else Icons.Rounded.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
             }
 
             AnimatedVisibility(
@@ -590,23 +642,6 @@ private fun ProfilePickerRow(
                                 }
                             }
                         }
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                    TextButton(
-                        onClick = {
-                            showSheet = false
-                            onOpenProfileManagement()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            text = Strings.manageProfilesAction(lang),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
                     }
 
                     Spacer(Modifier.height(16.dp))

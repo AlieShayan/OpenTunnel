@@ -169,6 +169,7 @@ fun OpenTunnelApp(
                         onDeleteProfile = viewModel::deleteProfile,
                         onExportProfiles = viewModel::exportProfiles,
                         onImportProfiles = viewModel::importProfiles,
+                        onReorderProfiles = viewModel::reorderProfiles,
                         onBack = { navController.popBackStack() },
                     )
                 }
