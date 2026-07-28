@@ -112,17 +112,27 @@ fun SwitchRow(
     subtitle: String? = null,
     checked: Boolean,
     enabled: Boolean = true,
+    hapticEnabled: Boolean = false,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val toggleAction: (Boolean) -> Unit = { newChecked ->
+        if (enabled) {
+            if (hapticEnabled) {
+                dev.opentunnel.vpn.util.HapticHelper.performClick(context, true)
+            }
+            onCheckedChange(newChecked)
+        }
+    }
     SettingRow(
         icon = icon,
         title = title,
         subtitle = subtitle,
-        onClick = { if (enabled) onCheckedChange(!checked) },
+        onClick = { toggleAction(!checked) },
         trailing = {
             Switch(
                 checked = checked,
-                onCheckedChange = { if (enabled) onCheckedChange(it) },
+                onCheckedChange = toggleAction,
                 enabled = enabled,
             )
         },

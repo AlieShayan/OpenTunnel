@@ -161,6 +161,9 @@ object Strings {
     fun statsNotification(lang: AppLanguage): String = if (isRtl(lang)) "نمایش میزان ترافیک در اعلان" else "Traffic counters in the notification"
     fun statsNotificationSub(lang: AppLanguage): String =
         if (isRtl(lang)) "نمایش مجموع ترافیک ارسالی و دریافتی در اعلان" else "Show total up/down in the ongoing notification"
+    fun hapticFeedbackTitle(lang: AppLanguage): String = if (isRtl(lang)) "بازخورد لمسی (ویبره)" else "Haptic feedback"
+    fun hapticFeedbackSub(lang: AppLanguage): String =
+        if (isRtl(lang)) "ارائه ویبره هنگام اسکرول لیست‌ها، تغییر وضعیت اتصال و تاگل‌های اصلی" else "Vibrate on list scrolling, connection status change, and main toggles"
     fun diagnostics(lang: AppLanguage): String = if (isRtl(lang)) "عیب‌یابی و لاگ" else "Diagnostics"
     fun verboseLogging(lang: AppLanguage): String = if (isRtl(lang)) "ثبت لاگ‌های تفصیلی (${ltr("Verbose")})" else "Verbose logging"
     fun verboseLoggingSub(lang: AppLanguage): String =

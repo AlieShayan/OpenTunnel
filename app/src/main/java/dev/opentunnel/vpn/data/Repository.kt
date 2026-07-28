@@ -62,6 +62,7 @@ class Repository(context: Context) {
         val verboseLogging = booleanPreferencesKey("settings.verboseLogging")
         val customDns = stringPreferencesKey("settings.customDns")
         val enableGeoIpLookup = booleanPreferencesKey("settings.enableGeoIpLookup")
+        val hapticFeedbackEnabled = booleanPreferencesKey("settings.hapticFeedbackEnabled")
         val activeProfileId = stringPreferencesKey("settings.activeProfileId")
         val legacyMigrated = booleanPreferencesKey("settings.legacyMigrated")
     }
@@ -163,6 +164,7 @@ class Repository(context: Context) {
             verboseLogging = p[Keys.verboseLogging] ?: defaults.verboseLogging,
             customDns = p[Keys.customDns] ?: defaults.customDns,
             enableGeoIpLookup = p[Keys.enableGeoIpLookup] ?: defaults.enableGeoIpLookup,
+            hapticFeedbackEnabled = p[Keys.hapticFeedbackEnabled] ?: defaults.hapticFeedbackEnabled,
             activeProfileId = p[Keys.activeProfileId].orEmpty(),
         )
     }
@@ -183,6 +185,8 @@ class Repository(context: Context) {
     suspend fun setVerboseLogging(enabled: Boolean) = store.edit { it[Keys.verboseLogging] = enabled }
     suspend fun setCustomDns(dns: String) = store.edit { it[Keys.customDns] = dns }
     suspend fun setEnableGeoIpLookup(enabled: Boolean) = store.edit { it[Keys.enableGeoIpLookup] = enabled }
+    suspend fun setHapticFeedbackEnabled(enabled: Boolean) =
+        store.edit { it[Keys.hapticFeedbackEnabled] = enabled }
 
     suspend fun setPackageSelected(packageName: String, selected: Boolean) {
         store.edit { p ->

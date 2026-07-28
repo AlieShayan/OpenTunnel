@@ -53,12 +53,16 @@ import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.util.Strings
 import dev.opentunnel.vpn.ui.components.SectionCard
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import dev.opentunnel.vpn.util.RememberLazyListHaptic
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileManagementScreen(
     activeProfileId: String,
     profiles: List<VpnProfile>,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    hapticFeedbackEnabled: Boolean = true,
     onSelectProfile: (String) -> Unit,
     onEditProfile: (String) -> Unit,
     onAddProfile: () -> Unit,
@@ -70,6 +74,9 @@ fun ProfileManagementScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val lang = appLanguage
+    val listState = rememberLazyListState()
+
+    RememberLazyListHaptic(listState, hapticFeedbackEnabled)
 
     var showExportDialog by remember { mutableStateOf(false) }
     var exportJsonString by remember { mutableStateOf("") }
@@ -139,6 +146,7 @@ fun ProfileManagementScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 18.dp),

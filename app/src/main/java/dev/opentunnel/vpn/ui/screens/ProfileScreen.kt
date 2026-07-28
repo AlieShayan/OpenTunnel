@@ -59,6 +59,9 @@ import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.util.Strings
 import dev.opentunnel.vpn.ui.components.SectionCard
 
+import dev.opentunnel.vpn.util.HapticHelper
+import dev.opentunnel.vpn.util.RememberScrollHaptic
+
 private val REPORTED_OS = listOf(
     "android" to "Android",
     "linux-64" to "Linux 64-bit",
@@ -101,6 +104,7 @@ private val BATCH_MODES = listOf(
 fun ProfileScreen(
     profile: VpnProfile,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    hapticFeedbackEnabled: Boolean = true,
     onSave: (VpnProfile) -> Unit,
     onDelete: ((String) -> Unit)? = null,
     onForgetCertificate: () -> Unit,
@@ -111,6 +115,10 @@ fun ProfileScreen(
     var showPassword by remember { mutableStateOf(false) }
     var showAdvanced by remember { mutableStateOf(true) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+
+    RememberScrollHaptic(scrollState, hapticFeedbackEnabled)
+
     val caCertLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { draft = draft.copy(caCertPath = it.toString()) }
     }
@@ -156,7 +164,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {

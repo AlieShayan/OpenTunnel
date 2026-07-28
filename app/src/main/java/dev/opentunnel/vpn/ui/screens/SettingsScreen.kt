@@ -52,6 +52,9 @@ import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.ui.theme.ThemeMode
 import dev.opentunnel.vpn.util.Strings
 
+import androidx.compose.material.icons.rounded.Vibration
+import dev.opentunnel.vpn.util.RememberScrollHaptic
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -64,11 +67,15 @@ fun SettingsScreen(
     onReconnectOnNetworkChange: (Boolean) -> Unit,
     onShowStatsInNotification: (Boolean) -> Unit,
     onVerboseLogging: (Boolean) -> Unit,
+    onHapticFeedbackEnabled: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val lang = settings.appLanguage
+    val scrollState = rememberScrollState()
+
+    RememberScrollHaptic(scrollState, settings.hapticFeedbackEnabled)
 
     Scaffold(
         topBar = {
@@ -89,7 +96,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
@@ -161,6 +168,7 @@ fun SettingsScreen(
                         title = Strings.dynamicColorTitle(lang),
                         subtitle = Strings.dynamicColorSub(lang),
                         checked = settings.dynamicColor,
+                        hapticEnabled = settings.hapticFeedbackEnabled,
                         onCheckedChange = onDynamicColor,
                     )
                 }
@@ -172,6 +180,7 @@ fun SettingsScreen(
                     title = Strings.bypassLocal(lang),
                     subtitle = Strings.bypassLocalSub(lang),
                     checked = settings.bypassLocalNetworks,
+                    hapticEnabled = settings.hapticFeedbackEnabled,
                     onCheckedChange = onBypassLocalNetworks,
                 )
                 SwitchRow(
@@ -179,6 +188,7 @@ fun SettingsScreen(
                     title = Strings.reconnectNetwork(lang),
                     subtitle = Strings.reconnectNetworkSub(lang),
                     checked = settings.reconnectOnNetworkChange,
+                    hapticEnabled = settings.hapticFeedbackEnabled,
                     onCheckedChange = onReconnectOnNetworkChange,
                 )
                 SwitchRow(
@@ -186,6 +196,7 @@ fun SettingsScreen(
                     title = Strings.connectOnBoot(lang),
                     subtitle = Strings.connectOnBootSub(lang),
                     checked = settings.connectOnBoot,
+                    hapticEnabled = settings.hapticFeedbackEnabled,
                     onCheckedChange = onConnectOnBoot,
                 )
             }
@@ -209,7 +220,16 @@ fun SettingsScreen(
                     title = Strings.statsNotification(lang),
                     subtitle = Strings.statsNotificationSub(lang),
                     checked = settings.showStatsInNotification,
+                    hapticEnabled = settings.hapticFeedbackEnabled,
                     onCheckedChange = onShowStatsInNotification,
+                )
+                SwitchRow(
+                    icon = Icons.Rounded.Vibration,
+                    title = Strings.hapticFeedbackTitle(lang),
+                    subtitle = Strings.hapticFeedbackSub(lang),
+                    checked = settings.hapticFeedbackEnabled,
+                    hapticEnabled = settings.hapticFeedbackEnabled,
+                    onCheckedChange = onHapticFeedbackEnabled,
                 )
             }
 
@@ -219,6 +239,7 @@ fun SettingsScreen(
                     title = Strings.verboseLogging(lang),
                     subtitle = Strings.verboseLoggingSub(lang),
                     checked = settings.verboseLogging,
+                    hapticEnabled = settings.hapticFeedbackEnabled,
                     onCheckedChange = onVerboseLogging,
                 )
                 SettingRow(

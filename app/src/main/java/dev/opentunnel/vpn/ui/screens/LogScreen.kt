@@ -51,6 +51,7 @@ import java.util.Date
 import java.util.Locale
 
 import dev.opentunnel.vpn.data.AppLanguage
+import dev.opentunnel.vpn.util.RememberLazyListHaptic
 import dev.opentunnel.vpn.util.Strings
 
 import androidx.compose.material3.FilterChip
@@ -74,11 +75,15 @@ private enum class LogFilter {
 fun LogScreen(
     logs: List<LogLine>,
     appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    hapticFeedbackEnabled: Boolean = true,
     onClear: () -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val listState = rememberLazyListState()
+
+    RememberLazyListHaptic(listState, hapticFeedbackEnabled)
+
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val formatter = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.US) }

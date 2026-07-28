@@ -135,6 +135,7 @@ data class AppSettings(
 
     val customDns: String = "",
     val enableGeoIpLookup: Boolean = true,
+    val hapticFeedbackEnabled: Boolean = true,
 
     /** ID of the currently active profile. Empty means use the first available. */
     val activeProfileId: String = "",

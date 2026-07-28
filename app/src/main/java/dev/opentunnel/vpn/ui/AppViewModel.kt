@@ -126,6 +126,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.setVerboseLogging(enabled) }
     }
 
+    fun setHapticFeedbackEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setHapticFeedbackEnabled(enabled) }
+    }
+
     // ── split tunnelling ──────────────────────────────────────────────────────
 
     fun loadInstalledApps() {
