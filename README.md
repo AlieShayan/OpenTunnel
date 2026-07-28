@@ -23,19 +23,20 @@ OpenTunnel is an open-source, enterprise-grade Android client for **Cisco AnyCon
 * **Per-App Split Tunneling:** Selectively route application traffic inside or outside the encrypted VPN tunnel with search and instant application category filters.
 
 ### UI & Telemetry
-* **Modern Material 3 Interface:** Built entirely with Jetpack Compose, offering full dynamic color theme support (Material You), dark/light modes, and intuitive profile workflows.
-* **Real-Time Telemetry:** Live sub-second updates for download/upload throughput, packet statistics, connection uptime, ping latency, and public IP resolution.
-* **Interactive App Widgets:** Home-screen widgets available in 2x2, 3x2, and 4x1 layout configurations with live status indicators and one-tap connection controls.
+* **Modern Material 3 Interface:** Built entirely with Jetpack Compose, offering full dynamic color theme support (Material You), dark/light modes, smooth spring animation physics, and intuitive profile workflows.
+* **Haptic Feedback Subsystem:** Configurable tactile vibration feedback providing subtle ticks on list scrolling, distinct vibration patterns on connection/disconnection, and feedback on main toggle switches.
+* **Real-Time Telemetry & History:** Live updates for download/upload throughput with an expanded 160dp chart, selectable history range (`1m`, `10m`, `1h`, `2h`, `5h`), peak download indicator line, 4-second ping latency updates, and public IP resolution.
+* **Interactive App Widgets:** Home-screen widgets available in 2x2, 3x2, and 4x1 layout configurations with live status indicators and 4-second ping updates.
 * **Localization:** Native support for English and Persian (Farsi).
 
 ---
 
-## Latest Release (v3.1.2)
+## Latest Release (v3.3.0)
 
-* **Enforced Release Build Signing:** Strict production release signing requirements to guarantee APK signature integrity.
-* **DoH Fallback Subsystem:** Integrated DNS-over-HTTPS fallback for restricted network environments.
-* **Expanded Widget System:** Full 4-column horizontal widget (4x1) for compact home-screen status monitoring.
-* **Tethering Enhancements:** Optimized MTU framing and User-Agent parameters for tethered mobile hotspots.
+* **Haptic Feedback Subsystem:** Configurable tactile feedback for list scrolling, VPN connect/disconnect state changes, and main settings/profile switches.
+* **Expanded Speed Telemetry:** Taller 160dp chart with time range selector (`1m`, `10m`, `1h`, `2h`, `5h`) and peak download rate indicator line.
+* **4-Second Ping Updates:** Accelerated ping latency measurement updating every 4 seconds in the app and home screen widgets.
+* **UI Motion Polish:** Smooth spring physics and fluid transitions across split tunneling mode switches and screen navigation.
 
 ---
 
