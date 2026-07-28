@@ -52,6 +52,11 @@ private class Session : LibOpenConnect {
  *
  * DTLS_ATTEMPT_SECONDS is kept short (20 s) so that the "connecting" phase
  * never feels frozen; TLS fallback is seamless when DTLS is unavailable.
+ *
+ * Wildcard domain entries (e.g. *.ir, *.example.com) stored in
+ * splitTunnelNetworks are resolved in applyDns() via addSearchDomain() so
+ * Android's per-UID DNS-based routing engine can steer matching traffic
+ * through the VPN interface automatically.
  */
 class TunnelRunner(
     private val host: TunnelHost,
@@ -366,6 +371,9 @@ class TunnelRunner(
             for (entry in settings.splitTunnelNetworks) {
                 val item = entry.trim()
                 if (item.isBlank()) continue
+                // Wildcard domain entries (e.g. *.ir) are NOT IP routes — skip them here;
+                // they are handled as search domains in applyDns().
+                if (isWildcardDomain(item)) continue
                 val cidr = Net.parseCidr(item)
                     ?: if (Net.isValidIp(item)) Cidr(item, 32, item.contains(':')) else null
                 if (cidr != null) customCidrs.add(cidr)
@@ -454,20 +462,30 @@ class TunnelRunner(
             if (added == 0) VpnBus.log(LogLevel.DEBUG, "Gateway supplied no DNS servers")
         }
 
-        val customDomains = if (settings.splitTunnelNetworksEnabled) {
+        // Collect search domains from three sources:
+        // 1. Gateway-supplied domain / splitDNS entries
+        // 2. Wildcard domain entries in splitTunnelNetworks (e.g. *.ir  →  ir)
+        //    These cause Android to route DNS queries for *.ir through the VPN
+        //    interface so the VPN gateway can resolve them correctly.
+        val wildcardDomains = if (settings.splitTunnelNetworksEnabled) {
             settings.splitTunnelNetworks
-                .filter { Net.parseCidr(it) == null && !Net.isValidIp(it) }
-                .map { it.trim().removePrefix("*.").removePrefix(".") }
+                .filter { isWildcardDomain(it) }
+                .map { normaliseDomainSuffix(it) }
                 .filter { it.isNotBlank() }
         } else emptyList()
 
         val domains = buildList {
             ip.domain?.split(' ', ',', '\t')?.let { addAll(it) }
             addAll(ip.splitDNS.orEmpty())
-            addAll(customDomains)
+            addAll(wildcardDomains)
         }
+
+        var domainCount = 0
         for (domain in domains.map { it.trim() }.filter { it.isNotEmpty() }.distinct()) {
-            runCatching { builder.addSearchDomain(domain) }
+            runCatching { builder.addSearchDomain(domain) }.onSuccess { domainCount++ }
+        }
+        if (wildcardDomains.isNotEmpty()) {
+            VpnBus.info("Registered ${wildcardDomains.size} wildcard domain(s) as search domains: ${wildcardDomains.joinToString()}")
         }
     }
 
@@ -522,6 +540,28 @@ class TunnelRunner(
         try { fd.close() } catch (e: IOException) { /* library may have already closed it */ }
     }
 
+    // ── helpers ─────────────────────────────────────────────────────────────
+
+    /**
+     * Returns true for entries that represent a wildcard domain suffix rather
+     * than a routable IP/CIDR. Examples: *.ir, *.example.com, .ir
+     */
+    private fun isWildcardDomain(entry: String): Boolean {
+        val s = entry.trim()
+        return (s.startsWith("*.") || s.startsWith(".")) &&
+            Net.parseCidr(s) == null &&
+            !Net.isValidIp(s)
+    }
+
+    /**
+     * Strips the leading wildcard/dot so *.ir and .ir both become "ir",
+     * which is what addSearchDomain() expects.
+     */
+    private fun normaliseDomainSuffix(entry: String): String =
+        entry.trim().removePrefix("*.").removePrefix(".")
+
+    // ── libopenconnect callbacks ────────────────────────────────────────────
+
     private inner class Callbacks : SessionCallbacks {
 
         override fun onProgress(level: Int, message: String?) {
@@ -547,8 +587,8 @@ class TunnelRunner(
         override fun onStatsUpdate(stats: LibOpenConnect.VPNStats?) {
             stats ?: return
             VpnBus.updateStats(
-                rxBytes  = stats.rxBytes,
-                txBytes  = stats.txBytes,
+                rxBytes   = stats.rxBytes,
+                txBytes   = stats.txBytes,
                 rxPackets = stats.rxPkts,
                 txPackets = stats.txPkts,
                 nowElapsed = SystemClock.elapsedRealtime(),
@@ -732,10 +772,10 @@ class TunnelRunner(
 
     private companion object {
         /** Reduced from 60 s — DTLS is optional; TLS fallback is seamless. */
-        const val DTLS_ATTEMPT_SECONDS     = 20
+        const val DTLS_ATTEMPT_SECONDS      = 20
         const val RECONNECT_TIMEOUT_SECONDS = 300
-        const val MIN_MTU                  = 1280
-        const val DEFAULT_MTU              = 1350
-        const val DEVICE_ID                = "0123456789ABCDEF0123456789ABCDEF01234567"
+        const val MIN_MTU                   = 1280
+        const val DEFAULT_MTU               = 1350
+        const val DEVICE_ID                 = "0123456789ABCDEF0123456789ABCDEF01234567"
     }
 }

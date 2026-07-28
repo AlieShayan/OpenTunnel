@@ -210,7 +210,8 @@ fun OpenTunnelApp(
                         logs = logs,
                         appLanguage = settings.appLanguage,
                         hapticFeedbackEnabled = settings.hapticFeedbackEnabled,
-                        onClear = { /* clear log state if needed */ },
+                        // Fixed: was an empty lambda — now actually clears the log buffer.
+                        onClear = viewModel::clearLogs,
                         onBack = { navController.popBackStack() },
                     )
                 }
