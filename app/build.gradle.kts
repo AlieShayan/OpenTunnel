@@ -62,7 +62,7 @@ android {
                 storePassword = envStorePassword
                 keyAlias = envKeyAlias ?: ""
                 keyPassword = envKeyPassword ?: envStorePassword
-            } else if (repoKeystore.exists()) {
+            } else if (repoKeystore.exists() && repoKeystore.length() > 0L) {
                 storeFile = repoKeystore
                 storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
                 keyAlias = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
