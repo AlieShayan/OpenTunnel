@@ -142,7 +142,7 @@ fun SplitTunnelNetworksScreen(
                         Switch(
                             checked = settings.splitTunnelNetworksEnabled,
                             onCheckedChange = {
-                                dev.opentunnel.vpn.util.HapticHelper.performToggle(context, settings.hapticFeedbackEnabled, it)
+                                dev.opentunnel.vpn.util.HapticHelper.performClick(context, settings.hapticFeedbackEnabled)
                                 onToggleEnabled(it)
                             },
                         )

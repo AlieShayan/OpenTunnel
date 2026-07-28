@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
@@ -77,7 +78,6 @@ import dev.opentunnel.vpn.ui.theme.MonoNumberStyle
 import dev.opentunnel.vpn.util.Formatters
 import kotlinx.coroutines.delay
 
-@Composable
 @Composable
 fun HomeScreen(
     status: TunnelStatus,
@@ -301,7 +301,6 @@ fun HomeScreen(
             }
         }
     }
-}
 }
 
 // ── Profile Picker Sheet ───────────────────────────────────────────────────

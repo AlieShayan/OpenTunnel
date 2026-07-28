@@ -58,10 +58,19 @@ android {
                 keyAlias = props.getProperty("keyAlias")
                 keyPassword = props.getProperty("keyPassword")
             } else if (!envStoreFile.isNullOrBlank() && !envStorePassword.isNullOrBlank()) {
-                storeFile = file(envStoreFile)
-                storePassword = envStorePassword
-                keyAlias = envKeyAlias ?: ""
-                keyPassword = envKeyPassword ?: envStorePassword
+                val envFile = rootProject.file(envStoreFile)
+                if (envFile.exists() && envFile.length() > 0L) {
+                    storeFile = envFile
+                    storePassword = envStorePassword
+                    keyAlias = envKeyAlias ?: ""
+                    keyPassword = envKeyPassword ?: envStorePassword
+                } else {
+                    val debugConfig = signingConfigs.getByName("debug")
+                    storeFile = debugConfig.storeFile
+                    storePassword = debugConfig.storePassword
+                    keyAlias = debugConfig.keyAlias
+                    keyPassword = debugConfig.keyPassword
+                }
             } else if (repoKeystore.exists() && repoKeystore.length() > 0L) {
                 storeFile = repoKeystore
                 storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
