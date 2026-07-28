@@ -1,5 +1,6 @@
 package dev.opentunnel.vpn.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,18 +11,25 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dev.opentunnel.vpn.core.ConnectionStage
 import dev.opentunnel.vpn.ui.components.PromptHost
 import dev.opentunnel.vpn.ui.screens.HomeScreen
 import dev.opentunnel.vpn.ui.screens.LogScreen
 import dev.opentunnel.vpn.ui.screens.ProfileScreen
 import dev.opentunnel.vpn.ui.screens.SettingsScreen
 import dev.opentunnel.vpn.ui.screens.SplitTunnelScreen
+import dev.opentunnel.vpn.util.HapticHelper
 
 private object Routes {
     const val HOME = "home"
@@ -32,7 +40,7 @@ private object Routes {
     const val SETTINGS = "settings"
 }
 
-private const val SLIDE_MS = 260
+private const val SLIDE_MS = 280
 
 @Composable
 fun OpenTunnelApp(
@@ -41,6 +49,7 @@ fun OpenTunnelApp(
     onRequestDisconnect: () -> Unit,
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     val status by viewModel.status.collectAsStateWithLifecycle()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -51,6 +60,23 @@ fun OpenTunnelApp(
     val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     val prompt by viewModel.pendingPrompt.collectAsStateWithLifecycle()
     val editingProfileId by viewModel.editingProfileId.collectAsStateWithLifecycle()
+
+    var previousStage by remember { mutableStateOf<ConnectionStage?>(null) }
+
+    LaunchedEffect(status.stage) {
+        val prev = previousStage
+        val current = status.stage
+        previousStage = current
+
+        if (prev != null && prev != current) {
+            if (current == ConnectionStage.CONNECTED) {
+                HapticHelper.performConnect(context, settings.hapticFeedbackEnabled)
+            } else if ((prev == ConnectionStage.CONNECTED || prev.isActive) &&
+                (current == ConnectionStage.IDLE || current == ConnectionStage.ERROR)) {
+                HapticHelper.performDisconnect(context, settings.hapticFeedbackEnabled)
+            }
+        }
+    }
 
     val layoutDirection = if (settings.appLanguage == dev.opentunnel.vpn.data.AppLanguage.PERSIAN) {
         androidx.compose.ui.unit.LayoutDirection.Rtl
@@ -65,123 +91,135 @@ fun OpenTunnelApp(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
-        NavHost(
-            navController = navController,
-            startDestination = Routes.HOME,
-            modifier = Modifier.safeDrawingPadding(),
-            enterTransition = {
-                slideInHorizontally(tween(SLIDE_MS)) { it / 6 } + fadeIn(tween(SLIDE_MS))
-            },
-            exitTransition = { fadeOut(tween(SLIDE_MS / 2)) },
-            popEnterTransition = { fadeIn(tween(SLIDE_MS)) },
-            popExitTransition = {
-                slideOutHorizontally(tween(SLIDE_MS)) { it / 6 } + fadeOut(tween(SLIDE_MS))
-            },
-        ) {
-            composable(Routes.HOME) {
-                HomeScreen(
-                    status = status,
-                    stats = stats,
-                    profile = profile,
-                    profiles = profiles,
-                    settings = settings,
-                    onToggleConnection = {
-                        if (status.stage.isActive) onRequestDisconnect() else onRequestConnect()
-                    },
-                    onSelectProfile = viewModel::selectProfile,
-                    onOpenProfile = {
-                        viewModel.setEditingProfileId(profile.id)
-                        navController.navigate(Routes.PROFILE)
-                    },
-                    onOpenProfileManagement = {
-                        navController.navigate(Routes.PROFILES)
-                    },
-                    onOpenSplitTunnel = { navController.navigate(Routes.SPLIT) },
-                    onOpenLogs = { navController.navigate(Routes.LOGS) },
-                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                )
+            NavHost(
+                navController = navController,
+                startDestination = Routes.HOME,
+                modifier = Modifier.safeDrawingPadding(),
+                enterTransition = {
+                    slideInHorizontally(tween(SLIDE_MS, easing = FastOutSlowInEasing)) { it / 5 } +
+                        fadeIn(tween(SLIDE_MS, easing = FastOutSlowInEasing))
+                },
+                exitTransition = {
+                    slideOutHorizontally(tween(SLIDE_MS, easing = FastOutSlowInEasing)) { -it / 5 } +
+                        fadeOut(tween(SLIDE_MS / 2))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(tween(SLIDE_MS, easing = FastOutSlowInEasing)) { -it / 5 } +
+                        fadeIn(tween(SLIDE_MS, easing = FastOutSlowInEasing))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(tween(SLIDE_MS, easing = FastOutSlowInEasing)) { it / 5 } +
+                        fadeOut(tween(SLIDE_MS))
+                },
+            ) {
+                composable(Routes.HOME) {
+                    HomeScreen(
+                        status = status,
+                        stats = stats,
+                        profile = profile,
+                        profiles = profiles,
+                        settings = settings,
+                        onToggleConnection = {
+                            if (status.stage.isActive) onRequestDisconnect() else onRequestConnect()
+                        },
+                        onSelectProfile = viewModel::selectProfile,
+                        onOpenProfile = {
+                            viewModel.setEditingProfileId(profile.id)
+                            navController.navigate(Routes.PROFILE)
+                        },
+                        onOpenProfileManagement = {
+                            navController.navigate(Routes.PROFILES)
+                        },
+                        onOpenSplitTunnel = { navController.navigate(Routes.SPLIT) },
+                        onOpenLogs = { navController.navigate(Routes.LOGS) },
+                        onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    )
+                }
+
+                composable(Routes.PROFILES) {
+                    dev.opentunnel.vpn.ui.screens.ProfileManagementScreen(
+                        activeProfileId = settings.activeProfileId,
+                        profiles = profiles,
+                        appLanguage = settings.appLanguage,
+                        hapticFeedbackEnabled = settings.hapticFeedbackEnabled,
+                        onSelectProfile = viewModel::selectProfile,
+                        onEditProfile = { id ->
+                            viewModel.setEditingProfileId(id)
+                            navController.navigate(Routes.PROFILE)
+                        },
+                        onAddProfile = {
+                            viewModel.setEditingProfileId("new")
+                            navController.navigate(Routes.PROFILE)
+                        },
+                        onDeleteProfile = viewModel::deleteProfile,
+                        onExportProfiles = viewModel::exportProfiles,
+                        onImportProfiles = viewModel::importProfiles,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable(Routes.PROFILE) {
+                    val targetProfile = viewModel.getProfile(editingProfileId)
+                    ProfileScreen(
+                        profile = targetProfile,
+                        appLanguage = settings.appLanguage,
+                        hapticFeedbackEnabled = settings.hapticFeedbackEnabled,
+                        onSave = viewModel::saveProfile,
+                        onDelete = { id ->
+                            viewModel.deleteProfile(id)
+                            navController.popBackStack()
+                        },
+                        onForgetCertificate = viewModel::forgetPinnedCertificate,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable(Routes.SPLIT) {
+                    SplitTunnelScreen(
+                        settings = settings,
+                        apps = installedApps,
+                        onLoadApps = viewModel::loadInstalledApps,
+                        onToggleEnabled = viewModel::setSplitTunnelEnabled,
+                        onChangeMode = viewModel::setSplitTunnelMode,
+                        onTogglePackage = viewModel::togglePackage,
+                        onClearAll = viewModel::clearSelectedPackages,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable(Routes.LOGS) {
+                    LogScreen(
+                        logs = logs,
+                        appLanguage = settings.appLanguage,
+                        hapticFeedbackEnabled = settings.hapticFeedbackEnabled,
+                        onClear = { /* clear log state if needed */ },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable(Routes.SETTINGS) {
+                    SettingsScreen(
+                        settings = settings,
+                        onThemeMode = viewModel::setThemeMode,
+                        onAppLanguage = viewModel::setAppLanguage,
+                        onDynamicColor = viewModel::setDynamicColor,
+                        onBypassLocalNetworks = viewModel::setBypassLocalNetworks,
+                        onConnectOnBoot = viewModel::setConnectOnBoot,
+                        onReconnectOnNetworkChange = viewModel::setReconnectOnNetworkChange,
+                        onShowStatsInNotification = viewModel::setShowStatsInNotification,
+                        onVerboseLogging = viewModel::setVerboseLogging,
+                        onHapticFeedbackEnabled = viewModel::setHapticFeedbackEnabled,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
 
-            composable(Routes.PROFILES) {
-                dev.opentunnel.vpn.ui.screens.ProfileManagementScreen(
-                    activeProfileId = settings.activeProfileId,
-                    profiles = profiles,
-                    appLanguage = settings.appLanguage,
-                    onSelectProfile = viewModel::selectProfile,
-                    onEditProfile = { id ->
-                        viewModel.setEditingProfileId(id)
-                        navController.navigate(Routes.PROFILE)
-                    },
-                    onAddProfile = {
-                        viewModel.setEditingProfileId("new")
-                        navController.navigate(Routes.PROFILE)
-                    },
-                    onDeleteProfile = viewModel::deleteProfile,
-                    onExportProfiles = viewModel::exportProfiles,
-                    onImportProfiles = viewModel::importProfiles,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.PROFILE) {
-                val targetProfile = viewModel.getProfile(editingProfileId)
-                ProfileScreen(
-                    profile = targetProfile,
-                    appLanguage = settings.appLanguage,
-                    onSave = viewModel::saveProfile,
-                    onDelete = { id ->
-                        viewModel.deleteProfile(id)
-                        navController.popBackStack()
-                    },
-                    onForgetCertificate = viewModel::forgetPinnedCertificate,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.SPLIT) {
-                SplitTunnelScreen(
-                    settings = settings,
-                    apps = installedApps,
-                    onLoadApps = viewModel::loadInstalledApps,
-                    onToggleEnabled = viewModel::setSplitTunnelEnabled,
-                    onChangeMode = viewModel::setSplitTunnelMode,
-                    onTogglePackage = viewModel::togglePackage,
-                    onClearAll = viewModel::clearSelectedPackages,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.LOGS) {
-                LogScreen(
-                    logs = logs,
-                    appLanguage = settings.appLanguage,
-                    onClear = viewModel::clearLogs,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-
-            composable(Routes.SETTINGS) {
-                SettingsScreen(
-                    settings = settings,
-                    onThemeMode = viewModel::setThemeMode,
-                    onAppLanguage = viewModel::setAppLanguage,
-                    onDynamicColor = viewModel::setDynamicColor,
-                    onBypassLocalNetworks = viewModel::setBypassLocalNetworks,
-                    onConnectOnBoot = viewModel::setConnectOnBoot,
-                    onReconnectOnNetworkChange = viewModel::setReconnectOnNetworkChange,
-                    onShowStatsInNotification = viewModel::setShowStatsInNotification,
-                    onVerboseLogging = viewModel::setVerboseLogging,
-                    onBack = { navController.popBackStack() },
-                )
-            }
+            PromptHost(
+                prompt = prompt,
+                onSubmit = viewModel::submitPrompt,
+                onAccept = viewModel::acceptPrompt,
+                onCancel = viewModel::cancelPrompt,
+            )
         }
-
-        PromptHost(
-            prompt = prompt,
-            onSubmit = viewModel::submitPrompt,
-            onAccept = viewModel::acceptPrompt,
-            onCancel = viewModel::cancelPrompt,
-        )
     }
-}
 }

@@ -59,6 +59,11 @@ import dev.opentunnel.vpn.data.InstalledApp
 import dev.opentunnel.vpn.data.InstalledApps
 import dev.opentunnel.vpn.data.SplitTunnelMode
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import dev.opentunnel.vpn.util.HapticHelper
+import dev.opentunnel.vpn.util.RememberLazyListHaptic
+
 private enum class AppFilter {
     ALL,
     SELECTED,
@@ -90,6 +95,9 @@ fun SplitTunnelScreen(
 
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(AppFilter.ALL) }
+    val listState = rememberLazyListState()
+
+    RememberLazyListHaptic(listState, settings.hapticFeedbackEnabled)
 
     val selected = settings.selectedPackages
     val visible = remember(apps, query, filter, selected) {
@@ -147,6 +155,7 @@ fun SplitTunnelScreen(
                 mode = settings.splitTunnelMode,
                 selectedCount = selected.size,
                 lang = lang,
+                hapticEnabled = settings.hapticFeedbackEnabled,
                 onToggleEnabled = onToggleEnabled,
                 onChangeMode = onChangeMode,
             )
@@ -211,6 +220,7 @@ fun SplitTunnelScreen(
                 visible.isEmpty() -> EmptyHint(dev.opentunnel.vpn.util.Strings.splitTunnelNoMatches(lang, query))
 
                 else -> LazyColumn(
+                    state = listState,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                 ) {
                     items(visible, key = { it.packageName }) { app ->
@@ -232,9 +242,11 @@ private fun HeaderCard(
     mode: SplitTunnelMode,
     selectedCount: Int,
     lang: dev.opentunnel.vpn.data.AppLanguage,
+    hapticEnabled: Boolean,
     onToggleEnabled: (Boolean) -> Unit,
     onChangeMode: (SplitTunnelMode) -> Unit,
 ) {
+    val context = LocalContext.current
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -262,7 +274,15 @@ private fun HeaderCard(
                     )
                 }
                 Spacer(Modifier.width(12.dp))
-                Switch(checked = enabled, onCheckedChange = onToggleEnabled)
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = { newChecked ->
+                        if (hapticEnabled) {
+                            HapticHelper.performClick(context, true)
+                        }
+                        onToggleEnabled(newChecked)
+                    }
+                )
             }
 
             AnimatedVisibility(visible = enabled) {
@@ -318,19 +338,35 @@ private fun ModeOption(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val bgColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        animationSpec = androidx.compose.animation.core.spring(
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy
+        ),
+        label = "modeBg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        animationSpec = androidx.compose.animation.core.tween(220),
+        label = "modeText"
+    )
+
     Surface(
-        modifier = modifier.clip(MaterialTheme.shapes.small).clickable(onClick = onClick),
+        modifier = modifier
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.small,
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        color = bgColor,
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color = textColor,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
         )
     }
