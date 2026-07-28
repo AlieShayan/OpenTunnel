@@ -220,50 +220,24 @@ fun HomeScreen(
                 }
             }
 
-            SectionCard {
-                ProfilePickerRow(
-                    profile = profile,
-                    profiles = profiles,
-                    lang = settings.appLanguage,
-                    onSelectProfile = onSelectProfile,
-                    onOpenProfile = onOpenProfile,
-                    onOpenProfileManagement = onOpenProfileManagement,
-                )
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            Column(
+            Box(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                contentAlignment = Alignment.TopCenter,
             ) {
-                SectionCard(
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    SettingRow(
-                        icon = Icons.Rounded.Apps,
-                        title = Strings.splitTunnelTitle(lang),
-                        subtitle = splitTunnelSummary(settings, lang),
-                        iconTint = scheme.tertiary,
-                        iconBackground = scheme.tertiary.copy(alpha = 0.14f),
-                        onClick = onOpenSplitTunnel,
-                    )
-                }
-
+                // Darker Peeking Sub-Card (positioned underneath/behind)
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth(0.92f)
-                        .offset(y = (-6).dp)
-                        .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp, topStart = 4.dp, topEnd = 4.dp))
+                        .padding(top = 52.dp)
+                        .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp, topStart = 6.dp, topEnd = 6.dp))
                         .clickable { onOpenProfileManagement() },
-                    shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp, topStart = 4.dp, topEnd = 4.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp, topStart = 6.dp, topEnd = 6.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                    tonalElevation = 3.dp,
-                    shadowElevation = 3.dp,
+                    tonalElevation = 1.dp,
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
@@ -273,15 +247,15 @@ fun HomeScreen(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = scheme.primary.copy(alpha = 0.12f),
-                                modifier = Modifier.size(28.dp),
+                                color = scheme.primary.copy(alpha = 0.14f),
+                                modifier = Modifier.size(26.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Rounded.Tune,
                                         contentDescription = null,
                                         tint = scheme.primary,
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(15.dp),
                                     )
                                 }
                             }
@@ -289,7 +263,7 @@ fun HomeScreen(
                                 text = Strings.manageProfilesAction(lang),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Icon(
@@ -300,6 +274,38 @@ fun HomeScreen(
                         )
                     }
                 }
+
+                // Lighter Active Profile Main Card (rendered ON TOP with elevation & drop shadow)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    shadowElevation = 6.dp,
+                    tonalElevation = 4.dp,
+                ) {
+                    ProfilePickerRow(
+                        profile = profile,
+                        profiles = profiles,
+                        lang = settings.appLanguage,
+                        onSelectProfile = onSelectProfile,
+                        onOpenProfile = onOpenProfile,
+                        onOpenProfileManagement = onOpenProfileManagement,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            SectionCard {
+                SettingRow(
+                    icon = Icons.Rounded.Apps,
+                    title = Strings.splitTunnelTitle(lang),
+                    subtitle = splitTunnelSummary(settings, lang),
+                    iconTint = scheme.tertiary,
+                    iconBackground = scheme.tertiary.copy(alpha = 0.14f),
+                    onClick = onOpenSplitTunnel,
+                )
             }
 
             AnimatedVisibility(
