@@ -4,7 +4,7 @@ name: Build APK
 # needed. Grab it from the run's "Artifacts" section.
 on:
   push:
-    branches: [main, master]
+    branches: ['*']
     tags:
       - 'v*'
   pull_request:
