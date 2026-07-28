@@ -57,13 +57,20 @@ fun SettingRow(
     modifier: Modifier = Modifier,
     iconTint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
     iconBackground: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+    hapticEnabled: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val rowModifier = if (onClick != null) {
         modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable {
+                if (hapticEnabled) {
+                    dev.opentunnel.vpn.util.HapticHelper.performClick(context, true)
+                }
+                onClick()
+            }
             .padding(horizontal = 16.dp, vertical = 12.dp)
     } else {
         modifier
@@ -112,7 +119,7 @@ fun SwitchRow(
     subtitle: String? = null,
     checked: Boolean,
     enabled: Boolean = true,
-    hapticEnabled: Boolean = false,
+    hapticEnabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current

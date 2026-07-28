@@ -308,6 +308,7 @@ fun ProfileScreen(
                         title = "Disable credential caching",
                         subtitle = "Never cache login names, user groups, or passwords",
                         checked = draft.disableCredentialCaching,
+                        hapticEnabled = hapticFeedbackEnabled,
                         onCheckedChange = { draft = draft.copy(disableCredentialCaching = it) },
                     )
 
@@ -380,6 +381,7 @@ fun ProfileScreen(
                                 title = "Disable XML POST",
                                 subtitle = "Use the old authentication handshake; may fail on newer servers",
                                 checked = draft.disableXmlPost,
+                                hapticEnabled = hapticFeedbackEnabled,
                                 onCheckedChange = { draft = draft.copy(disableXmlPost = it) },
                             )
 
@@ -387,6 +389,7 @@ fun ProfileScreen(
                                 title = "Require PFS",
                                 subtitle = "Only negotiate cipher suites with Perfect Forward Secrecy",
                                 checked = draft.requirePfs,
+                                hapticEnabled = hapticFeedbackEnabled,
                                 onCheckedChange = { draft = draft.copy(requirePfs = it) },
                             )
 
@@ -394,6 +397,7 @@ fun ProfileScreen(
                                 title = "Override DPD timeout",
                                 subtitle = "Use a custom Dead Peer Detection timeout instead of the server default",
                                 checked = draft.overrideDpdTimeout,
+                                hapticEnabled = hapticFeedbackEnabled,
                                 onCheckedChange = { draft = draft.copy(overrideDpdTimeout = it) },
                             )
 
@@ -517,15 +521,24 @@ private fun CheckboxLine(
     title: String,
     subtitle: String,
     checked: Boolean,
+    hapticEnabled: Boolean = false,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val context = LocalContext.current
+    val toggleAction: (Boolean) -> Unit = { newChecked ->
+        if (hapticEnabled) {
+            HapticHelper.performClick(context, true)
+        }
+        onCheckedChange(newChecked)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { toggleAction(!checked) }
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Checkbox(checked = checked, onCheckedChange = toggleAction)
         Column(Modifier.padding(start = 8.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(
@@ -542,11 +555,20 @@ private fun ToggleLine(
     title: String,
     subtitle: String,
     checked: Boolean,
+    hapticEnabled: Boolean = false,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val context = LocalContext.current
+    val toggleAction: (Boolean) -> Unit = { newChecked ->
+        if (hapticEnabled) {
+            HapticHelper.performClick(context, true)
+        }
+        onCheckedChange(newChecked)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { toggleAction(!checked) }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -559,7 +581,7 @@ private fun ToggleLine(
             )
         }
         Spacer(Modifier.size(12.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = toggleAction)
     }
 }
 

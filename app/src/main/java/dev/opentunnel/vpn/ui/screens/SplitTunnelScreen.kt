@@ -193,7 +193,12 @@ fun SplitTunnelScreen(
                         AppFilter.entries.forEach { option ->
                             FilterChip(
                                 selected = filter == option,
-                                onClick = { filter = option },
+                                onClick = {
+                                    if (settings.hapticFeedbackEnabled) {
+                                        HapticHelper.performClick(context, true)
+                                    }
+                                    filter = option
+                                },
                                 label = { Text(option.getLabel(lang)) },
                                 shape = MaterialTheme.shapes.small,
                             )
@@ -227,6 +232,7 @@ fun SplitTunnelScreen(
                         AppRow(
                             app = app,
                             checked = app.packageName in selected,
+                            hapticEnabled = settings.hapticFeedbackEnabled,
                             onCheckedChange = { onTogglePackage(app.packageName, it) },
                         )
                     }
@@ -376,9 +382,17 @@ private fun ModeOption(
 private fun AppRow(
     app: InstalledApp,
     checked: Boolean,
+    hapticEnabled: Boolean = false,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    val toggleAction: (Boolean) -> Unit = { newChecked ->
+        if (hapticEnabled) {
+            HapticHelper.performClick(context, true)
+        }
+        onCheckedChange(newChecked)
+    }
+
     val icon by produceState<ImageBitmap?>(null, app.packageName) {
         value = InstalledApps.icon(context, app.packageName)
     }
@@ -387,7 +401,7 @@ private fun AppRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .clickable { onCheckedChange(!checked) }
+            .clickable { toggleAction(!checked) }
             .padding(horizontal = 10.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -435,7 +449,7 @@ private fun AppRow(
             )
         }
 
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = toggleAction)
     }
 }
 
