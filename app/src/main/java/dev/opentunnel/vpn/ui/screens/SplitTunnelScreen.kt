@@ -118,8 +118,17 @@ fun SplitTunnelScreen(
                     }
                 },
                 actions = {
+                    if (settings.splitTunnelEnabled && visible.isNotEmpty()) {
+                        TextButton(onClick = {
+                            visible.forEach { onTogglePackage(it.packageName, true) }
+                        }) {
+                            Text(dev.opentunnel.vpn.util.Strings.selectAllApps(lang))
+                        }
+                    }
                     if (selected.isNotEmpty()) {
-                        TextButton(onClick = onClearAll) { Text(dev.opentunnel.vpn.util.Strings.splitTunnelClear(lang)) }
+                        TextButton(onClick = onClearAll) {
+                            Text(dev.opentunnel.vpn.util.Strings.splitTunnelClear(lang))
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

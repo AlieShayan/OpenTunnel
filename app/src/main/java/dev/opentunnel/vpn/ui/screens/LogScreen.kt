@@ -53,6 +53,22 @@ import java.util.Locale
 import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.util.Strings
 
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
+private enum class LogFilter {
+    ALL, ERROR, INFO, APP;
+
+    fun getLabel(lang: AppLanguage): String = when (this) {
+        ALL -> Strings.logLevelAll(lang)
+        ERROR -> Strings.logLevelError(lang)
+        INFO -> Strings.logLevelInfo(lang)
+        APP -> Strings.logLevelApp(lang)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogScreen(
@@ -67,8 +83,22 @@ fun LogScreen(
     val scope = rememberCoroutineScope()
     val formatter = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.US) }
 
-    LaunchedEffect(logs.size) {
-        if (logs.isNotEmpty()) listState.animateScrollToItem(logs.lastIndex)
+    var filter by remember { mutableStateOf(LogFilter.ALL) }
+    var autoScroll by remember { mutableStateOf(true) }
+
+    val filteredLogs = remember(logs, filter) {
+        when (filter) {
+            LogFilter.ALL -> logs
+            LogFilter.ERROR -> logs.filter { it.level == LogLevel.ERROR }
+            LogFilter.INFO -> logs.filter { it.level == LogLevel.INFO || it.level == LogLevel.DEBUG }
+            LogFilter.APP -> logs.filter { it.level == LogLevel.APP }
+        }
+    }
+
+    LaunchedEffect(filteredLogs.size, autoScroll) {
+        if (autoScroll && filteredLogs.isNotEmpty()) {
+            listState.animateScrollToItem(filteredLogs.lastIndex)
+        }
     }
 
     Scaffold(
@@ -82,12 +112,12 @@ fun LogScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        copyToClipboard(context, logs.toPlainText(formatter))
+                        copyToClipboard(context, filteredLogs.toPlainText(formatter))
                         scope.launch { snackbar.showSnackbar("Log copied") }
                     }) {
                         Icon(Icons.Rounded.ContentCopy, contentDescription = "Copy log")
                     }
-                    IconButton(onClick = { shareText(context, logs.toPlainText(formatter)) }) {
+                    IconButton(onClick = { shareText(context, filteredLogs.toPlainText(formatter)) }) {
                         Icon(Icons.Rounded.Share, contentDescription = "Share log")
                     }
                     IconButton(onClick = onClear) {
@@ -101,32 +131,57 @@ fun LogScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        if (logs.isEmpty()) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "Nothing logged yet.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            return@Scaffold
-        }
-
-        LazyColumn(
-            state = listState,
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            items(logs) { line ->
-                LogRow(line, formatter)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LogFilter.entries.forEach { option ->
+                    FilterChip(
+                        selected = filter == option,
+                        onClick = { filter = option },
+                        label = { Text(option.getLabel(appLanguage)) },
+                        shape = MaterialTheme.shapes.small,
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                FilterChip(
+                    selected = autoScroll,
+                    onClick = { autoScroll = !autoScroll },
+                    label = { Text(Strings.autoScrollLabel(appLanguage)) },
+                    shape = MaterialTheme.shapes.small,
+                )
+            }
+
+            if (filteredLogs.isEmpty()) {
+                Box(
+                    Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "Nothing logged yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    items(filteredLogs) { line ->
+                        LogRow(line, formatter)
+                    }
+                }
             }
         }
     }
@@ -164,8 +219,17 @@ private fun LogRow(line: LogLine, formatter: SimpleDateFormat) {
     }
 }
 
-private fun List<LogLine>.toPlainText(formatter: SimpleDateFormat): String =
-    joinToString("\n") { "${formatter.format(Date(it.timestamp))}  ${it.level.name.padEnd(5)}  ${it.text}" }
+private fun List<LogLine>.toPlainText(formatter: SimpleDateFormat): String {
+    val raw = joinToString("\n") { "${formatter.format(Date(it.timestamp))}  ${it.level.name.padEnd(5)}  ${it.text}" }
+    return sanitizeLog(raw)
+}
+
+private fun sanitizeLog(log: String): String {
+    var clean = log
+    clean = clean.replace(Regex("""(?i)(password|passwd|pass|token|secret|key|authorization|bearer)\s*[:=]\s*([^\s,;]+)"""), "$1: [REDACTED]")
+    clean = clean.replace(Regex("""(?i)(pin-sha256:)[A-Za-z0-9+/=]+"""), "$1[REDACTED_FINGERPRINT]")
+    return clean
+}
 
 private fun copyToClipboard(context: Context, text: String) {
     val manager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return

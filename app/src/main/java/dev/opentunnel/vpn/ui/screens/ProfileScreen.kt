@@ -1,5 +1,7 @@
 package dev.opentunnel.vpn.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,9 +21,11 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
+
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
@@ -106,7 +110,15 @@ fun ProfileScreen(
     var draft by remember(profile) { mutableStateOf(profile) }
     var showPassword by remember { mutableStateOf(false) }
     var showAdvanced by remember { mutableStateOf(true) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val caCertLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { draft = draft.copy(caCertPath = it.toString()) }
+    }
+    val userCertLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { draft = draft.copy(userCertPath = it.toString()) }
+    }
+    val privateKeyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { draft = draft.copy(privateKeyPath = it.toString()) }
+    }
 
     Scaffold(
         topBar = {
@@ -147,7 +159,7 @@ fun ProfileScreen(
                 .padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            SectionCard(title = "Server") {
+            SectionCard(title = Strings.serverSection(lang)) {
                 Column(
                     Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -155,7 +167,7 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = draft.name,
                         onValueChange = { draft = draft.copy(name = it) },
-                        label = { Text("Profile name") },
+                        label = { Text(Strings.profileName(lang)) },
                         placeholder = { Text("e.g. Work VPN") },
                         singleLine = true,
                         shape = MaterialTheme.shapes.small,
@@ -165,7 +177,7 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = draft.server,
                         onValueChange = { draft = draft.copy(server = it) },
-                        label = { Text("Server address") },
+                        label = { Text(Strings.serverAddress(lang)) },
                         placeholder = { Text("vpn.example.com") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
@@ -179,9 +191,18 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = draft.caCertPath,
                         onValueChange = { draft = draft.copy(caCertPath = it) },
-                        label = { Text("CA certificate") },
+                        label = { Text(Strings.caCertificate(lang)) },
                         placeholder = { Text("Select or enter CA cert file path") },
                         singleLine = true,
+                        trailingIcon = {
+                            IconButton(onClick = { caCertLauncher.launch("*/*") }) {
+                                Icon(
+                                    Icons.Rounded.FolderOpen,
+                                    contentDescription = Strings.selectFile(lang),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        },
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -189,9 +210,18 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = draft.userCertPath,
                         onValueChange = { draft = draft.copy(userCertPath = it) },
-                        label = { Text("User certificate") },
+                        label = { Text(Strings.userCertificate(lang)) },
                         placeholder = { Text("Client certificate path") },
                         singleLine = true,
+                        trailingIcon = {
+                            IconButton(onClick = { userCertLauncher.launch("*/*") }) {
+                                Icon(
+                                    Icons.Rounded.FolderOpen,
+                                    contentDescription = Strings.selectFile(lang),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        },
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -199,9 +229,18 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = draft.privateKeyPath,
                         onValueChange = { draft = draft.copy(privateKeyPath = it) },
-                        label = { Text("Private key") },
+                        label = { Text(Strings.privateKey(lang)) },
                         placeholder = { Text("Private key path") },
                         singleLine = true,
+                        trailingIcon = {
+                            IconButton(onClick = { privateKeyLauncher.launch("*/*") }) {
+                                Icon(
+                                    Icons.Rounded.FolderOpen,
+                                    contentDescription = Strings.selectFile(lang),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        },
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth(),
                     )

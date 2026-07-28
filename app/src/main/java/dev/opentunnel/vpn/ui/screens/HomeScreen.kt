@@ -32,21 +32,28 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
@@ -121,9 +128,13 @@ fun HomeScreen(
             Spacer(Modifier.height(8.dp))
 
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                val haptic = LocalHapticFeedback.current
                 ConnectOrb(
                     stage = status.stage,
-                    onClick = onToggleConnection,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onToggleConnection()
+                    },
                     lang = settings.appLanguage,
                     enabled = true,
                 )
@@ -160,6 +171,8 @@ fun HomeScreen(
             ) {
                 Column {
                     TrafficRow(stats, settings.appLanguage)
+                    Spacer(Modifier.height(14.dp))
+                    dev.opentunnel.vpn.ui.components.SpeedChart(stats = stats)
                     Spacer(Modifier.height(18.dp))
                 }
             }
@@ -179,6 +192,7 @@ fun HomeScreen(
                 ProfilePickerRow(
                     profile = profile,
                     profiles = profiles,
+                    lang = settings.appLanguage,
                     onSelectProfile = onSelectProfile,
                     onOpenProfile = onOpenProfile,
                     onOpenProfileManagement = onOpenProfileManagement,
@@ -253,22 +267,20 @@ fun HomeScreen(
     }
 }
 
-// ── Profile Picker ─────────────────────────────────────────────────────────
+// ── Profile Picker Sheet ───────────────────────────────────────────────────
 
-/**
- * Shows the active profile name with a dropdown arrow. Tapping opens a menu
- * listing all saved profiles. A secondary tap (on the title text) opens the
- * profile editor for the currently active profile.
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfilePickerRow(
     profile: VpnProfile,
     profiles: List<VpnProfile>,
+    lang: dev.opentunnel.vpn.data.AppLanguage,
     onSelectProfile: (String) -> Unit,
     onOpenProfile: () -> Unit,
     onOpenProfileManagement: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var showSheet by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     Box {
         SettingRow(
@@ -280,10 +292,10 @@ private fun ProfilePickerRow(
                 else -> profile.protocol
             },
             trailing = {
-                IconButton(onClick = { expanded = true }) {
+                IconButton(onClick = { showSheet = true }) {
                     Icon(
                         Icons.Rounded.ExpandMore,
-                        contentDescription = "Switch profile",
+                        contentDescription = dev.opentunnel.vpn.util.Strings.selectProfileTitle(lang),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -291,48 +303,93 @@ private fun ProfilePickerRow(
             onClick = onOpenProfile,
         )
 
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            profiles.forEach { p ->
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(
-                                text = p.displayName,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (p.id == profile.id) FontWeight.Bold else FontWeight.Normal,
-                            )
-                            if (p.server.isNotBlank()) {
-                                Text(
-                                    text = p.server,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        if (showSheet) {
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+            ModalBottomSheet(
+                onDismissRequest = { showSheet = false },
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = dev.opentunnel.vpn.util.Strings.selectProfileTitle(lang),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    profiles.forEach { p ->
+                        val isSelected = p.id == profile.id
+                        Surface(
+                            shape = MaterialTheme.shapes.medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else Color.Transparent,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSelectProfile(p.id)
+                                    showSheet = false
+                                },
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onSelectProfile(p.id)
+                                        showSheet = false
+                                    },
                                 )
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = p.displayName,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    )
+                                    if (p.server.isNotBlank()) {
+                                        Text(
+                                            text = p.server,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
                             }
                         }
-                    },
-                    onClick = {
-                        onSelectProfile(p.id)
-                        expanded = false
-                    },
-                )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    TextButton(
+                        onClick = {
+                            showSheet = false
+                            onOpenProfileManagement()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = dev.opentunnel.vpn.util.Strings.manageProfilesAction(lang),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                }
             }
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = "⚙ Manage profiles…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                onClick = {
-                    expanded = false
-                    onOpenProfileManagement()
-                },
-            )
         }
     }
 }
