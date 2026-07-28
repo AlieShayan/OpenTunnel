@@ -166,11 +166,13 @@ unpack "lz4-$LZ4_VER.tar.gz"                 "lz4-$LZ4_VER"
 OC_SRC="$BUILD_DIR/src/openconnect-$OPENCONNECT_VER"
 
 # Patch openconnect symbol map templates so JNI Java_* symbols are in global scope across all ABIs
-for mapfile in "$OC_SRC/libopenconnect.map.in" "$OC_SRC/libopenconnect.map" "$OC_SRC/src/libopenconnect.map.in"; do
-    if [[ -f "$mapfile" ]] && ! grep -q "Java_\*" "$mapfile"; then
-        sed -i 's/global:/global:\n\tJava_*;/' "$mapfile"
-    fi
-done
+if [[ -d "$OC_SRC" ]]; then
+    find "$OC_SRC" \( -name "*.map.in" -o -name "*.map" \) -type f | while read -r mapfile; do
+        if ! grep -q "Java_\*" "$mapfile"; then
+            sed -i 's/global:/global:\n\tJava_*;/' "$mapfile"
+        fi
+    done
+fi
 
 # --------------------------------------------------------------------------
 # Per-ABI build
@@ -227,7 +229,7 @@ build_abi() {
     export PKG_CONFIG_SYSROOT_DIR=""
 
     local COMMON_CFLAGS="-fPIC -O2 -ffunction-sections -fdata-sections"
-    [[ "$ABI" == "armeabi-v7a" ]] && COMMON_CFLAGS="$COMMON_CFLAGS -march=armv7-a -mfpu=neon -mfloat-abi=softfp"
+    [[ "$ABI" == "armeabi-v7a" ]] && COMMON_CFLAGS="$COMMON_CFLAGS -march=armv7-a -mfpu=neon"
 
     # ---------------- OpenSSL ----------------
     if [[ -f "$PREFIX/lib/libssl.a" ]]; then
@@ -348,27 +350,35 @@ build_abi() {
             --disable-dsa-tests \
             OPENSSL_CFLAGS="-I$PREFIX/include" \
             OPENSSL_LIBS="$PREFIX/lib/libssl.a $PREFIX/lib/libcrypto.a" \
-            CFLAGS="$COMMON_CFLAGS" \
+            CFLAGS="$COMMON_CFLAGS -I$JNI_INC" \
+            CPPFLAGS="-I$JNI_INC" \
             LDFLAGS="-L$PREFIX/lib -Wl,--gc-sections" \
             LIBS="-lz" \
             >"$WORK/openconnect-configure.log" 2>&1 || {
                 tail -40 "$WORK/openconnect-configure.log" >&2
                 die "openconnect configure failed ($ABI) — full log: $WORK/openconnect-configure.log"; }
 
-        # Android's loader has no concept of versioned sonames: the file must be
-        # called libopenconnect.so *and* carry that exact SONAME. Upstream links
-        # with -version-number, so override the libtool flags for this target.
-        make libopenconnect.map >/dev/null 2>&1 || true
-        VSCRIPT=""
-        if [[ -f libopenconnect.map ]]; then
-            if ! grep -q "Java_\*" libopenconnect.map; then
-                sed -i 's/global:/global:\n\tJava_*;/' libopenconnect.map
-            fi
-            VSCRIPT="-Wl,--version-script,libopenconnect.map"
+        # Verify JNI standalone was actually enabled in config.h
+        if [[ -f config.h ]] && ! grep -q "#define JNI_STANDALONE 1" config.h; then
+            tail -40 "$WORK/openconnect-configure.log" >&2
+            die "openconnect configure did not enable JNI standalone ($ABI) — see $WORK/openconnect-configure.log"
         fi
 
+        # Create explicit symbol version script including Java_* JNI entry points
+        cat << 'EOF' > libopenconnect.map
+OPENCONNECT_5.0 {
+global:
+	openconnect_*;
+	Java_*;
+local:
+	*;
+};
+EOF
+
+        # Android's loader has no concept of versioned sonames: the file must be
+        # called libopenconnect.so *and* carry that exact SONAME. Override libtool flags.
         make -j"$JOBS" libopenconnect.la \
-            libopenconnect_la_LDFLAGS="-avoid-version -no-undefined $VSCRIPT" \
+            libopenconnect_la_LDFLAGS="-avoid-version -no-undefined -Wl,--version-script,libopenconnect.map" \
             >"$WORK/openconnect-build.log" 2>&1 || {
                 tail -60 "$WORK/openconnect-build.log" >&2
                 die "openconnect build failed ($ABI) — full log: $WORK/openconnect-build.log"; }
