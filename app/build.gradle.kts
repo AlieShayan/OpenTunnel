@@ -27,7 +27,6 @@ android {
         versionName = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "3.3.0"
 
         ndk {
-            // Only package the ABIs the native script actually produced.
             abiFilters += ocAbis
         }
 
@@ -43,46 +42,74 @@ android {
     }
 
     signingConfigs {
+        // ── helpers ──────────────────────────────────────────────────────────
+        // Priority order for release keystore resolution:
+        //   1. keystore.properties file in the root project (local developer machine)
+        //   2. Environment variables (CI: KEYSTORE_FILE, KEYSTORE_PASSWORD, KEY_ALIAS)
+        //   3. release.keystore file in the root project + env passwords (CI fallback)
+        //
+        // If NONE of the above are available the release signingConfig is left
+        // intentionally INVALID so that `assembleRelease` fails loudly instead
+        // of silently producing a debug-signed release APK that would cause
+        // "App not installed as package conflicts with an existing package"
+        // when a user tries to update over a properly-signed build.
+
         val keystorePropsFile = rootProject.file("keystore.properties")
-        val envStoreFile = System.getenv("KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
-        val envStorePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
-        val envKeyAlias = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() }
-        val envKeyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: envStorePassword
+        val envStoreFile      = System.getenv("KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+        val envStorePassword  = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
+        val envKeyAlias       = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() }
+        val envKeyPassword    = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: envStorePassword
+        val repoKeystore      = rootProject.file("release.keystore")
 
         create("release") {
-            val repoKeystore = rootProject.file("release.keystore")
-            if (keystorePropsFile.exists()) {
-                val props = Properties().apply { keystorePropsFile.inputStream().use { load(it) } }
-                storeFile = rootProject.file(props.getProperty("storeFile"))
-                storePassword = props.getProperty("storePassword")
-                keyAlias = props.getProperty("keyAlias")
-                keyPassword = props.getProperty("keyPassword")
-            } else if (envStoreFile != null && envStorePassword != null && envKeyAlias != null) {
-                val envFile = rootProject.file(envStoreFile)
-                if (envFile.exists() && envFile.length() > 0L) {
-                    storeFile = envFile
-                    storePassword = envStorePassword
-                    keyAlias = envKeyAlias
-                    keyPassword = envKeyPassword
-                } else {
-                    val debugConfig = signingConfigs.getByName("debug")
-                    storeFile = debugConfig.storeFile
-                    storePassword = debugConfig.storePassword
-                    keyAlias = debugConfig.keyAlias
-                    keyPassword = debugConfig.keyPassword
+            when {
+                // 1. Local keystore.properties
+                keystorePropsFile.exists() -> {
+                    val props = Properties().apply { keystorePropsFile.inputStream().use { load(it) } }
+                    storeFile     = rootProject.file(props.getProperty("storeFile"))
+                    storePassword = props.getProperty("storePassword")
+                    keyAlias      = props.getProperty("keyAlias")
+                    keyPassword   = props.getProperty("keyPassword")
+                    println("[Signing] Using keystore.properties")
                 }
-            } else if (repoKeystore.exists() && repoKeystore.length() > 0L && envStorePassword != null && envKeyAlias != null) {
-                storeFile = repoKeystore
-                storePassword = envStorePassword
-                keyAlias = envKeyAlias
-                keyPassword = envKeyPassword
-            } else {
-                // Fall back to debug signing config for developer builds or CI when release credentials are incomplete
-                val debugConfig = signingConfigs.getByName("debug")
-                storeFile = debugConfig.storeFile
-                storePassword = debugConfig.storePassword
-                keyAlias = debugConfig.keyAlias
-                keyPassword = debugConfig.keyPassword
+
+                // 2. Env KEYSTORE_FILE
+                envStoreFile != null && envStorePassword != null && envKeyAlias != null -> {
+                    val envFile = rootProject.file(envStoreFile)
+                    if (envFile.exists() && envFile.length() > 0L) {
+                        storeFile     = envFile
+                        storePassword = envStorePassword
+                        keyAlias      = envKeyAlias
+                        keyPassword   = envKeyPassword
+                        println("[Signing] Using KEYSTORE_FILE env variable")
+                    } else {
+                        throw GradleException(
+                            "[Signing] KEYSTORE_FILE '${envFile.absolutePath}' does not exist or is empty. " +
+                            "Cannot produce a consistently-signed release APK."
+                        )
+                    }
+                }
+
+                // 3. release.keystore in repo root + env passwords
+                repoKeystore.exists() && repoKeystore.length() > 0L &&
+                envStorePassword != null && envKeyAlias != null -> {
+                    storeFile     = repoKeystore
+                    storePassword = envStorePassword
+                    keyAlias      = envKeyAlias
+                    keyPassword   = envKeyPassword
+                    println("[Signing] Using release.keystore from repo root")
+                }
+
+                // No credentials at all — fail loudly for release builds.
+                else -> {
+                    // Setting storeFile to null causes Gradle to throw during
+                    // assembleRelease; assembleDebug is unaffected.
+                    println(
+                        "[Signing] WARNING: No release signing credentials found. " +
+                        "assembleRelease WILL FAIL. Set up keystore.properties or GitHub Secrets."
+                    )
+                    storeFile = null
+                }
             }
         }
     }
@@ -90,6 +117,7 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
+            // Always uses the auto-generated debug keystore — never touches release signingConfig.
         }
         release {
             isMinifyEnabled = true
@@ -120,7 +148,6 @@ android {
             "/META-INF/DEPENDENCIES",
         )
         jniLibs {
-            // Load libopenconnect.so straight out of the APK (no extraction).
             useLegacyPackaging = false
         }
     }
@@ -161,13 +188,6 @@ dependencies {
 
 val jniLibsDir = layout.projectDirectory.dir("src/main/jniLibs")
 
-/**
- * Cross-compiles openconnect + OpenSSL + libxml2 + lz4 for every ABI listed in
- * gradle.properties and drops the resulting libopenconnect.so into jniLibs.
- *
- * Requires a Linux/macOS shell with autotools and ANDROID_NDK_HOME set.
- * Run once: ./gradlew :app:buildNativeLibs   (or ./native/build-openconnect.sh)
- */
 tasks.register<Exec>("buildNativeLibs") {
     group = "build"
     description = "Cross-compiles openconnect $ocVersion into app/src/main/jniLibs"
@@ -182,7 +202,6 @@ tasks.register<Exec>("buildNativeLibs") {
     )
 }
 
-/** Non-fatal heads-up when someone builds the APK before the native step. */
 val checkNativeLibs = tasks.register("checkNativeLibs") {
     group = "verification"
     description = "Warns when libopenconnect.so has not been built yet"
@@ -194,7 +213,7 @@ val checkNativeLibs = tasks.register("checkNativeLibs") {
             logger.warn(
                 """
                 |
-                |  ┌──────────────────────────────────────────────────────────────────┐
+                |  ┌────────────────────────────────────────────────────────────────────┐
                 |  │  libopenconnect.so is missing for: ${missing.joinToString(", ").padEnd(29)}│
                 |  │                                                                  │
                 |  │  The app will install and the UI will run, but connecting will   │
@@ -202,7 +221,7 @@ val checkNativeLibs = tasks.register("checkNativeLibs") {
                 |  │                                                                  │
                 |  │  Build it with:   ./gradlew :app:buildNativeLibs                 │
                 |  │  (needs ANDROID_NDK_HOME + autotools; see native/README.md)      │
-                |  └──────────────────────────────────────────────────────────────────┘
+                |  └────────────────────────────────────────────────────────────────────┘
                 |
                 """.trimMargin()
             )
