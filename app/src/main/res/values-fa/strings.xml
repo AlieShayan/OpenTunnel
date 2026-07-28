@@ -2,32 +2,32 @@
 <resources>
     <string name="app_name">OpenTunnel</string>
 
-    <string name="channel_status">وضعیت تونل</string>
-    <string name="channel_status_desc">اعلان فعال هنگام اجرای VPN</string>
+    <string name="channel_status">وضعیت اتصال تونل</string>
+    <string name="channel_status_desc">اعلان مداوم هنگام فعال بودن VPN</string>
     <string name="channel_alerts">نیازمند توجه</string>
-    <string name="channel_alerts_desc">درخواست ورود، هشدارهای گواهی امنیتی و خطاهای اتصال</string>
+    <string name="channel_alerts_desc">هشدار گواهی‌نامه، احراز هویت و خطاهای اتصال</string>
 
     <string name="notif_connecting">در حال اتصال…</string>
     <string name="notif_connected">VPN متصل شد</string>
     <string name="notif_reconnecting">در حال اتصال مجدد…</string>
     <string name="notif_disconnecting">در حال قطع اتصال…</string>
     <string name="notif_error">VPN قطع شد</string>
-    <string name="notif_action_required">OpenTunnel نیازمند توجه شماست</string>
+    <string name="notif_action_required">OpenTunnel نیازمند اقدام شماست</string>
 
     <string name="action_disconnect">قطع اتصال</string>
 
     <string name="state_connected">متصل شد</string>
     <string name="state_connecting">در حال اتصال</string>
-    <string name="state_disconnected">قطع شد</string>
-    <string name="state_error">خطا</string>
+    <string name="state_disconnected">قطع شده</string>
+    <string name="state_error">خطا در اتصال</string>
 
     <!-- Home-screen widget -->
-    <string name="widget_description">ویجت میانبر اتصال OpenTunnel</string>
-    <string name="widget_2x2_desc">ویجت ۲×۲ مربعی فشرده OpenTunnel</string>
-    <string name="widget_3x2_desc">ویجت ۳×۲ کارت کامل با جزئیات OpenTunnel</string>
-    <string name="widget_4x1_desc">ویجت ۴×۱ نوار افقی OpenTunnel</string>
-    <string name="widget_orb_desc">وضعیت تونل، برای باز کردن برنامه لمس کنید</string>
-    <string name="widget_status_disconnected">متصل نیست</string>
+    <string name="widget_description">ویجت اتصال سریع OpenTunnel</string>
+    <string name="widget_2x2_desc">ویجت فشرده ۲×۲ OpenTunnel</string>
+    <string name="widget_3x2_desc">ویجت کامل ۳×۲ با آمار ترافیک</string>
+    <string name="widget_4x1_desc">ویجت افقی ۴×۱ OpenTunnel</string>
+    <string name="widget_orb_desc">وضعیت تونل، لمس برای ورود به برنامه</string>
+    <string name="widget_status_disconnected">غیرمتصل</string>
     <string name="widget_status_connecting">در حال اتصال…</string>
     <string name="widget_status_connected">متصل شد</string>
     <string name="widget_btn_connect">اتصال</string>

@@ -166,4 +166,17 @@ object Strings {
     fun verboseLoggingSub(lang: AppLanguage): String =
         if (isRtl(lang)) "شامل کردن لاگ‌های دیباگ ${ltr("openconnect")} در لاگ اتصال" else "Include openconnect debug output in the connection log"
     fun about(lang: AppLanguage): String = if (isRtl(lang)) "درباره برنامه" else "About"
+
+    // ── Additional UI & File Picker Strings ───────────────────────────────────
+    fun selectFile(lang: AppLanguage): String = if (isRtl(lang)) "انتخاب فایل" else "Select file"
+    fun selectProfileTitle(lang: AppLanguage): String = if (isRtl(lang)) "انتخاب پروفایل اتصال" else "Select VPN Profile"
+    fun manageProfilesAction(lang: AppLanguage): String = if (isRtl(lang)) "مدیریت پروفایل‌ها…" else "Manage profiles…"
+    fun selectAllApps(lang: AppLanguage): String = if (isRtl(lang)) "انتخاب همه" else "Select all"
+    fun deselectAllApps(lang: AppLanguage): String = if (isRtl(lang)) "لغو همه" else "Deselect all"
+    fun logLevelAll(lang: AppLanguage): String = if (isRtl(lang)) "همه" else "All"
+    fun logLevelError(lang: AppLanguage): String = if (isRtl(lang)) "خطاها" else "Errors"
+    fun logLevelInfo(lang: AppLanguage): String = if (isRtl(lang)) "اطلاعات" else "Info"
+    fun logLevelApp(lang: AppLanguage): String = if (isRtl(lang)) "برنامه" else "App"
+    fun autoScrollLabel(lang: AppLanguage): String = if (isRtl(lang)) "پیمایش خودکار" else "Auto-scroll"
 }
+
