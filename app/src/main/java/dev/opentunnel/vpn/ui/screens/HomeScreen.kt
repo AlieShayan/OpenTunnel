@@ -106,6 +106,9 @@ fun HomeScreen(
         label = "ambient",
     )
 
+    val scrollState = rememberScrollState()
+    dev.opentunnel.vpn.util.RememberScrollHaptic(scrollState, settings.hapticFeedbackEnabled)
+
     Box(
         Modifier
             .fillMaxSize()
@@ -120,7 +123,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 18.dp),
         ) {
             HomeTopBar(onOpenSettings = onOpenSettings, onOpenLogs = onOpenLogs)
@@ -140,28 +143,22 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(20.dp))
 
-            StatusLine(status = status, lang = settings.appLanguage)
-
-            // Location badge — shown when connected and location is resolved
             AnimatedVisibility(
                 visible = status.stage == ConnectionStage.CONNECTED &&
                     (status.info.locationName != null || status.info.pingMs >= 0),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
             ) {
-                Column {
-                    Spacer(Modifier.height(10.dp))
-                    LocationBadge(
-                        flag = status.info.locationFlag.orEmpty(),
-                        name = status.info.locationName.orEmpty(),
-                        pingMs = status.info.pingMs,
-                    )
-                }
+                LocationBadge(
+                    flag = status.info.locationFlag ?: "🌐",
+                    name = status.info.locationName ?: dev.opentunnel.vpn.util.Strings.connected(settings.appLanguage),
+                    pingMs = status.info.pingMs,
+                )
             }
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(16.dp))
 
             AnimatedVisibility(
                 visible = status.stage == ConnectionStage.CONNECTED ||
@@ -172,7 +169,10 @@ fun HomeScreen(
                 Column {
                     TrafficRow(stats, settings.appLanguage)
                     Spacer(Modifier.height(14.dp))
-                    dev.opentunnel.vpn.ui.components.SpeedChart(stats = stats)
+                    dev.opentunnel.vpn.ui.components.SpeedChart(
+                        stats = stats,
+                        appLanguage = settings.appLanguage,
+                    )
                     Spacer(Modifier.height(18.dp))
                 }
             }

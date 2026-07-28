@@ -1,9 +1,7 @@
 package dev.opentunnel.vpn.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,14 +14,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,32 +38,57 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.opentunnel.vpn.core.TrafficStats
+import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.util.Formatters
 
-private const val MAX_HISTORY_POINTS = 30
+enum class ChartRange(val label: String, val maxPoints: Int) {
+    M1("1m", 60),
+    M10("10m", 600),
+    H1("1h", 3600),
+    H2("2h", 7200),
+    H5("5h", 18000),
+}
+
+private const val MAX_STORED_POINTS = 18000
 
 /**
  * Real-time traffic speed graph showing Download (RX) and Upload (TX) rates
- * over time using a smooth Canvas line chart.
+ * over time with selectable range (1m, 10m, 1h, 2h, 5h), peak download indicator line,
+ * and increased height for optimal visibility.
  */
 @Composable
 fun SpeedChart(
     stats: TrafficStats,
+    appLanguage: AppLanguage = AppLanguage.SYSTEM,
     modifier: Modifier = Modifier,
 ) {
+    val isPersian = appLanguage == AppLanguage.PERSIAN
     val rxHistory = remember { mutableStateListOf<Long>() }
     val txHistory = remember { mutableStateListOf<Long>() }
+    var selectedRange by remember { mutableStateOf(ChartRange.M1) }
+    var showRangeDropdown by remember { mutableStateOf(false) }
 
     LaunchedEffect(stats.rxRate, stats.txRate) {
         rxHistory.add(stats.rxRate)
         txHistory.add(stats.txRate)
-        if (rxHistory.size > MAX_HISTORY_POINTS) rxHistory.removeAt(0)
-        if (txHistory.size > MAX_HISTORY_POINTS) txHistory.removeAt(0)
+        if (rxHistory.size > MAX_STORED_POINTS) rxHistory.removeAt(0)
+        if (txHistory.size > MAX_STORED_POINTS) txHistory.removeAt(0)
+    }
+
+    val visibleRx = remember(rxHistory.size, selectedRange) {
+        rxHistory.takeLast(selectedRange.maxPoints)
+    }
+    val visibleTx = remember(txHistory.size, selectedRange) {
+        txHistory.takeLast(selectedRange.maxPoints)
+    }
+    val peakRxRate = remember(visibleRx) {
+        visibleRx.maxOrNull() ?: 0L
     }
 
     Card(
@@ -75,7 +107,7 @@ fun SpeedChart(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Live Traffic",
+                    text = if (isPersian) "ترافیک زنده" else "Live Traffic",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -83,12 +115,76 @@ fun SpeedChart(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     LegendItem(color = Color(0xFF4CAF50), label = "DL: ${Formatters.rate(stats.rxRate)}")
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     LegendItem(color = Color(0xFF2196F3), label = "UL: ${Formatters.rate(stats.txRate)}")
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // Range Selector Chip / Dropdown
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showRangeDropdown = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = selectedRange.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Icon(
+                                    imageVector = Icons.Rounded.ArrowDropDown,
+                                    contentDescription = "Select Time Range",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showRangeDropdown,
+                            onDismissRequest = { showRangeDropdown = false }
+                        ) {
+                            ChartRange.entries.forEach { range ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = range.label,
+                                            fontWeight = if (range == selectedRange) FontWeight.Bold else FontWeight.Normal,
+                                        )
+                                    },
+                                    onClick = {
+                                        selectedRange = range
+                                        showRangeDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Sub-header showing Peak Download rate
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (isPersian) "بیشینه دانلود: ${Formatters.rate(peakRxRate)}" else "Peak DL: ${Formatters.rate(peakRxRate)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             val downloadColor = dev.opentunnel.vpn.ui.theme.LocalStatusPalette.current.connected
             val uploadColor = MaterialTheme.colorScheme.secondary
@@ -96,31 +192,66 @@ fun SpeedChart(
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(90.dp)
+                    .height(160.dp)
             ) {
-                if (rxHistory.isEmpty()) return@Canvas
+                if (visibleRx.isEmpty()) return@Canvas
 
                 val width = size.width
                 val height = size.height
-                val maxVal = (rxHistory.maxOrNull() ?: 1L).coerceAtLeast(txHistory.maxOrNull() ?: 1L).coerceAtLeast(1024L).toFloat()
+                val maxVal = (visibleRx.maxOrNull() ?: 1L)
+                    .coerceAtLeast(visibleTx.maxOrNull() ?: 1L)
+                    .coerceAtLeast(1024L)
+                    .toFloat()
+
+                val maxPointsToDraw = selectedRange.maxPoints.coerceAtMost(200)
+                val step = (visibleRx.size.toFloat() / maxPointsToDraw).coerceAtLeast(1f)
+
+                val sampledRx = mutableListOf<Long>()
+                val sampledTx = mutableListOf<Long>()
+                var idx = 0f
+                while (idx < visibleRx.size) {
+                    val i = idx.toInt().coerceIn(0, visibleRx.lastIndex)
+                    sampledRx.add(visibleRx[i])
+                    sampledTx.add(visibleTx[i])
+                    idx += step
+                }
 
                 fun getPoints(data: List<Long>): List<Offset> {
-                    val stepX = width / (MAX_HISTORY_POINTS - 1).coerceAtLeast(1)
-                    val startOffset = MAX_HISTORY_POINTS - data.size
-                    return data.mapIndexed { idx, valBps ->
-                        val x = (startOffset + idx) * stepX
-                        val y = height - (valBps.toFloat() / maxVal * (height - 10.dp.toPx())) - 5.dp.toPx()
+                    val targetCount = maxPointsToDraw
+                    val stepX = width / (targetCount - 1).coerceAtLeast(1)
+                    val startOffset = targetCount - data.size
+                    return data.mapIndexed { i, valBps ->
+                        val x = (startOffset + i) * stepX
+                        val y = height - (valBps.toFloat() / maxVal * (height - 18.dp.toPx())) - 9.dp.toPx()
                         Offset(x, y.coerceIn(0f, height))
                     }
                 }
 
-                val rxPoints = getPoints(rxHistory)
-                val txPoints = getPoints(txHistory)
+                val rxPoints = getPoints(sampledRx)
+                val txPoints = getPoints(sampledTx)
 
                 // Grid background lines
-                val gridColor = uploadColor.copy(alpha = 0.10f)
-                drawLine(gridColor, Offset(0f, height / 2), Offset(width, height / 2), strokeWidth = 1.dp.toPx())
+                val gridColor = uploadColor.copy(alpha = 0.08f)
+                drawLine(gridColor, Offset(0f, height / 3), Offset(width, height / 3), strokeWidth = 1.dp.toPx())
+                drawLine(gridColor, Offset(0f, height * 2 / 3), Offset(width, height * 2 / 3), strokeWidth = 1.dp.toPx())
                 drawLine(gridColor, Offset(0f, height), Offset(width, height), strokeWidth = 1.dp.toPx())
+
+                // Peak Download Horizontal Dashed Line (Subtle Alpha)
+                if (peakRxRate > 0L) {
+                    val yPeak = height - (peakRxRate.toFloat() / maxVal * (height - 18.dp.toPx())) - 9.dp.toPx()
+                    val dashedPath = Path().apply {
+                        moveTo(0f, yPeak)
+                        lineTo(width, yPeak)
+                    }
+                    drawPath(
+                        path = dashedPath,
+                        color = downloadColor.copy(alpha = 0.35f),
+                        style = Stroke(
+                            width = 1.2.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
+                        )
+                    )
+                }
 
                 // Draw Download (RX) Path with vertical gradient fill
                 if (rxPoints.size >= 2) {
@@ -142,7 +273,7 @@ fun SpeedChart(
                     drawPath(
                         path = rxFillPath,
                         brush = Brush.verticalGradient(
-                            colors = listOf(downloadColor.copy(alpha = 0.25f), Color.Transparent),
+                            colors = listOf(downloadColor.copy(alpha = 0.22f), Color.Transparent),
                             startY = 0f,
                             endY = height,
                         )
@@ -174,7 +305,7 @@ fun SpeedChart(
                     drawPath(
                         path = txFillPath,
                         brush = Brush.verticalGradient(
-                            colors = listOf(uploadColor.copy(alpha = 0.15f), Color.Transparent),
+                            colors = listOf(uploadColor.copy(alpha = 0.14f), Color.Transparent),
                             startY = 0f,
                             endY = height,
                         )
