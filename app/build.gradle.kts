@@ -44,10 +44,10 @@ android {
 
     signingConfigs {
         val keystorePropsFile = rootProject.file("keystore.properties")
-        val envStoreFile = System.getenv("KEYSTORE_FILE")
-        val envStorePassword = System.getenv("KEYSTORE_PASSWORD")
-        val envKeyAlias = System.getenv("KEY_ALIAS")
-        val envKeyPassword = System.getenv("KEY_PASSWORD")
+        val envStoreFile = System.getenv("KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+        val envStorePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
+        val envKeyAlias = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() }
+        val envKeyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: envStorePassword
 
         create("release") {
             val repoKeystore = rootProject.file("release.keystore")
@@ -57,13 +57,13 @@ android {
                 storePassword = props.getProperty("storePassword")
                 keyAlias = props.getProperty("keyAlias")
                 keyPassword = props.getProperty("keyPassword")
-            } else if (!envStoreFile.isNullOrBlank() && !envStorePassword.isNullOrBlank()) {
+            } else if (envStoreFile != null && envStorePassword != null && envKeyAlias != null) {
                 val envFile = rootProject.file(envStoreFile)
                 if (envFile.exists() && envFile.length() > 0L) {
                     storeFile = envFile
                     storePassword = envStorePassword
-                    keyAlias = envKeyAlias ?: ""
-                    keyPassword = envKeyPassword ?: envStorePassword
+                    keyAlias = envKeyAlias
+                    keyPassword = envKeyPassword
                 } else {
                     val debugConfig = signingConfigs.getByName("debug")
                     storeFile = debugConfig.storeFile
@@ -71,13 +71,13 @@ android {
                     keyAlias = debugConfig.keyAlias
                     keyPassword = debugConfig.keyPassword
                 }
-            } else if (repoKeystore.exists() && repoKeystore.length() > 0L) {
+            } else if (repoKeystore.exists() && repoKeystore.length() > 0L && envStorePassword != null && envKeyAlias != null) {
                 storeFile = repoKeystore
-                storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
-                keyAlias = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
-                keyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
+                storePassword = envStorePassword
+                keyAlias = envKeyAlias
+                keyPassword = envKeyPassword
             } else {
-                // Fall back to debug signing config for local developer builds when no release credentials exist
+                // Fall back to debug signing config for developer builds or CI when release credentials are incomplete
                 val debugConfig = signingConfigs.getByName("debug")
                 storeFile = debugConfig.storeFile
                 storePassword = debugConfig.storePassword

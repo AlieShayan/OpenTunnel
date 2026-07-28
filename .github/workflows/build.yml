@@ -62,13 +62,28 @@ jobs:
       - name: Decode Signing Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then
             echo "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > release.keystore 2>/dev/null || true
-            if [ ! -s release.keystore ]; then
-              echo "Keystore is empty or invalid base64, removing..."
+            if [ -s release.keystore ]; then
+              KEY_PASS="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+              KEYTOOL_BIN="$JAVA_HOME/bin/keytool"
+              if [ ! -x "$KEYTOOL_BIN" ]; then KEYTOOL_BIN="keytool"; fi
+              if ! "$KEYTOOL_BIN" -list -keystore release.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" -keypass "$KEY_PASS" >/dev/null 2>&1; then
+                echo "::warning ::Keystore credentials in GitHub Secrets failed keytool verification. Falling back to Debug signing."
+                rm -f release.keystore
+              else
+                echo "Release keystore successfully decoded and verified."
+              fi
+            else
+              echo "::warning ::KEYSTORE_BASE64 decoded to empty file. Removing."
               rm -f release.keystore
             fi
+          else
+            echo "Release signing secrets incomplete or not provided. Build will proceed using Debug signing."
           fi
 
       - name: Assemble APKs (Debug & Release)
