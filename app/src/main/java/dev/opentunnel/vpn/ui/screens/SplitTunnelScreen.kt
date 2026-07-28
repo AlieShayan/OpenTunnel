@@ -91,6 +91,7 @@ fun SplitTunnelScreen(
     onBack: () -> Unit,
 ) {
     val lang = settings.appLanguage
+    val context = LocalContext.current
     LaunchedEffect(Unit) { onLoadApps() }
 
     var query by remember { mutableStateOf("") }
