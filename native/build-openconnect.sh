@@ -167,8 +167,9 @@ OC_SRC="$BUILD_DIR/src/openconnect-$OPENCONNECT_VER"
 
 # Patch openconnect symbol map templates so JNI Java_* symbols are in global scope across all ABIs
 if [[ -d "$OC_SRC" ]]; then
-    find "$OC_SRC" \( -name "*.map.in" -o -name "*.map" \) -type f | while read -r mapfile; do
-        if ! grep -q "Java_\*" "$mapfile"; then
+    find "$OC_SRC" -type f \( -name "*.map.in" -o -name "*.map" \) | while read -r mapfile; do
+        if ! grep -q "Java_" "$mapfile"; then
+            sed -i 's/openconnect_\*;/openconnect_*;\n\t\tJava_*;/' "$mapfile"
             sed -i 's/global:/global:\n\tJava_*;/' "$mapfile"
         fi
     done
@@ -366,9 +367,13 @@ build_abi() {
 
         # Android's loader has no concept of versioned sonames: the file must be
         # called libopenconnect.so *and* carry that exact SONAME. Override libtool flags.
-        if [[ -f libopenconnect.map ]] && ! grep -q "Java_" libopenconnect.map; then
-            sed -i 's/global:/global:\n\tJava_*;/' libopenconnect.map
-        fi
+        find . -type f \( -name "*.map.in" -o -name "*.map" \) | while read -r mapfile; do
+            if ! grep -q "Java_" "$mapfile"; then
+                sed -i 's/openconnect_\*;/openconnect_*;\n\t\tJava_*;/' "$mapfile"
+                sed -i 's/global:/global:\n\tJava_*;/' "$mapfile"
+            fi
+        done
+        touch libopenconnect.map 2>/dev/null || true
 
         VSCRIPT=""
         [[ -f libopenconnect.map ]] && VSCRIPT="-Wl,--version-script,libopenconnect.map"
