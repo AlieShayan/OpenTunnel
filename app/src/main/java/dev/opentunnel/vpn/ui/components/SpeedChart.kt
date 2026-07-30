@@ -126,10 +126,13 @@ fun SpeedChart(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
 
+                val downloadColor = dev.opentunnel.vpn.ui.theme.LocalStatusPalette.current.connected
+                val uploadColor = MaterialTheme.colorScheme.secondary
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    LegendItem(color = Color(0xFF4CAF50), label = "DL: ${Formatters.rate(stats.rxRate)}")
+                    LegendItem(color = downloadColor, label = "DL: ${Formatters.rate(stats.rxRate)}")
                     Spacer(modifier = Modifier.width(8.dp))
-                    LegendItem(color = Color(0xFF2196F3), label = "UL: ${Formatters.rate(stats.txRate)}")
+                    LegendItem(color = uploadColor, label = "UL: ${Formatters.rate(stats.txRate)}")
                     Spacer(modifier = Modifier.width(10.dp))
 
                     // Range Selector Chip / Dropdown
@@ -286,7 +289,7 @@ fun SpeedChart(
                     drawPath(
                         path = rxFillPath,
                         brush = Brush.verticalGradient(
-                            colors = listOf(downloadColor.copy(alpha = 0.22f), Color.Transparent),
+                            colors = listOf(downloadColor.copy(alpha = 0.24f), Color.Transparent),
                             startY = 0f,
                             endY = height,
                         )
@@ -295,6 +298,18 @@ fun SpeedChart(
                         path = rxPath,
                         color = downloadColor,
                         style = Stroke(width = 2.5.dp.toPx())
+                    )
+                    // Endpoint indicator dot
+                    val lastRx = rxPoints.last()
+                    drawCircle(
+                        color = downloadColor.copy(alpha = 0.3f),
+                        radius = 6.dp.toPx(),
+                        center = lastRx
+                    )
+                    drawCircle(
+                        color = downloadColor,
+                        radius = 3.5.dp.toPx(),
+                        center = lastRx
                     )
                 }
 
@@ -318,7 +333,7 @@ fun SpeedChart(
                     drawPath(
                         path = txFillPath,
                         brush = Brush.verticalGradient(
-                            colors = listOf(uploadColor.copy(alpha = 0.14f), Color.Transparent),
+                            colors = listOf(uploadColor.copy(alpha = 0.16f), Color.Transparent),
                             startY = 0f,
                             endY = height,
                         )
@@ -327,6 +342,18 @@ fun SpeedChart(
                         path = txPath,
                         color = uploadColor,
                         style = Stroke(width = 2.dp.toPx())
+                    )
+                    // Endpoint indicator dot
+                    val lastTx = txPoints.last()
+                    drawCircle(
+                        color = uploadColor.copy(alpha = 0.3f),
+                        radius = 5.dp.toPx(),
+                        center = lastTx
+                    )
+                    drawCircle(
+                        color = uploadColor,
+                        radius = 3.dp.toPx(),
+                        center = lastTx
                     )
                 }
             }

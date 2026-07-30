@@ -612,15 +612,14 @@ class TunnelRunner(
         override fun onProgress(level: Int, message: String?) {
             val text = message?.trim().orEmpty()
             if (text.isEmpty()) return
-            VpnBus.log(
-                when (level) {
-                    LibOpenConnect.PRG_ERR   -> LogLevel.ERROR
-                    LibOpenConnect.PRG_INFO  -> LogLevel.INFO
-                    LibOpenConnect.PRG_DEBUG -> LogLevel.DEBUG
-                    else                     -> LogLevel.TRACE
-                },
-                text,
-            )
+            val logLevel = when {
+                text.contains("vhost-net", ignoreCase = true) -> LogLevel.DEBUG
+                level == LibOpenConnect.PRG_ERR   -> LogLevel.ERROR
+                level == LibOpenConnect.PRG_INFO  -> LogLevel.INFO
+                level == LibOpenConnect.PRG_DEBUG -> LogLevel.DEBUG
+                else                              -> LogLevel.TRACE
+            }
+            VpnBus.log(logLevel, text)
         }
 
         override fun onProtectSocket(fd: Int) {

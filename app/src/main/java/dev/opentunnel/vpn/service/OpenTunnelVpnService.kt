@@ -296,11 +296,15 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
 
         if (intent != null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            runCatching {
-                startActivity(intent)
-                VpnBus.info("Opened OEM Auto-Start settings for $manufacturer")
-            }.onFailure {
-                VpnBus.info("Could not launch OEM Auto-Start screen: ${it.message}")
+            if (packageManager.resolveActivity(intent, 0) != null) {
+                runCatching {
+                    startActivity(intent)
+                    VpnBus.info("Opened OEM Auto-Start settings for $manufacturer")
+                }.onFailure {
+                    VpnBus.debug("Could not launch OEM Auto-Start screen: ${it.message}")
+                }
+            } else {
+                VpnBus.debug("OEM Auto-Start screen not available on this ROM ($manufacturer)")
             }
         }
     }

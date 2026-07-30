@@ -667,41 +667,47 @@ private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+            tonalElevation = 2.dp,
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (flag.isNotBlank()) {
                     Text(
                         text = flag,
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                     )
                 }
                 if (name.isNotBlank()) {
                     Text(
                         text = name,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
                 if (pingMs >= 0) {
-                    if (name.isNotBlank()) {
+                    val pingColor = when {
+                        pingMs < 60 -> LocalStatusPalette.current.connected
+                        pingMs < 150 -> LocalStatusPalette.current.connecting
+                        else -> LocalStatusPalette.current.error
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = pingColor.copy(alpha = 0.15f),
+                    ) {
                         Text(
-                            text = "\u2022",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = "⚡ $pingMs ms",
+                            style = MaterialTheme.typography.labelSmall.merge(MonoNumberStyle),
+                            color = pingColor,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         )
                     }
-                    Text(
-                        text = "\u26A1 $pingMs ms",
-                        style = MaterialTheme.typography.bodyMedium.merge(MonoNumberStyle),
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
                 }
             }
         }
@@ -718,17 +724,25 @@ private fun HomeTopBar() {
             .padding(top = 8.dp, bottom = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        val gradient = Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.tertiary,
+            )
+        )
         Text(
             text = "OpenTunnel",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium.copy(
+                brush = gradient,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = (-0.5).sp,
+            ),
             textAlign = TextAlign.Center,
         )
         Text(
             text = "AnyConnect \u00B7 openconnect",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
             textAlign = TextAlign.Center,
         )
     }
@@ -827,32 +841,44 @@ private fun TrafficTile(
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (up) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
-                    contentDescription = null,
-                    tint = tint,
-                    modifier = Modifier.size(15.dp),
-                )
-                Spacer(Modifier.width(6.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = tint.copy(alpha = 0.15f),
+                    modifier = Modifier.size(24.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (up) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium,
                 )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Text(
                 text = total,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = rate,
                 style = MaterialTheme.typography.bodySmall.merge(MonoNumberStyle),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = tint,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }

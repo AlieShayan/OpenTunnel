@@ -22,6 +22,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
+import androidx.compose.ui.text.font.Font
+import dev.opentunnel.vpn.R
+
+val InterFontFamily = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_medium, FontWeight.Medium),
+    Font(R.font.inter_semibold, FontWeight.SemiBold),
+    Font(R.font.inter_bold, FontWeight.Bold),
+)
+
 /** Which colour scheme the user asked for. */
 enum class ThemeMode { SYSTEM, DARK, LIGHT }
 
@@ -38,21 +48,21 @@ private val OpenTunnelShapes = Shapes(
 
 private val OpenTunnelTypography = Typography().run {
     copy(
-        displayLarge = displayLarge.copy(
-            fontWeight = FontWeight.Medium,
-            letterSpacing = (-1.5).sp,
-        ),
-        displayMedium = displayMedium.copy(
-            fontWeight = FontWeight.Medium,
-            letterSpacing = (-1).sp,
-        ),
-        headlineLarge = headlineLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp),
-        headlineMedium = headlineMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp),
-        headlineSmall = headlineSmall.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
-        titleLarge = titleLarge.copy(fontWeight = FontWeight.SemiBold),
-        titleMedium = titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        labelLarge = labelLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.2.sp),
-        labelMedium = labelMedium.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.4.sp),
+        displayLarge = displayLarge.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp),
+        displayMedium = displayMedium.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.Medium, letterSpacing = (-1).sp),
+        displaySmall = displaySmall.copy(fontFamily = InterFontFamily),
+        headlineLarge = headlineLarge.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp),
+        headlineMedium = headlineMedium.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp),
+        headlineSmall = headlineSmall.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
+        titleLarge = titleLarge.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold),
+        titleMedium = titleMedium.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold),
+        titleSmall = titleSmall.copy(fontFamily = InterFontFamily),
+        bodyLarge = bodyLarge.copy(fontFamily = InterFontFamily),
+        bodyMedium = bodyMedium.copy(fontFamily = InterFontFamily),
+        bodySmall = bodySmall.copy(fontFamily = InterFontFamily),
+        labelLarge = labelLarge.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.SemiBold, letterSpacing = 0.2.sp),
+        labelMedium = labelMedium.copy(fontFamily = InterFontFamily, fontWeight = FontWeight.Medium, letterSpacing = 0.4.sp),
+        labelSmall = labelSmall.copy(fontFamily = InterFontFamily),
     )
 }
 
