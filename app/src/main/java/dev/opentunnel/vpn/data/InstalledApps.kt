@@ -29,7 +29,16 @@ object InstalledApps {
     private const val ICON_PX = 128
     private val iconCache = LruCache<String, ImageBitmap>(220)
 
-    suspend fun load(context: Context): List<InstalledApp> = withContext(Dispatchers.IO) {
+    private var cachedList: List<InstalledApp>? = null
+    private var lastLoadTime = 0L
+    private const val CACHE_TTL_MS = 5 * 60 * 1000L
+
+    suspend fun load(context: Context, forceRefresh: Boolean = false): List<InstalledApp> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (!forceRefresh && cachedList != null && (now - lastLoadTime < CACHE_TTL_MS)) {
+            return@withContext cachedList!!
+        }
+
         val pm = context.packageManager
         val self = context.packageName
         val collator = Collator.getInstance()
@@ -38,7 +47,7 @@ object InstalledApps {
             pm.getInstalledApplications(PackageManager.GET_META_DATA)
         }.getOrElse { emptyList() }
 
-        packages.asSequence()
+        val result = packages.asSequence()
             .filter { it.packageName != self }
             .filter { hasInternet(pm, it.packageName) }
             .map { info ->
@@ -52,6 +61,10 @@ object InstalledApps {
             }
             .sortedWith(compareBy(collator) { it.label })
             .toList()
+
+        cachedList = result
+        lastLoadTime = now
+        result
     }
 
     private fun hasInternet(pm: PackageManager, packageName: String): Boolean =

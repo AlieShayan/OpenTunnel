@@ -258,20 +258,38 @@ class TunnelRunner(
 
             lib.setHostname(host)
 
-            val systemIp = runCatching {
-                java.net.InetAddress.getByName(host).hostAddress
-            }.getOrNull()
-
-            if (systemIp != null && systemIp.isNotBlank()) {
-                VpnBus.log(LogLevel.DEBUG, "Resolved $host \u2192 $systemIp (system DNS)")
-                return buildResolvedUrl(uri, systemIp)
+            val now = SystemClock.elapsedRealtime()
+            val cached = dnsCache[host]
+            if (cached != null && (now - cached.timestamp < DNS_CACHE_TTL_MS)) {
+                VpnBus.log(LogLevel.DEBUG, "Resolved $host \u2192 ${cached.ip} (DNS cache)")
+                return buildResolvedUrl(uri, cached.ip)
             }
 
-            VpnBus.log(LogLevel.DEBUG, "System DNS failed for $host, trying DoH fallback")
-            val dohIp = resolveViaDoh(host)
-            if (dohIp != null) {
-                VpnBus.log(LogLevel.DEBUG, "Resolved $host \u2192 $dohIp (DoH fallback)")
-                return buildResolvedUrl(uri, dohIp)
+            val executor = java.util.concurrent.Executors.newFixedThreadPool(2)
+            val completionService = java.util.concurrent.ExecutorCompletionService<String?>(executor)
+
+            completionService.submit(java.util.concurrent.Callable {
+                runCatching { java.net.InetAddress.getByName(host).hostAddress }.getOrNull()
+            })
+            completionService.submit(java.util.concurrent.Callable {
+                resolveViaDoh(host)
+            })
+
+            var resolvedIp: String? = null
+            for (i in 0 until 2) {
+                val future = completionService.poll(3000, java.util.concurrent.TimeUnit.MILLISECONDS)
+                val res = runCatching { future?.get() }.getOrNull()
+                if (!res.isNullOrBlank()) {
+                    resolvedIp = res
+                    break
+                }
+            }
+            executor.shutdownNow()
+
+            if (!resolvedIp.isNullOrBlank()) {
+                dnsCache[host] = DnsCacheEntry(resolvedIp, now)
+                VpnBus.log(LogLevel.DEBUG, "Resolved $host \u2192 $resolvedIp")
+                return buildResolvedUrl(uri, resolvedIp)
             }
 
             VpnBus.log(LogLevel.DEBUG, "DNS resolution failed for $host, trying hostname directly")
@@ -296,8 +314,8 @@ class TunnelRunner(
             val ip = runCatching {
                 val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
                 conn.setRequestProperty("Accept", "application/dns-json")
-                conn.connectTimeout = 5_000
-                conn.readTimeout = 5_000
+                conn.connectTimeout = 3_000
+                conn.readTimeout = 3_000
                 conn.connect()
                 val body = conn.inputStream.bufferedReader().readText()
                 conn.disconnect()
@@ -798,11 +816,15 @@ class TunnelRunner(
         get() = "AnyConnect Android 4.10.05065"
 
     private companion object {
-        /** Reduced from 60 s — DTLS is optional; TLS fallback is seamless. */
-        const val DTLS_ATTEMPT_SECONDS      = 20
+        /** Reduced from 20 s — DTLS is optional; TLS fallback is seamless. */
+        const val DTLS_ATTEMPT_SECONDS      = 12
         const val RECONNECT_TIMEOUT_SECONDS = 300
         const val MIN_MTU                   = 1280
         const val DEFAULT_MTU               = 1350
         const val DEVICE_ID                 = "0123456789ABCDEF0123456789ABCDEF01234567"
+
+        private data class DnsCacheEntry(val ip: String, val timestamp: Long)
+        private val dnsCache = java.util.concurrent.ConcurrentHashMap<String, DnsCacheEntry>()
+        private const val DNS_CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes
     }
 }

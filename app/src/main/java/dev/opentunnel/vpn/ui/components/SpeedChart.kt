@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -89,14 +90,18 @@ fun SpeedChart(
         }
     }
 
-    val visibleRx = remember(currentRx.size, selectedRange) {
-        currentRx.takeLast(selectedRange.maxPoints)
+    val visibleRx by remember(currentRx, selectedRange) {
+        derivedStateOf {
+            if (currentRx.size <= selectedRange.maxPoints) currentRx else currentRx.takeLast(selectedRange.maxPoints)
+        }
     }
-    val visibleTx = remember(currentTx.size, selectedRange) {
-        currentTx.takeLast(selectedRange.maxPoints)
+    val visibleTx by remember(currentTx, selectedRange) {
+        derivedStateOf {
+            if (currentTx.size <= selectedRange.maxPoints) currentTx else currentTx.takeLast(selectedRange.maxPoints)
+        }
     }
-    val peakRxRate = remember(visibleRx) {
-        visibleRx.maxOrNull() ?: 0L
+    val peakRxRate by remember {
+        derivedStateOf { visibleRx.maxOrNull() ?: 0L }
     }
 
     Card(

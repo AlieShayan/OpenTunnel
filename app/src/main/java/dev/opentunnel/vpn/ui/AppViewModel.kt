@@ -43,8 +43,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _installedApps = MutableStateFlow<List<InstalledApp>?>(null)
     val installedApps: StateFlow<List<InstalledApp>?> = _installedApps.asStateFlow()
 
-    val rxHistory = MutableStateFlow<List<Long>>(emptyList())
-    val txHistory = MutableStateFlow<List<Long>>(emptyList())
+    private val rxDeque = ArrayDeque<Long>(18000)
+    private val txDeque = ArrayDeque<Long>(18000)
+
+    private val _rxHistory = MutableStateFlow<List<Long>>(emptyList())
+    val rxHistory: StateFlow<List<Long>> = _rxHistory.asStateFlow()
+
+    private val _txHistory = MutableStateFlow<List<Long>>(emptyList())
+    val txHistory: StateFlow<List<Long>> = _txHistory.asStateFlow()
 
     private var lastStage: dev.opentunnel.vpn.core.ConnectionStage? = null
 
@@ -57,8 +63,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val prev = lastStage
                 lastStage = s.stage
                 if (prev != s.stage && (s.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTING || s.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTED) && prev == dev.opentunnel.vpn.core.ConnectionStage.IDLE) {
-                    rxHistory.value = emptyList()
-                    txHistory.value = emptyList()
+                    rxDeque.clear()
+                    txDeque.clear()
+                    _rxHistory.value = emptyList()
+                    _txHistory.value = emptyList()
                 }
             }
         }
@@ -66,16 +74,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             stats.collect { st ->
                 if (status.value.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTED) {
-                    val rx = rxHistory.value.toMutableList().apply {
-                        add(st.rxRate)
-                        if (size > 18000) removeAt(0)
-                    }
-                    val tx = txHistory.value.toMutableList().apply {
-                        add(st.txRate)
-                        if (size > 18000) removeAt(0)
-                    }
-                    rxHistory.value = rx
-                    txHistory.value = tx
+                    if (rxDeque.size >= 18000) rxDeque.removeFirst()
+                    rxDeque.addLast(st.rxRate)
+
+                    if (txDeque.size >= 18000) txDeque.removeFirst()
+                    txDeque.addLast(st.txRate)
+
+                    _rxHistory.value = rxDeque.toList()
+                    _txHistory.value = txDeque.toList()
                 }
             }
         }

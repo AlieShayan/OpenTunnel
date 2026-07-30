@@ -41,7 +41,7 @@ private object Routes {
     const val SETTINGS = "settings"
 }
 
-private const val SLIDE_MS = 280
+private const val SLIDE_MS = 220
 
 @Composable
 fun OpenTunnelApp(

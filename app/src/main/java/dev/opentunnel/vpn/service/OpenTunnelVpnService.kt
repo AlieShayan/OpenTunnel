@@ -226,9 +226,9 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
             "OpenTunnel:TunnelWakeLock",
         ).also {
             it.setReferenceCounted(false)
-            it.acquire()   // released in stopSelfSafely() / onDestroy()
+            it.acquire(6 * 60 * 60 * 1000L)   // 6 hours max, released in stopSelfSafely() / onDestroy()
         }
-        VpnBus.info("WakeLock acquired — tunnel will stay active during screen-off")
+        VpnBus.info("WakeLock acquired — tunnel will stay active during screen-off (max 6h)")
     }
 
     private fun releaseWakeLock() {
@@ -268,24 +268,70 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         }
     }
 
+    private var oemAutoStartRequested = false
+
+    private fun requestOemAutoStart() {
+        if (oemAutoStartRequested) return
+        oemAutoStartRequested = true
+
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        val intent = when {
+            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> {
+                Intent().apply {
+                    setComponent(android.content.ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+                }
+            }
+            manufacturer.contains("samsung") -> {
+                Intent().apply {
+                    setComponent(android.content.ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"))
+                }
+            }
+            manufacturer.contains("oppo") || manufacturer.contains("realme") -> {
+                Intent().apply {
+                    setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"))
+                }
+            }
+            else -> null
+        }
+
+        if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching {
+                startActivity(intent)
+                VpnBus.info("Opened OEM Auto-Start settings for $manufacturer")
+            }.onFailure {
+                VpnBus.info("Could not launch OEM Auto-Start screen: ${it.message}")
+            }
+        }
+    }
+
     // ── observers ─────────────────────────────────────────────────────────
+
+    private var lastNotifyTime = 0L
+    private var lastStageNotified: ConnectionStage? = null
 
     private fun observeStatus() {
         scope.launch {
             combine(VpnBus.status, VpnBus.stats) { status, stats -> status to stats }
                 .collect { (status, stats) ->
-                    if (runner != null || status.stage.isActive) {
-                        runCatching {
-                            val manager = getSystemService<NotificationManager>()
-                            manager?.notify(
-                                Notifications.STATUS_NOTIFICATION_ID,
-                                Notifications.buildStatus(
-                                    this@OpenTunnelVpnService,
-                                    status,
-                                    stats,
-                                    showStatsInNotification,
-                                ),
-                            )
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    val stageChanged = status.stage != lastStageNotified
+                    if (stageChanged || (now - lastNotifyTime >= 2000L)) {
+                        lastNotifyTime = now
+                        lastStageNotified = status.stage
+                        if (runner != null || status.stage.isActive) {
+                            runCatching {
+                                val manager = getSystemService<NotificationManager>()
+                                manager?.notify(
+                                    Notifications.STATUS_NOTIFICATION_ID,
+                                    Notifications.buildStatus(
+                                        this@OpenTunnelVpnService,
+                                        status,
+                                        stats,
+                                        showStatsInNotification,
+                                    ),
+                                )
+                            }
                         }
                     }
                     TunnelWidget.notifyAll(this@OpenTunnelVpnService)
@@ -294,6 +340,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                         // Ask once for battery-opt exemption so Doze never
                         // throttles the tunnel after the first screen-off.
                         requestBatteryOptExemptionIfNeeded()
+                        requestOemAutoStart()
 
                         if (status.info.locationName == null &&
                             repository.currentSettings().enableGeoIpLookup
@@ -397,7 +444,26 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
             val ms = runCatching {
                 val start = android.os.SystemClock.elapsedRealtime()
                 java.net.Socket().use { socket ->
-                    socket.connect(java.net.InetSocketAddress(host, port), 2000)
+                    socket.connect(java.net.InetSocketAddress(host, port), 1500)
+                }
+                android.os.SystemClock.elapsedRealtime() - start
+            }.getOrDefault(-1L)
+            if (ms >= 0) return ms
+        }
+
+        // UDP fallback if TCP fails
+        val udpTargets = listOf("1.1.1.1" to 53, "8.8.8.8" to 53)
+        for ((host, port) in udpTargets) {
+            val ms = runCatching {
+                val start = android.os.SystemClock.elapsedRealtime()
+                java.net.DatagramSocket().use { ds ->
+                    ds.soTimeout = 1500
+                    val address = java.net.InetAddress.getByName(host)
+                    val dummyData = ByteArray(32)
+                    val packet = java.net.DatagramPacket(dummyData, dummyData.size, address, port)
+                    ds.send(packet)
+                    val respPacket = java.net.DatagramPacket(ByteArray(32), 32)
+                    ds.receive(respPacket)
                 }
                 android.os.SystemClock.elapsedRealtime() - start
             }.getOrDefault(-1L)

@@ -15,6 +15,8 @@ import dev.opentunnel.vpn.core.TunnelStatus
 import dev.opentunnel.vpn.ui.MainActivity
 import dev.opentunnel.vpn.util.Formatters
 
+import android.os.Build
+
 object Notifications {
 
     const val STATUS_CHANNEL_ID = "tunnel_status"
@@ -101,7 +103,7 @@ object Notifications {
             }
         }.trim()
 
-        return NotificationCompat.Builder(context, STATUS_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, STATUS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(subtitle)
@@ -110,7 +112,7 @@ object Notifications {
             .setOngoing(status.stage != ConnectionStage.ERROR)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(
@@ -118,7 +120,12 @@ object Notifications {
                 context.getString(R.string.action_disconnect),
                 disconnectIntent(context),
             )
-            .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+        }
+
+        return builder.build()
     }
 
     /** Heads-up notification pulling the user back into the app for a prompt. */

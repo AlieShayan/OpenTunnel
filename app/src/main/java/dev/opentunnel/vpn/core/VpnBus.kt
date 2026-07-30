@@ -23,6 +23,7 @@ object VpnBus {
     private val _stats = MutableStateFlow(TrafficStats())
     val stats: StateFlow<TrafficStats> = _stats.asStateFlow()
 
+    private val logDeque = ArrayDeque<LogLine>(MAX_LOG_LINES)
     private val _logs = MutableStateFlow<List<LogLine>>(emptyList())
     val logs: StateFlow<List<LogLine>> = _logs.asStateFlow()
 
@@ -109,13 +110,12 @@ object VpnBus {
     fun log(level: LogLevel, message: String) {
         if (message.isBlank()) return
         val line = LogLine(System.currentTimeMillis(), level, message.trimEnd())
-        _logs.update { existing ->
-            val next = if (existing.size >= MAX_LOG_LINES) {
-                existing.subList(existing.size - MAX_LOG_LINES + 1, existing.size) + line
-            } else {
-                existing + line
+        synchronized(logDeque) {
+            if (logDeque.size >= MAX_LOG_LINES) {
+                logDeque.removeFirst()
             }
-            next
+            logDeque.addLast(line)
+            _logs.value = logDeque.toList()
         }
         when (level) {
             LogLevel.ERROR -> Log.e(TAG, message)
@@ -128,6 +128,9 @@ object VpnBus {
     fun error(message: String) = log(LogLevel.ERROR, message)
 
     fun clearLogs() {
-        _logs.value = emptyList()
+        synchronized(logDeque) {
+            logDeque.clear()
+            _logs.value = emptyList()
+        }
     }
 }

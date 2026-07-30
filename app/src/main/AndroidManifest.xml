@@ -60,6 +60,7 @@
         <service
             android:name=".service.OpenTunnelVpnService"
             android:exported="false"
+            android:stopWithTask="false"
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:foregroundServiceType="systemExempted">
             <intent-filter>
@@ -67,6 +68,9 @@
             </intent-filter>
             <meta-data
                 android:name="android.net.VpnService.SUPPORTS_ALWAYS_ON"
+                android:value="true" />
+            <meta-data
+                android:name="com.samsung.android.keepalive.enable"
                 android:value="true" />
         </service>
 
