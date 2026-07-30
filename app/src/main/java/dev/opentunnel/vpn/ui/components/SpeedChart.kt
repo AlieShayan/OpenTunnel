@@ -100,7 +100,7 @@ fun SpeedChart(
             if (currentTx.size <= selectedRange.maxPoints) currentTx else currentTx.takeLast(selectedRange.maxPoints)
         }
     }
-    val peakRxRate by remember {
+    val peakRxRate by remember(visibleRx) {
         derivedStateOf { visibleRx.maxOrNull() ?: 0L }
     }
 
@@ -108,8 +108,9 @@ fun SpeedChart(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -224,20 +225,24 @@ fun SpeedChart(
 
                 val sampledRx = mutableListOf<Long>()
                 val sampledTx = mutableListOf<Long>()
+                val sampledIndices = mutableListOf<Int>()
                 var idx = 0f
                 while (idx < visibleRx.size) {
                     val i = idx.toInt().coerceIn(0, visibleRx.lastIndex)
                     sampledRx.add(visibleRx[i])
                     sampledTx.add(visibleTx[i])
+                    sampledIndices.add(i)
                     idx += step
                 }
 
                 fun getPoints(data: List<Long>): List<Offset> {
-                    val targetCount = maxPointsToDraw
-                    val stepX = width / (targetCount - 1).coerceAtLeast(1)
-                    val startOffset = targetCount - data.size
+                    val totalRangeSec = (selectedRange.maxPoints - 1).coerceAtLeast(1).toFloat()
+                    val totalDataSize = visibleRx.size
                     return data.mapIndexed { i, valBps ->
-                        val x = (startOffset + i) * stepX
+                        val origIdx = sampledIndices.getOrElse(i) { i }
+                        val ageInSec = (totalDataSize - 1 - origIdx).coerceAtLeast(0)
+                        val fractionFromLeft = (totalRangeSec - ageInSec) / totalRangeSec
+                        val x = (width * fractionFromLeft).coerceIn(0f, width)
                         val y = height - (valBps.toFloat() / maxVal * (height - 18.dp.toPx())) - 9.dp.toPx()
                         Offset(x, y.coerceIn(0f, height))
                     }
@@ -356,6 +361,27 @@ fun SpeedChart(
                         center = lastTx
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // X-Axis Time Indicators
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "-${selectedRange.label}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                )
+                Text(
+                    text = if (isPersian) "اکنون" else "now",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                )
             }
         }
     }

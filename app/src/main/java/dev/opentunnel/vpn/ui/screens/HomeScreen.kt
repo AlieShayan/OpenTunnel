@@ -20,7 +20,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.lerp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -117,42 +123,20 @@ fun HomeScreen(
     onOpenLogs: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    val palette = LocalStatusPalette.current
     val scheme = MaterialTheme.colorScheme
     val lang = settings.appLanguage
-
-    val ambient by animateColorAsState(
-        targetValue = when (status.stage) {
-            ConnectionStage.CONNECTED -> palette.connected.copy(alpha = 0.16f)
-            ConnectionStage.ERROR -> palette.error.copy(alpha = 0.14f)
-            ConnectionStage.IDLE -> palette.idle.copy(alpha = 0.07f)
-            else -> palette.connecting.copy(alpha = 0.13f)
-        },
-        animationSpec = tween(700),
-        label = "ambient",
-    )
 
     val scrollState = rememberScrollState()
     dev.opentunnel.vpn.util.RememberScrollHaptic(scrollState, settings.hapticFeedbackEnabled)
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    0f to ambient,
-                    0.55f to Color.Transparent,
-                    1f to Color.Transparent,
-                )
-            )
-    ) {
+    Box(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 18.dp),
         ) {
-            HomeTopBar()
+            HomeTopBar(scrollState = scrollState)
 
             Spacer(Modifier.height(8.dp))
 
@@ -299,7 +283,7 @@ fun HomeScreen(
 
             SectionCard {
                 SettingRow(
-                    icon = Icons.Rounded.Apps,
+                    painter = painterResource(dev.opentunnel.vpn.R.drawable.ic_split_tunnel),
                     title = Strings.splitTunnelTitle(lang),
                     subtitle = splitTunnelSummary(settings, lang),
                     iconTint = scheme.tertiary,
@@ -378,8 +362,32 @@ fun MainPagerScreen(
 ) {
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
     val scope = rememberCoroutineScope()
+    val palette = LocalStatusPalette.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val ambient by animateColorAsState(
+        targetValue = when (status.stage) {
+            ConnectionStage.CONNECTED -> palette.connected.copy(alpha = 0.16f)
+            ConnectionStage.ERROR -> palette.error.copy(alpha = 0.14f)
+            ConnectionStage.IDLE -> palette.idle.copy(alpha = 0.07f)
+            else -> palette.connecting.copy(alpha = 0.13f)
+        },
+        animationSpec = tween(700),
+        label = "ambient",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .drawBehind {
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(ambient, Color.Transparent),
+                        center = Offset(size.width / 2f, 0f),
+                        radius = size.width * 1.2f,
+                    )
+                )
+            }
+    ) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
@@ -717,11 +725,18 @@ private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
 // ── Top bar ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun HomeTopBar() {
+private fun HomeTopBar(scrollState: ScrollState) {
+    val scrollFraction = (scrollState.value / 350f).coerceIn(0f, 1f)
+    val alphaValue = 1f - scrollFraction
+    val fontSizeSp = lerp(28.sp, 16.sp, scrollFraction)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 4.dp),
+            .padding(top = 8.dp, bottom = 4.dp)
+            .graphicsLayer {
+                alpha = alphaValue
+            },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         val gradient = Brush.linearGradient(
@@ -733,6 +748,7 @@ private fun HomeTopBar() {
         Text(
             text = "OpenTunnel",
             style = MaterialTheme.typography.headlineMedium.copy(
+                fontSize = fontSizeSp,
                 brush = gradient,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = (-0.5).sp,
@@ -742,7 +758,7 @@ private fun HomeTopBar() {
         Text(
             text = "AnyConnect \u00B7 openconnect",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f * alphaValue),
             textAlign = TextAlign.Center,
         )
     }

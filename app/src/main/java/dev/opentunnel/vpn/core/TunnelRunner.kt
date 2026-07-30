@@ -157,6 +157,8 @@ class TunnelRunner(
             return "The gateway accepted the login but refused to establish the tunnel."
         }
 
+        VpnBus.setStage(ConnectionStage.CONNECTED, "Setting up tunnel interface…")
+
         val ipInfo = lib.getIPInfo() ?: return "The gateway did not send an IP configuration."
         val descriptor = establishTun(ipInfo) ?: return "Android refused to create the tunnel interface."
         tunFd = descriptor
