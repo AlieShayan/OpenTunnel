@@ -53,6 +53,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val txHistory: StateFlow<List<Long>> = _txHistory.asStateFlow()
 
     private var lastStage: dev.opentunnel.vpn.core.ConnectionStage? = null
+    private var lastConnectedAt = 0L
+
+    fun clearSpeedHistory() {
+        rxDeque.clear()
+        txDeque.clear()
+        _rxHistory.value = emptyList()
+        _txHistory.value = emptyList()
+    }
 
     init {
         // One-time migration of legacy single-profile data.
@@ -60,13 +68,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             status.collect { s ->
-                val prev = lastStage
+                val prevStage = lastStage
+                val prevConnectedAt = lastConnectedAt
                 lastStage = s.stage
-                if (prev != s.stage && (s.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTING || s.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTED) && prev == dev.opentunnel.vpn.core.ConnectionStage.IDLE) {
-                    rxDeque.clear()
-                    txDeque.clear()
-                    _rxHistory.value = emptyList()
-                    _txHistory.value = emptyList()
+                lastConnectedAt = s.connectedAtElapsed
+
+                val stageReset = prevStage != s.stage && (
+                    s.stage == dev.opentunnel.vpn.core.ConnectionStage.PREPARING ||
+                    s.stage == dev.opentunnel.vpn.core.ConnectionStage.CONNECTING ||
+                    s.stage == dev.opentunnel.vpn.core.ConnectionStage.RECONNECTING
+                )
+                val newConnectionSession = s.connectedAtElapsed != 0L && s.connectedAtElapsed != prevConnectedAt
+
+                if (stageReset || newConnectionSession) {
+                    clearSpeedHistory()
                 }
             }
         }

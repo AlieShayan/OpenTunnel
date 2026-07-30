@@ -346,6 +346,11 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                         requestBatteryOptExemptionIfNeeded()
                         requestOemAutoStart()
 
+                        if (stageChanged) {
+                            locationAttemptCount = 0
+                            locationJob?.cancel()
+                        }
+
                         if (status.info.locationName == null &&
                             repository.currentSettings().enableGeoIpLookup
                         ) {
@@ -363,6 +368,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
         if (locationJob?.isActive == true) return
         locationJob = scope.launch {
             VpnBus.info("Resolving connection location\u2026")
+            delay(800L)
             val loc = LocationResolver.resolve()
             if (loc != null) {
                 locationAttemptCount = 0
@@ -379,7 +385,8 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                 locationAttemptCount++
                 VpnBus.info("Could not resolve connection location (attempt $locationAttemptCount/$MAX_LOCATION_RETRIES)")
                 if (locationAttemptCount < MAX_LOCATION_RETRIES) {
-                    delay(15_000L)
+                    delay(5_000L)
+                    startLocationLookup()
                 }
             }
         }

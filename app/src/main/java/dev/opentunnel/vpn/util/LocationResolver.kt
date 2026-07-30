@@ -44,9 +44,11 @@ object LocationResolver {
         val conn = url.openConnection() as HttpURLConnection
         conn.connectTimeout = TIMEOUT_MS
         conn.readTimeout = TIMEOUT_MS
+        conn.useCaches = false
         conn.requestMethod = "GET"
         conn.setRequestProperty("User-Agent", "OpenTunnel/1.0")
         conn.setRequestProperty("Accept", "application/json")
+        conn.setRequestProperty("Connection", "close")
         if (conn.responseCode != 200) return@runCatching null
         val body = conn.inputStream.bufferedReader().readText()
         JSONObject(body)

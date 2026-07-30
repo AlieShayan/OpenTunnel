@@ -366,24 +366,39 @@ fun MainPagerScreen(
 
     val ambient by animateColorAsState(
         targetValue = when (status.stage) {
-            ConnectionStage.CONNECTED -> palette.connected.copy(alpha = 0.16f)
-            ConnectionStage.ERROR -> palette.error.copy(alpha = 0.14f)
-            ConnectionStage.IDLE -> palette.idle.copy(alpha = 0.07f)
-            else -> palette.connecting.copy(alpha = 0.13f)
+            ConnectionStage.CONNECTED -> palette.connected.copy(alpha = 0.32f)
+            ConnectionStage.ERROR -> palette.error.copy(alpha = 0.30f)
+            ConnectionStage.IDLE -> palette.idle.copy(alpha = 0.12f)
+            else -> palette.connecting.copy(alpha = 0.30f)
         },
         animationSpec = tween(700),
         label = "ambient",
     )
 
+    val pagePosition by remember(pagerState) {
+        derivedStateOf {
+            pagerState.currentPage + pagerState.currentPageOffsetFraction
+        }
+    }
+    val isRtl = settings.appLanguage == AppLanguage.PERSIAN
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .drawBehind {
+                val orbCenterY = 190.dp.toPx()
+                val dirMultiplier = if (isRtl) -1f else 1f
+                val orbCenterX = size.width / 2f + (1f - pagePosition) * size.width * dirMultiplier
                 drawRect(
                     brush = Brush.radialGradient(
-                        colors = listOf(ambient, Color.Transparent),
-                        center = Offset(size.width / 2f, 0f),
-                        radius = size.width * 1.2f,
+                        colors = listOf(
+                            ambient,
+                            ambient.copy(alpha = ambient.alpha * 0.6f),
+                            ambient.copy(alpha = ambient.alpha * 0.2f),
+                            Color.Transparent,
+                        ),
+                        center = Offset(orbCenterX, orbCenterY),
+                        radius = size.width * 2.2f,
                     )
                 )
             }

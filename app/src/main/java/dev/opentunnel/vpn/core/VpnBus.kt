@@ -31,10 +31,21 @@ object VpnBus {
 
     fun setStage(stage: ConnectionStage, detail: String? = null) {
         _status.update { current ->
+            val clearLocation = stage == ConnectionStage.PREPARING ||
+                stage == ConnectionStage.CONNECTING ||
+                stage == ConnectionStage.RECONNECTING
             current.copy(
                 stage = stage,
                 detail = detail ?: defaultDetail(stage),
                 error = if (stage == ConnectionStage.ERROR) current.error else null,
+                info = if (clearLocation) {
+                    current.info.copy(
+                        locationName = null,
+                        locationFlag = null,
+                        outboundIp = null,
+                        pingMs = -1L,
+                    )
+                } else current.info,
             )
         }
     }
