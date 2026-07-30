@@ -31,12 +31,13 @@ OpenTunnel is an open-source, enterprise-grade Android client for **Cisco AnyCon
 
 ---
 
-## Latest Release (v3.3.0)
+## Latest Release (v3.5.0)
 
-* **Haptic Feedback Subsystem:** Configurable tactile feedback for list scrolling, VPN connect/disconnect state changes, and main settings/profile switches.
-* **Expanded Speed Telemetry:** Taller 160dp chart with time range selector (`1m`, `10m`, `1h`, `2h`, `5h`) and peak download rate indicator line.
-* **4-Second Ping Updates:** Accelerated ping latency measurement updating every 4 seconds in the app and home screen widgets.
-* **UI Motion Polish:** Smooth spring physics and fluid transitions across split tunneling mode switches and screen navigation.
+* **OEM Background Persistence & Memory Optimization:** Fixed OEM background service eviction on custom ROMs (AOSP/MIUI/EMUI), optimized memory allocations in `TunnelRunner` & `VpnBus`, and improved DNS lookup resiliency.
+* **Bundled Inter Typography & Visual Polish:** Integrated true Inter font family binaries, upgraded `ConnectOrb` with dynamic ambient glow and sweep gradients across cards, translucent log box styling, and dynamic gradient app titles.
+* **Interactive SpeedChart Enhancements:** Live rate endpoint indicators, dynamic theme palette support, time range selector fixes, and clean telemetry state resets on VPN reconnect.
+* **Native JNI Export & CI Workflow Fixes:** Retained mandatory `Java_*` JNI export symbols in `libopenconnect.map` across cached/fresh NDK builds, and updated GitHub Actions CI branch glob pattern for multi-depth branch triggers.
+* **Runtime Security & Stability:** Fixed SSL certificate fingerprint pinning in `TunnelRunner` runtime, resolved AOSP auto-start activity crashes, and suppressed redundant native `/dev/vhost-net` log spam.
 
 ---
 
