@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.opentunnel.vpn.BuildConfig
 import dev.opentunnel.vpn.core.NativeLibrary
@@ -78,6 +79,7 @@ fun SettingsScreen(
     RememberScrollHaptic(scrollState, settings.hapticFeedbackEnabled)
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(Strings.settingsTitle(lang)) },
@@ -87,7 +89,7 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
             )
         },

@@ -157,7 +157,7 @@ class TunnelRunner(
             return "The gateway accepted the login but refused to establish the tunnel."
         }
 
-        VpnBus.setStage(ConnectionStage.CONNECTED, "Setting up tunnel interface…")
+        VpnBus.setStage(ConnectionStage.CONNECTING, "Setting up tunnel interface…")
 
         val ipInfo = lib.getIPInfo() ?: return "The gateway did not send an IP configuration."
         val descriptor = establishTun(ipInfo) ?: return "Android refused to create the tunnel interface."
@@ -677,6 +677,16 @@ class TunnelRunner(
                 runCatching { lib.checkPeerCertHash(pinned) }.getOrDefault(-1) == 0
             ) {
                 VpnBus.log(LogLevel.DEBUG, "Server certificate matches the pin saved for this profile")
+                return 0
+            }
+
+            // Also check the fingerprint pinned at runtime (during this session)
+            // so reconnects don't re-prompt the user after they already accepted.
+            val runtimePin = VpnBus.status.value.info.certFingerprint
+            if (!runtimePin.isNullOrBlank() &&
+                runCatching { lib.checkPeerCertHash(runtimePin) }.getOrDefault(-1) == 0
+            ) {
+                VpnBus.log(LogLevel.DEBUG, "Server certificate matches the runtime-pinned fingerprint")
                 return 0
             }
 
