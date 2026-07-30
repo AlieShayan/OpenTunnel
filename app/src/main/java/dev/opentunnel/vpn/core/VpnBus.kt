@@ -125,6 +125,7 @@ object VpnBus {
     }
 
     fun info(message: String) = log(LogLevel.APP, message)
+    fun debug(message: String) = log(LogLevel.DEBUG, message)
     fun error(message: String) = log(LogLevel.ERROR, message)
 
     fun clearLogs() {
