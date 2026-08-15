@@ -1,6 +1,7 @@
 package dev.opentunnel.vpn.ui
 
 import android.app.Application
+import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.opentunnel.vpn.core.Interaction
@@ -127,8 +128,40 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        // Load installed apps immediately on startup
+        loadInstalledApps()
+
         // One-time migration of legacy single-profile data.
         viewModelScope.launch { repository.migrateLegacyProfileIfNeeded() }
+
+        viewModelScope.launch {
+            installedApps.collect { list ->
+                if (!list.isNullOrEmpty()) {
+                    val pm = application.packageManager
+                    val metaList = list.mapNotNull { app ->
+                        val uid = runCatching {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                pm.getPackageUid(app.packageName, PackageManager.PackageInfoFlags.of(0))
+                            } else {
+                                @Suppress("DEPRECATION")
+                                pm.getPackageUid(app.packageName, 0)
+                            }
+                        }.getOrDefault(0)
+                        if (uid > 0) {
+                            dev.opentunnel.vpn.core.AppMetadata(
+                                packageName = app.packageName,
+                                uid = uid,
+                                label = app.label,
+                                isSystem = app.isSystem,
+                            )
+                        } else null
+                    }
+                    if (metaList.isNotEmpty()) {
+                        trafficCollector.loadApps(metaList)
+                    }
+                }
+            }
+        }
 
         viewModelScope.launch {
             status.collect { s ->

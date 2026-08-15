@@ -44,12 +44,13 @@ object InstalledApps {
         val collator = Collator.getInstance()
 
         val packages = runCatching {
-            pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            pm.getInstalledApplications(0)
+        }.recoverCatching {
+            pm.getInstalledPackages(0).map { it.applicationInfo }
         }.getOrElse { emptyList() }
 
         val result = packages.asSequence()
             .filter { it.packageName != self }
-            .filter { hasInternet(pm, it.packageName) }
             .map { info ->
                 InstalledApp(
                     packageName = info.packageName,

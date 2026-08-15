@@ -36,17 +36,30 @@ interface TrafficStatsProvider {
 }
 
 /**
- * Standard production implementation backed by [android.net.TrafficStats] and [SystemClock].
+ * Standard production implementation backed by [android.net.TrafficStats], [SystemClock],
+ * and procfs socket accounting fallback.
  */
 object AndroidTrafficStatsProvider : TrafficStatsProvider {
     override fun getUidRxBytes(uid: Int): Long {
         val bytes = TrafficStats.getUidRxBytes(uid)
-        return if (bytes == TrafficStats.UNSUPPORTED.toLong() || bytes < 0) 0L else bytes
+        if (bytes != TrafficStats.UNSUPPORTED.toLong() && bytes >= 0) {
+            return bytes
+        }
+        return readProcUidStat(uid, "tcp_rcv")
     }
 
     override fun getUidTxBytes(uid: Int): Long {
         val bytes = TrafficStats.getUidTxBytes(uid)
-        return if (bytes == TrafficStats.UNSUPPORTED.toLong() || bytes < 0) 0L else bytes
+        if (bytes != TrafficStats.UNSUPPORTED.toLong() && bytes >= 0) {
+            return bytes
+        }
+        return readProcUidStat(uid, "tcp_snd")
+    }
+
+    private fun readProcUidStat(uid: Int, file: String): Long {
+        return runCatching {
+            java.io.File("/proc/uid_stat/$uid/$file").readText().trim().toLong()
+        }.getOrDefault(0L)
     }
 
     override fun getElapsedRealtime(): Long = SystemClock.elapsedRealtime()
@@ -130,6 +143,7 @@ class AppTrafficCollector(
     suspend fun loadApps(packages: List<AppMetadata>) = mutex.withLock {
         val now = statsProvider.getElapsedRealtime()
         for (pkg in packages) {
+            if (pkg.uid <= 0) continue
             if (!trackers.containsKey(pkg.packageName)) {
                 val currentRx = statsProvider.getUidRxBytes(pkg.uid)
                 val currentTx = statsProvider.getUidTxBytes(pkg.uid)
@@ -151,26 +165,30 @@ class AppTrafficCollector(
     }
 
     /**
-     * Discovers all installed apps with INTERNET permission via PackageManager.
+     * Discovers all installed apps via PackageManager without heavy metadata bundles to prevent Binder IPC limits.
      */
-    suspend fun discoverInstalledApps(): List<AppMetadata> {
-        val ctx = context ?: return emptyList()
+    suspend fun discoverInstalledApps(): List<AppMetadata> = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        val ctx = context ?: return@withContext emptyList()
         val pm = ctx.packageManager
         val selfPkg = ctx.packageName
 
-        val packages = runCatching {
-            pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        val packages: List<ApplicationInfo> = runCatching {
+            pm.getInstalledApplications(0)
+        }.recoverCatching {
+            pm.getInstalledPackages(0).map { it.applicationInfo }
         }.getOrElse { emptyList() }
 
-        return packages.asSequence()
-            .filter { it.packageName != selfPkg }
-            .filter { hasInternet(pm, it.packageName) }
+        if (packages.isEmpty()) return@withContext emptyList()
+
+        packages.asSequence()
+            .filter { it.packageName != selfPkg && it.uid > 0 }
             .map { info ->
+                val label = runCatching { pm.getApplicationLabel(info).toString() }
+                    .getOrDefault(info.packageName)
                 AppMetadata(
                     packageName = info.packageName,
                     uid = info.uid,
-                    label = runCatching { pm.getApplicationLabel(info).toString() }
-                        .getOrDefault(info.packageName),
+                    label = if (label.isBlank()) info.packageName else label,
                     isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
                         (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0,
                 )
@@ -178,24 +196,20 @@ class AppTrafficCollector(
             .toList()
     }
 
-    private fun hasInternet(pm: PackageManager, packageName: String): Boolean =
-        runCatching {
-            pm.checkPermission(android.Manifest.permission.INTERNET, packageName) ==
-                PackageManager.PERMISSION_GRANTED
-        }.getOrDefault(true)
-
     /**
      * Starts the periodic background collection loop.
      */
     fun start() {
         if (pollJob?.isActive == true) return
         pollJob = scope.launch {
-            if (trackers.isEmpty() && context != null) {
-                val apps = discoverInstalledApps()
-                loadApps(apps)
-            }
             while (isActive) {
-                if (!isPaused) {
+                if (trackers.isEmpty() && context != null) {
+                    val apps = discoverInstalledApps()
+                    if (apps.isNotEmpty()) {
+                        loadApps(apps)
+                    }
+                }
+                if (!isPaused && trackers.isNotEmpty()) {
                     tick()
                 }
                 delay(sampleIntervalMs)
