@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Article
+import androidx.compose.material.icons.rounded.DataUsage
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Home
@@ -120,6 +121,7 @@ fun HomeScreen(
     onOpenProfileManagement: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
     onOpenSplitNetworks: () -> Unit,
+    onOpenTrafficMonitor: () -> Unit = {},
     onOpenLogs: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -181,7 +183,7 @@ fun HomeScreen(
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 Column {
-                    TrafficRow(stats, settings.appLanguage)
+                    TrafficRow(stats, settings.appLanguage, onClick = onOpenTrafficMonitor)
                     Spacer(Modifier.height(14.dp))
                     dev.opentunnel.vpn.ui.components.SpeedChart(
                         stats = stats,
@@ -292,6 +294,19 @@ fun HomeScreen(
                 )
             }
 
+            Spacer(Modifier.height(14.dp))
+
+            SectionCard {
+                SettingRow(
+                    icon = Icons.Rounded.DataUsage,
+                    title = Strings.trafficMonitorTitle(lang),
+                    subtitle = Strings.trafficMonitorSubtitle(lang),
+                    iconTint = scheme.primary,
+                    iconBackground = scheme.primary.copy(alpha = 0.14f),
+                    onClick = onOpenTrafficMonitor,
+                )
+            }
+
             AnimatedVisibility(
                 visible = status.stage == ConnectionStage.CONNECTED,
                 enter = fadeIn() + expandVertically(),
@@ -349,6 +364,7 @@ fun MainPagerScreen(
     onOpenProfileManagement: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
     onOpenSplitNetworks: () -> Unit,
+    onOpenTrafficMonitor: () -> Unit = {},
     onClearLogs: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onAppLanguage: (AppLanguage) -> Unit,
@@ -431,6 +447,7 @@ fun MainPagerScreen(
                     onOpenProfileManagement = onOpenProfileManagement,
                     onOpenSplitTunnel = onOpenSplitTunnel,
                     onOpenSplitNetworks = onOpenSplitNetworks,
+                    onOpenTrafficMonitor = onOpenTrafficMonitor,
                     onOpenLogs = {
                         scope.launch { pagerState.animateScrollToPage(0) }
                     },
@@ -835,7 +852,11 @@ private fun StatusLine(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLa
 // ── Traffic ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun TrafficRow(stats: TrafficStats, lang: dev.opentunnel.vpn.data.AppLanguage) {
+private fun TrafficRow(
+    stats: TrafficStats,
+    lang: dev.opentunnel.vpn.data.AppLanguage,
+    onClick: (() -> Unit)? = null,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -847,6 +868,7 @@ private fun TrafficRow(stats: TrafficStats, lang: dev.opentunnel.vpn.data.AppLan
             rate = Formatters.rate(stats.rxRate),
             tint = LocalStatusPalette.current.connected,
             up = false,
+            onClick = onClick,
         )
         TrafficTile(
             modifier = Modifier.weight(1f),
@@ -855,6 +877,7 @@ private fun TrafficRow(stats: TrafficStats, lang: dev.opentunnel.vpn.data.AppLan
             rate = Formatters.rate(stats.txRate),
             tint = MaterialTheme.colorScheme.secondary,
             up = true,
+            onClick = onClick,
         )
     }
 }
@@ -867,9 +890,16 @@ private fun TrafficTile(
     rate: String,
     tint: Color,
     up: Boolean,
+    onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = modifier,
+        modifier = if (onClick != null) {
+            modifier
+                .clip(MaterialTheme.shapes.large)
+                .clickable(onClick = onClick)
+        } else {
+            modifier
+        },
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),

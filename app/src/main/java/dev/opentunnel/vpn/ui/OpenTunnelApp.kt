@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.opentunnel.vpn.core.ConnectionStage
 import dev.opentunnel.vpn.ui.components.PromptHost
+import dev.opentunnel.vpn.ui.screens.AppTrafficMonitorScreen
 import dev.opentunnel.vpn.ui.screens.HomeScreen
 import dev.opentunnel.vpn.ui.screens.LogScreen
 import dev.opentunnel.vpn.ui.screens.ProfileScreen
@@ -37,6 +38,7 @@ private object Routes {
     const val PROFILE = "profile"
     const val SPLIT = "split"
     const val SPLIT_NETWORKS = "split_networks"
+    const val TRAFFIC_MONITOR = "traffic_monitor"
     const val LOGS = "logs"
     const val SETTINGS = "settings"
 }
@@ -63,6 +65,13 @@ fun OpenTunnelApp(
     val editingProfileId by viewModel.editingProfileId.collectAsStateWithLifecycle()
     val rxHistory by viewModel.rxHistory.collectAsStateWithLifecycle()
     val txHistory by viewModel.txHistory.collectAsStateWithLifecycle()
+
+    val appTrafficSummary by viewModel.appTrafficSummary.collectAsStateWithLifecycle()
+    val appTrafficEntries by viewModel.appTrafficEntries.collectAsStateWithLifecycle()
+    val trafficSortBy by viewModel.trafficSortBy.collectAsStateWithLifecycle()
+    val trafficSortDirection by viewModel.trafficSortDirection.collectAsStateWithLifecycle()
+    val trafficFilterMode by viewModel.trafficFilterMode.collectAsStateWithLifecycle()
+    val trafficSearchQuery by viewModel.trafficSearchQuery.collectAsStateWithLifecycle()
 
     var previousStage by remember { mutableStateOf<ConnectionStage?>(null) }
 
@@ -148,6 +157,28 @@ fun OpenTunnelApp(
                         onShowStatsInNotification = viewModel::setShowStatsInNotification,
                         onVerboseLogging = viewModel::setVerboseLogging,
                         onHapticFeedbackEnabled = viewModel::setHapticFeedbackEnabled,
+                        onOpenTrafficMonitor = { navController.navigate(Routes.TRAFFIC_MONITOR) },
+                    )
+                }
+
+                composable(Routes.TRAFFIC_MONITOR) {
+                    AppTrafficMonitorScreen(
+                        summary = appTrafficSummary,
+                        entries = appTrafficEntries,
+                        sortBy = trafficSortBy,
+                        sortDirection = trafficSortDirection,
+                        filterMode = trafficFilterMode,
+                        searchQuery = trafficSearchQuery,
+                        appLanguage = settings.appLanguage,
+                        hapticEnabled = settings.hapticFeedbackEnabled,
+                        onSortByChange = viewModel::setTrafficSortBy,
+                        onToggleSortDirection = viewModel::toggleTrafficSortDirection,
+                        onFilterModeChange = viewModel::setTrafficFilterMode,
+                        onSearchQueryChange = viewModel::setTrafficSearchQuery,
+                        onResetStats = viewModel::resetTrafficStats,
+                        onPauseMonitoring = viewModel::pauseTrafficMonitoring,
+                        onResumeMonitoring = viewModel::resumeTrafficMonitoring,
+                        onBack = { navController.popBackStack() },
                     )
                 }
 

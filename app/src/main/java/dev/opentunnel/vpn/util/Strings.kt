@@ -223,4 +223,98 @@ object Strings {
     /** Notification body when the gateway certificate needs user review. */
     fun promptCertTrustNotification(lang: AppLanguage): String =
         if (isRtl(lang)) "گواهی درگاه باید قبل از اتصال بررسی شود." else "The gateway's certificate needs to be reviewed before connecting."
+
+    // ── App Traffic Monitor ──────────────────────────────────────────────────
+    fun trafficMonitorTitle(lang: AppLanguage): String =
+        if (isRtl(lang)) "مصرف شبکه برنامه‌ها" else "App Traffic Monitor"
+
+    fun trafficMonitorSubtitle(lang: AppLanguage): String =
+        if (isRtl(lang)) "ترافیک زنده و مصرف کل به تفکیک برنامه‌ها" else "Live bandwidth & data usage per application"
+
+    fun trafficMonitorShortTitle(lang: AppLanguage): String =
+        if (isRtl(lang)) "مصرف برنامه‌ها" else "App Traffic"
+
+    fun trafficTotal(lang: AppLanguage): String =
+        if (isRtl(lang)) "مجموع مصرف" else "Total Traffic"
+
+    fun trafficDownloadSpeed(lang: AppLanguage): String =
+        if (isRtl(lang)) "سرعت دانلود" else "Download Speed"
+
+    fun trafficUploadSpeed(lang: AppLanguage): String =
+        if (isRtl(lang)) "سرعت آپلود" else "Upload Speed"
+
+    fun trafficActiveApps(lang: AppLanguage, count: Int): String =
+        if (isRtl(lang)) "$count برنامه در حال تبادل داده" else "$count active"
+
+    fun trafficTotalApps(lang: AppLanguage, count: Int): String =
+        if (isRtl(lang)) "$count برنامه مانیتور شده" else "$count monitored apps"
+
+    fun trafficFilterAll(lang: AppLanguage): String =
+        if (isRtl(lang)) "همه" else "All"
+
+    fun trafficFilterActive(lang: AppLanguage): String =
+        if (isRtl(lang)) "فقط فعال" else "Active Only"
+
+    fun trafficFilterUser(lang: AppLanguage): String =
+        if (isRtl(lang)) "برنامه‌های نصب‌شده" else "User Apps"
+
+    fun trafficFilterSystem(lang: AppLanguage): String =
+        if (isRtl(lang)) "سیستمی" else "System"
+
+    fun trafficSortTotal(lang: AppLanguage): String =
+        if (isRtl(lang)) "مجموع مصرف" else "Total Traffic"
+
+    fun trafficSortDownload(lang: AppLanguage): String =
+        if (isRtl(lang)) "دانلود" else "Download"
+
+    fun trafficSortUpload(lang: AppLanguage): String =
+        if (isRtl(lang)) "آپلود" else "Upload"
+
+    fun trafficSortDownloadSpeed(lang: AppLanguage): String =
+        if (isRtl(lang)) "سرعت دانلود" else "Download Speed"
+
+    fun trafficSortUploadSpeed(lang: AppLanguage): String =
+        if (isRtl(lang)) "سرعت آپلود" else "Upload Speed"
+
+    fun trafficSortName(lang: AppLanguage): String =
+        if (isRtl(lang)) "نام برنامه" else "App Name"
+
+    fun trafficSortOrderAsc(lang: AppLanguage): String =
+        if (isRtl(lang)) "صعودی" else "Ascending"
+
+    fun trafficSortOrderDesc(lang: AppLanguage): String =
+        if (isRtl(lang)) "نزولی" else "Descending"
+
+    fun trafficResetStats(lang: AppLanguage): String =
+        if (isRtl(lang)) "صفر کردن آمار" else "Reset Statistics"
+
+    fun trafficResetConfirmTitle(lang: AppLanguage): String =
+        if (isRtl(lang)) "بازنشانی آمار مصرف شبکه" else "Reset Network Statistics"
+
+    fun trafficResetConfirmBody(lang: AppLanguage): String =
+        if (isRtl(lang)) "آیا از صفر کردن کلیه شمارنده‌های مصرف ترافیک برنامه‌ها در این نشست اطمینان دارید؟" else "Are you sure you want to reset all per-app traffic counters for this session?"
+
+    fun trafficSearchPlaceholder(lang: AppLanguage): String =
+        if (isRtl(lang)) "جستجوی برنامه یا نام پکیج…" else "Search apps or packages…"
+
+    fun trafficShareLabel(lang: AppLanguage): String =
+        if (isRtl(lang)) "سهم مصرف" else "Traffic Share"
+
+    fun trafficVpnRouted(lang: AppLanguage): String =
+        if (isRtl(lang)) "تونل ${ltr("VPN")}" else "VPN Tunnel"
+
+    fun trafficBypassed(lang: AppLanguage): String =
+        if (isRtl(lang)) "مستثنی از تونل" else "Bypassed"
+
+    fun trafficEmptyNoData(lang: AppLanguage): String =
+        if (isRtl(lang)) "هنوز مصرف داده‌ای برای برنامه‌ها در این نشست ثبت نشده است." else "No application network traffic recorded in this session yet."
+
+    fun trafficEmptyNoMatches(lang: AppLanguage, query: String): String =
+        if (isRtl(lang)) "هیچ برنامه‌ای مطابق با «$query» یافت نشد." else "No apps matching \"$query\""
+
+    fun trafficPause(lang: AppLanguage): String =
+        if (isRtl(lang)) "توقف موقت" else "Pause"
+
+    fun trafficResume(lang: AppLanguage): String =
+        if (isRtl(lang)) "ادامه" else "Resume"
 }
