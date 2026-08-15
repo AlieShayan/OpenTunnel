@@ -35,9 +35,10 @@ android {
 
     applicationVariants.all {
         val buildType = name
+        val safeVersionName = versionName.replace('/', '_').replace('\\', '_')
         outputs.all {
             val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            output?.outputFileName = "opentunnel_${versionName}_${buildType}.apk"
+            output?.outputFileName = "opentunnel_${safeVersionName}_${buildType}.apk"
         }
     }
 

@@ -55,6 +55,70 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private var lastStage: dev.opentunnel.vpn.core.ConnectionStage? = null
     private var lastConnectedAt = 0L
 
+    // ── app traffic monitor properties ───────────────────────────────────────
+
+    private val trafficCollector = dev.opentunnel.vpn.core.AppTrafficCollector(
+        context = application,
+        dispatcher = kotlinx.coroutines.Dispatchers.Default,
+        sampleIntervalMs = 1000L,
+    )
+
+    val appTrafficSummary: StateFlow<dev.opentunnel.vpn.data.AppTrafficSummary> = trafficCollector.summary
+
+    private val _trafficSortBy = MutableStateFlow(dev.opentunnel.vpn.data.TrafficSortBy.TOTAL_TRAFFIC)
+    val trafficSortBy: StateFlow<dev.opentunnel.vpn.data.TrafficSortBy> = _trafficSortBy.asStateFlow()
+
+    private val _trafficSortDirection = MutableStateFlow(dev.opentunnel.vpn.data.SortDirection.DESCENDING)
+    val trafficSortDirection: StateFlow<dev.opentunnel.vpn.data.SortDirection> = _trafficSortDirection.asStateFlow()
+
+    private val _trafficFilterMode = MutableStateFlow(dev.opentunnel.vpn.data.TrafficFilterMode.ALL)
+    val trafficFilterMode: StateFlow<dev.opentunnel.vpn.data.TrafficFilterMode> = _trafficFilterMode.asStateFlow()
+
+    private val _trafficSearchQuery = MutableStateFlow("")
+    val trafficSearchQuery: StateFlow<String> = _trafficSearchQuery.asStateFlow()
+
+    val appTrafficEntries: StateFlow<List<dev.opentunnel.vpn.data.AppTrafficEntry>> = kotlinx.coroutines.flow.combine(
+        trafficCollector.entries,
+        _trafficSortBy,
+        _trafficSortDirection,
+        _trafficFilterMode,
+        _trafficSearchQuery,
+    ) { rawEntries, sortBy, sortDir, filterMode, query ->
+        val needle = query.trim().lowercase()
+        val filtered = rawEntries.filter { entry ->
+            val matchesQuery = needle.isEmpty() ||
+                entry.label.lowercase().contains(needle) ||
+                entry.packageName.lowercase().contains(needle)
+            val matchesFilter = when (filterMode) {
+                dev.opentunnel.vpn.data.TrafficFilterMode.ALL -> true
+                dev.opentunnel.vpn.data.TrafficFilterMode.ACTIVE_ONLY -> entry.isActive || entry.totalBytes > 0L
+                dev.opentunnel.vpn.data.TrafficFilterMode.USER_APPS -> !entry.isSystem
+                dev.opentunnel.vpn.data.TrafficFilterMode.SYSTEM_APPS -> entry.isSystem
+            }
+            matchesQuery && matchesFilter
+        }
+
+        val comparator: Comparator<dev.opentunnel.vpn.data.AppTrafficEntry> = when (sortBy) {
+            dev.opentunnel.vpn.data.TrafficSortBy.TOTAL_TRAFFIC -> compareBy { it.totalBytes }
+            dev.opentunnel.vpn.data.TrafficSortBy.DOWNLOAD -> compareBy { it.rxBytes }
+            dev.opentunnel.vpn.data.TrafficSortBy.UPLOAD -> compareBy { it.txBytes }
+            dev.opentunnel.vpn.data.TrafficSortBy.DOWNLOAD_SPEED -> compareBy { it.rxRate }
+            dev.opentunnel.vpn.data.TrafficSortBy.UPLOAD_SPEED -> compareBy { it.txRate }
+            dev.opentunnel.vpn.data.TrafficSortBy.APP_NAME -> compareBy(java.text.Collator.getInstance()) { it.label }
+        }
+
+        if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
+            if (sortBy == dev.opentunnel.vpn.data.TrafficSortBy.APP_NAME) {
+                filtered.sortedWith(comparator.reversed())
+            } else {
+                // Secondary sort by label so ties remain stable and don't flicker
+                filtered.sortedWith(comparator.reversed().thenBy { it.label })
+            }
+        } else {
+            filtered.sortedWith(comparator.thenBy { it.label })
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun clearSpeedHistory() {
         rxDeque.clear()
         txDeque.clear()
@@ -260,68 +324,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ── app traffic monitor ──────────────────────────────────────────────────
-
-    private val trafficCollector = dev.opentunnel.vpn.core.AppTrafficCollector(
-        context = application,
-        dispatcher = kotlinx.coroutines.Dispatchers.Default,
-        sampleIntervalMs = 1000L,
-    )
-
-    val appTrafficSummary: StateFlow<dev.opentunnel.vpn.data.AppTrafficSummary> = trafficCollector.summary
-
-    private val _trafficSortBy = MutableStateFlow(dev.opentunnel.vpn.data.TrafficSortBy.TOTAL_TRAFFIC)
-    val trafficSortBy: StateFlow<dev.opentunnel.vpn.data.TrafficSortBy> = _trafficSortBy.asStateFlow()
-
-    private val _trafficSortDirection = MutableStateFlow(dev.opentunnel.vpn.data.SortDirection.DESCENDING)
-    val trafficSortDirection: StateFlow<dev.opentunnel.vpn.data.SortDirection> = _trafficSortDirection.asStateFlow()
-
-    private val _trafficFilterMode = MutableStateFlow(dev.opentunnel.vpn.data.TrafficFilterMode.ALL)
-    val trafficFilterMode: StateFlow<dev.opentunnel.vpn.data.TrafficFilterMode> = _trafficFilterMode.asStateFlow()
-
-    private val _trafficSearchQuery = MutableStateFlow("")
-    val trafficSearchQuery: StateFlow<String> = _trafficSearchQuery.asStateFlow()
-
-    val appTrafficEntries: StateFlow<List<dev.opentunnel.vpn.data.AppTrafficEntry>> = kotlinx.coroutines.flow.combine(
-        trafficCollector.entries,
-        _trafficSortBy,
-        _trafficSortDirection,
-        _trafficFilterMode,
-        _trafficSearchQuery,
-    ) { rawEntries, sortBy, sortDir, filterMode, query ->
-        val needle = query.trim().lowercase()
-        val filtered = rawEntries.filter { entry ->
-            val matchesQuery = needle.isEmpty() ||
-                entry.label.lowercase().contains(needle) ||
-                entry.packageName.lowercase().contains(needle)
-            val matchesFilter = when (filterMode) {
-                dev.opentunnel.vpn.data.TrafficFilterMode.ALL -> true
-                dev.opentunnel.vpn.data.TrafficFilterMode.ACTIVE_ONLY -> entry.isActive || entry.totalBytes > 0L
-                dev.opentunnel.vpn.data.TrafficFilterMode.USER_APPS -> !entry.isSystem
-                dev.opentunnel.vpn.data.TrafficFilterMode.SYSTEM_APPS -> entry.isSystem
-            }
-            matchesQuery && matchesFilter
-        }
-
-        val comparator: Comparator<dev.opentunnel.vpn.data.AppTrafficEntry> = when (sortBy) {
-            dev.opentunnel.vpn.data.TrafficSortBy.TOTAL_TRAFFIC -> compareBy { it.totalBytes }
-            dev.opentunnel.vpn.data.TrafficSortBy.DOWNLOAD -> compareBy { it.rxBytes }
-            dev.opentunnel.vpn.data.TrafficSortBy.UPLOAD -> compareBy { it.txBytes }
-            dev.opentunnel.vpn.data.TrafficSortBy.DOWNLOAD_SPEED -> compareBy { it.rxRate }
-            dev.opentunnel.vpn.data.TrafficSortBy.UPLOAD_SPEED -> compareBy { it.txRate }
-            dev.opentunnel.vpn.data.TrafficSortBy.APP_NAME -> compareBy(java.text.Collator.getInstance()) { it.label }
-        }
-
-        if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
-            if (sortBy == dev.opentunnel.vpn.data.TrafficSortBy.APP_NAME) {
-                filtered.sortedWith(comparator.reversed())
-            } else {
-                // Secondary sort by label so ties remain stable and don't flicker
-                filtered.sortedWith(comparator.reversed().thenBy { it.label })
-            }
-        } else {
-            filtered.sortedWith(comparator.thenBy { it.label })
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setTrafficSortBy(sortBy: dev.opentunnel.vpn.data.TrafficSortBy) {
         _trafficSortBy.value = sortBy
