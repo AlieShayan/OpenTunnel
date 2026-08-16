@@ -49,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import dev.opentunnel.vpn.core.TrafficStats
 import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.ui.theme.LocalStatusPalette
@@ -224,10 +226,12 @@ fun SpeedChart(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Chart Canvas
+            val chartDesc = "Real-time Traffic Graph. Download rate: ${Formatters.rate(stats.rxRate)}, Upload rate: ${Formatters.rate(stats.txRate)}"
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
+                    .semantics { contentDescription = chartDesc }
             ) {
                 val width = size.width
                 val height = size.height

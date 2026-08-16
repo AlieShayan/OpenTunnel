@@ -42,6 +42,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -135,10 +138,21 @@ fun ConnectOrb(
     val busy = stage.isBusy
     val live = stage == ConnectionStage.CONNECTED
 
+    val statusDescription = when (stage) {
+        ConnectionStage.CONNECTED -> dev.opentunnel.vpn.util.Strings.connected(lang)
+        ConnectionStage.ERROR -> dev.opentunnel.vpn.util.Strings.connectionFailed(lang)
+        ConnectionStage.IDLE -> dev.opentunnel.vpn.util.Strings.notConnected(lang)
+        else -> dev.opentunnel.vpn.util.Strings.connecting(lang)
+    }
+
     Box(
         modifier = modifier
             .size(diameter)
             .clip(CircleShape)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "VPN Connection Button"
+                this.stateDescription = statusDescription
+            }
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true),
