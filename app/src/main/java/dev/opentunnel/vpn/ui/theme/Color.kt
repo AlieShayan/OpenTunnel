@@ -51,7 +51,7 @@ val DarkColors = darkColorScheme(
     surface = MidnightSurface,
     onSurface = Color(0xFFE4E9F4),
     surfaceVariant = MidnightContainer,
-    onSurfaceVariant = Color(0xFFA9B4C9),
+    onSurfaceVariant = Color(0xFFBAC7DD),
 
     surfaceContainerLowest = Color(0xFF05070D),
     surfaceContainerLow = Color(0xFF0A0F19),

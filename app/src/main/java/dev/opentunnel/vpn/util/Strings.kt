@@ -348,4 +348,31 @@ object Strings {
 
     fun speedChartNow(lang: AppLanguage): String =
         if (isRtl(lang)) "اکنون" else "now"
+
+    // ── Navigation Tabs ──────────────────────────────────────────────────────
+    fun navHome(lang: AppLanguage): String = if (isRtl(lang)) "خانه" else "Home"
+    fun navTraffic(lang: AppLanguage): String = if (isRtl(lang)) "مصرف" else "Traffic"
+    fun navLogs(lang: AppLanguage): String = if (isRtl(lang)) "گزارش‌ها" else "Logs"
+    fun navSettings(lang: AppLanguage): String = if (isRtl(lang)) "تنظیمات" else "Settings"
+
+    // ── Pre-connection & Status ──────────────────────────────────────────────
+    fun readyToConnect(lang: AppLanguage, name: String): String =
+        if (isRtl(lang)) "آماده اتصال به «$name»" else "Ready to connect to $name"
+
+    // ── Form Validation Strings ──────────────────────────────────────────────
+    fun fieldRequired(lang: AppLanguage): String = if (isRtl(lang)) "این فیلد اجباری است" else "This field is required"
+    fun invalidServerAddress(lang: AppLanguage): String = if (isRtl(lang)) "آدرس سرور یا پورت نامعتبر است" else "Invalid server address or hostname"
+    fun invalidMtuRange(lang: AppLanguage): String = if (isRtl(lang)) "مقدار MTU باید بین ۵۷۶ تا ۱۵۰۰ باشد" else "MTU must be between 576 and 1500"
+
+    // ── Log Search & Actions ─────────────────────────────────────────────────
+    fun searchLogsPlaceholder(lang: AppLanguage): String = if (isRtl(lang)) "جستجو در متن لاگ‌ها…" else "Search logs…"
+    fun logsCleared(lang: AppLanguage): String = if (isRtl(lang)) "لاگ‌ها پاک شدند" else "Logs cleared"
+    fun undo(lang: AppLanguage): String = if (isRtl(lang)) "بازگردانی" else "Undo"
+
+    // ── Actionable Error BottomSheet ─────────────────────────────────────────
+    fun actionableErrorTitle(lang: AppLanguage): String = if (isRtl(lang)) "خطا در برقراری اتصال امن" else "Connection Failed"
+    fun retryConnection(lang: AppLanguage): String = if (isRtl(lang)) "تلاش مجدد" else "Retry Connection"
+    fun editCredentials(lang: AppLanguage): String = if (isRtl(lang)) "اصلاح تنظیمات و رمز" else "Edit Settings"
+    fun viewErrorLogs(lang: AppLanguage): String = if (isRtl(lang)) "مشاهده گزارش خطا (لاگ)" else "View Error Logs"
+    fun dismiss(lang: AppLanguage): String = if (isRtl(lang)) "بستن" else "Dismiss"
 }
