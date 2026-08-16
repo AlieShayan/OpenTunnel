@@ -1,41 +1,40 @@
-# OpenTunnel v3.3.0 🚀
+# OpenTunnel v4.0.0 🚀
 
-We are excited to announce **OpenTunnel v3.3.0**! This release introduces a comprehensive Haptic Feedback Subsystem, an expanded 160dp Speed Telemetry Chart with peak download rate visualization and customizable history range selection (1m, 10m, 1h, 2h, 5h), high-frequency 4-second ping latency updates, and fluid Material 3 UI motion physics.
+We are thrilled to announce **OpenTunnel v4.0.0**! This milestone major release introduces the **Continuous World / One Unified Environment** architecture, transforming the application into a single physical spatial environment observed by a 2D viewport camera across all four primary destinations (**Home**, **Traffic Monitor**, **Logs**, and **Settings**).
 
 ---
 
 ## 🌟 Highlights
 
-- **Configurable Haptic Feedback Subsystem:** Tailored tactile vibration feedback for list scrolling, connection status state changes (`CONNECTED` / `DISCONNECTED`), and main configuration switches. Easily toggled on/off in Settings.
-- **Expanded Speed Telemetry & History Range:** Increased chart height to 160dp, introduced peak download rate indicator lines with real-time peak throughput labels, and added dynamic time range filters (`1m`, `10m`, `1h`, `2h`, `5h`).
-- **High-Frequency Ping Monitoring:** Accelerated ping latency measurement polling to 4-second intervals across the application UI and home-screen widgets.
-- **Fluid Material 3 Motion Physics:** Upgraded split-tunneling mode toggling with spring animation physics (`StiffnessMediumLow`) and smoothed `NavHost` section transitions (`FastOutSlowInEasing`).
+- **One Continuous World & 2D Spatial Camera:** The entire application now operates as a unified physical universe. Horizontal pager gestures and vertical home scrolling translate the viewport camera smoothly over the stationary world at a locked 120 FPS.
+- **3-Layer Global Light Field Model:** The ConnectOrb serves as the primary celestial luminary in world space, projecting light through a 3-layer spatial model:
+  - *Layer 1 (Local Aura):* Focused, intense radiance centered on the Orb on the Home viewport.
+  - *Layer 2 (Regional Field):* Medium-span ambient glow reaching adjacent viewports (Traffic Monitor ~60%, Logs ~40%).
+  - *Layer 3 (Global World Illumination):* Expansive 6-stop celestial field providing subtle, deep illumination across all viewports (Settings ~20%).
+- **Real-Time Per-App Traffic Monitoring:** Comprehensive telemetry suite tracking per-application data usage, real-time download/upload transfer rates, network traffic share percentages, and sorting/filtering controls.
+- **Translucent Frosted Glass Hierarchy:** Soft depth and cohesive frosted translucency across all surfaces, cards, and floating navigation, allowing ambient world light to organically shine through while maintaining crystal-clear typography.
+- **Decoupled Ambient Temporal Breathing:** Majestic 6.5-second celestial breathing cycle for the connected world, decoupled from the interactive ConnectOrb animations.
 
 ---
 
 ## ✨ What's New
 
-### 🎨 User Interface, Motion & Haptics
-- **System-Wide Haptic Feedback Setting:** Added a new setting toggle under "System" in `SettingsScreen` to enable or disable tactile feedback.
-- **List Scroll Haptic Ticks:** Triggers subtle vibration ticks (`EFFECT_TICK`) as items/rows pass during scrolling across `SplitTunnelScreen`, `ProfileManagementScreen`, `LogScreen`, `SettingsScreen`, `ProfileScreen`, and `HomeScreen`.
-- **VPN Status Connection Haptics:** Distinct vibration feedback patterns on VPN connection success and disconnection/failure events.
-- **Main Toggle Vibration:** Tactile click feedback when toggling main configuration switches in Settings, Profile, and Split Tunnel headers (excluding per-app split tunneling checkboxes).
-- **Animated Split Tunnel Mode Switch:** Animated sliding pill indicator transition when switching between Exclude and Include split tunneling modes.
-- **Seamless Navigation Transitions:** Eased horizontal slide and fade transitions between app screens.
+### 🌌 Spatial Universe & UI/UX Architecture
+- **2D Camera Coordinate System:** Evaluated entirely in the Compose Draw phase (`Modifier.drawBehind`), guaranteeing zero recomposition during horizontal swiping or vertical scrolling.
+- **Graceful Off-Screen Physics:** Natural distance-based light falloff as the Orb leaves the viewport vertically or horizontally.
+- **Continuous 4-Viewport World Background:** Spatial celestial landmarks (Traffic Nebula, Settings Crystalline Aura) and vertical parallax depth ($0.18\times \Delta Y$).
+- **Floating Island Navigation:** Frosted glass bar with connection-state aware indicator glow and seamless RTL/LTR geometry.
+- **Actionable Error Bottom Sheet:** Contextual troubleshooting actions and deep error diagnostics.
 
-### 📊 Telemetry & Network Performance
-- **160dp Speed Chart Height:** Expanded chart canvas height from 90dp to 160dp for optimal curve legibility and telemetry rendering.
-- **Peak Download Rate Line & Label:** Permanent horizontal dashed indicator line (`alpha = 0.35f`) with a top summary label showing peak download throughput achieved.
-- **Time Range Selector:** Integrated top-corner dropdown to filter history telemetry by `1m`, `10m`, `1h`, `2h`, or `5h` history windows.
-- **4-Second Ping Latency Polling:** Updated background ping latency measurement loop from 15 seconds to 4 seconds for both the main app and app widgets.
-
-### 🛠️ Maintenance & Documentation
-- **README Update:** Comprehensive documentation updates detailing Haptic Feedback, telemetry ranges, and ping updates.
-- **Build System:** Bumped `versionCode` to 11 and `versionName` to 3.3.0.
+### 📊 Network Monitoring & Engine
+- **UID Traffic Stats Engine:** Real-time per-app bandwidth accounting with counter-wrap protection and background usage detection.
+- **Traffic Direction & Dimension Controls:** Instant sorting by total traffic, download speed, upload speed, or app name, with reversible sort direction.
+- **Optimized Handshake & Telemetry:** Multi-endpoint ping latency, fast DNS pre-resolution, and battery optimization guides.
 
 ---
 
 ## 📦 Compatibility
 
-- **Android:** 7.0+ (API 24+) / Target API 35
+- **Android:** 7.0+ (API 26+) / Target API 35
 - **Architectures:** `arm64-v8a`, `armeabi-v7a`, `x86_64`
+

@@ -125,6 +125,7 @@ fun HomeScreen(
     settings: AppSettings,
     rxHistoryList: List<Long> = emptyList(),
     txHistoryList: List<Long> = emptyList(),
+    scrollState: ScrollState = rememberScrollState(),
     onToggleConnection: () -> Unit,
     onSelectProfile: (String) -> Unit,
     onOpenProfile: () -> Unit,
@@ -136,7 +137,6 @@ fun HomeScreen(
 ) {
     val scheme = MaterialTheme.colorScheme
     val lang = settings.appLanguage
-    val scrollState = rememberScrollState()
     dev.opentunnel.vpn.util.RememberScrollHaptic(scrollState, settings.hapticFeedbackEnabled)
 
     var showErrorBottomSheet by remember { mutableStateOf(false) }
@@ -225,10 +225,10 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.large),
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
-                shadowElevation = 2.dp,
-                tonalElevation = 1.dp,
+                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.68f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp,
             ) {
                 ProfilePickerRow(
                     profile = profile,
@@ -350,12 +350,14 @@ fun MainPagerScreen(
 ) {
     // 4 Pages: 0: Home, 1: Traffic Monitor, 2: Logs, 3: Settings
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 4 })
+    val homeScrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
 
     OpenTunnelWorld(
         pagerState = pagerState,
         stage = status.stage,
         lang = settings.appLanguage,
+        homeScrollProvider = { homeScrollState.value.toFloat() },
         onNavigateToPage = { index ->
             scope.launch { pagerState.animateScrollToPage(index) }
         },
@@ -373,6 +375,7 @@ fun MainPagerScreen(
                     settings = settings,
                     rxHistoryList = rxHistoryList,
                     txHistoryList = txHistoryList,
+                    scrollState = homeScrollState,
                     onToggleConnection = onToggleConnection,
                     onSelectProfile = onSelectProfile,
                     onOpenProfile = onOpenProfile,
@@ -612,9 +615,9 @@ private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
     ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.68f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-            tonalElevation = 1.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.58f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
+            tonalElevation = 0.dp,
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -805,9 +808,9 @@ private fun TrafficTile(
             modifier
         },
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.75f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.62f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)),
+        tonalElevation = 0.dp,
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

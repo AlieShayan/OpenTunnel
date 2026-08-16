@@ -34,9 +34,10 @@ fun SectionCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.75f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.64f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
         Column {
             if (title != null) {

@@ -29,13 +29,14 @@ val LocalOrbPositionCallback = staticCompositionLocalOf<(Offset) -> Unit> { {} }
  * OpenTunnelWorld is the unified continuous environment host for the 4 primary app viewports.
  *
  * Architecture:
- * 1. WorldBackground: Persistent atmospheric multi-layer foundation with subtle depth parallax.
- * 2. WorldLighting: Physical world-space luminary anchored to ConnectOrb's measured layout position.
+ * 1. WorldBackground: Persistent atmospheric multi-layer foundation with world-space landmarks and subtle depth parallax.
+ * 2. WorldLighting: 3-layer world-space luminary anchored to ConnectOrb's measured layout position,
+ *    tracking both Camera X (Pager) and Camera Y (Vertical Scroll) simultaneously.
  * 3. Viewport Content: HorizontalPager acting as the moving camera over the stationary world.
  * 4. FloatingIslandNavigation: Frosted, state-aware navigation bar inside the world environment.
  *
  * Optimized to achieve 120 FPS by evaluating camera transformations inside the Draw phase,
- * eliminating all recompositions during horizontal drag gestures.
+ * eliminating all recompositions during horizontal drag and vertical scroll gestures.
  */
 @Composable
 fun OpenTunnelWorld(
@@ -44,33 +45,39 @@ fun OpenTunnelWorld(
     lang: AppLanguage,
     onNavigateToPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    homeScrollProvider: () -> Float = { 0f },
     content: @Composable () -> Unit,
 ) {
     val isRtl = Strings.isRtl(lang)
     val pagePositionProvider = { pagerState.currentPage + pagerState.currentPageOffsetFraction }
 
-    var orbCenterInWorld by remember { mutableStateOf(Offset.Unspecified) }
+    // World-space invariant anchor (un-scrolled coordinate in Home content)
+    var orbAnchorInWorld by remember { mutableStateOf(Offset.Unspecified) }
     val onOrbPositioned: (Offset) -> Unit = remember {
-        { newOffset ->
-            if (orbCenterInWorld != newOffset) {
-                orbCenterInWorld = newOffset
+        { visibleCenter ->
+            val unScrolledY = visibleCenter.y + homeScrollProvider()
+            val worldAnchor = Offset(visibleCenter.x, unScrolledY)
+            if (orbAnchorInWorld != worldAnchor) {
+                orbAnchorInWorld = worldAnchor
             }
         }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Layer 1: World Background Foundation
+        // Layer 1: World Background Foundation (Continuous 4-viewport world with parallax)
         WorldBackground(
             pagePositionProvider = pagePositionProvider,
+            homeScrollProvider = homeScrollProvider,
             isRtl = isRtl,
         )
 
-        // Layer 2: World Lighting (Luminary in World Space - zero recomposition on drag)
+        // Layer 2: World Lighting (3-layer Luminary in World Space - zero recomposition on drag/scroll)
         WorldLighting(
             stage = stage,
             pagePositionProvider = pagePositionProvider,
+            homeScrollProvider = homeScrollProvider,
             isRtl = isRtl,
-            orbCenterProvider = { orbCenterInWorld },
+            orbAnchorProvider = { orbAnchorInWorld },
         )
 
         // Layer 3: Viewport Content with coordinate communication channel

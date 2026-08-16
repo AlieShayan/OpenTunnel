@@ -23,16 +23,27 @@ import dev.opentunnel.vpn.core.ConnectionStage
 import dev.opentunnel.vpn.ui.theme.LocalStatusPalette
 
 /**
- * WorldLighting renders the global luminary and ambient lighting of the OpenTunnel world.
+ * WorldLighting renders the continuous 3-layer global luminary and ambient lighting field of OpenTunnel.
  *
- * The ConnectOrb on the Home viewport acts as the primary luminary anchor in world coordinates.
- * Its real measured layout coordinates are provided via [orbCenterProvider].
+ * Architecture:
+ * 1. World Space Coordinate System:
+ *    The ConnectOrb on the Home viewport acts as the primary physical luminary anchor in world coordinates.
+ *    Its invariant un-scrolled layout coordinates are provided via [orbAnchorProvider].
  *
- * World Coordinates vs Viewport Coordinates:
- *   visibleLightX = orbWorldX + (pagerPosition * viewportWidth * dirMultiplier)
+ * 2. 2D Camera Transformations:
+ *    - Camera X: Driven by [pagePositionProvider] (Pager horizontal movement across the 4 viewports)
+ *    - Camera Y: Driven by [homeScrollProvider] (Home vertical scroll)
+ *    - Viewport Luminary Center:
+ *        visibleLightX = orbWorldX + (pagerPosition * viewportWidth * dirMultiplier)
+ *        visibleLightY = orbWorldY - homeScrollOffset
+ *
+ * 3. 3-Layer Spatial Light Field:
+ *    - Layer 1 (Local Aura): Focused, rich radiance centered on the ConnectOrb ($R \approx 0.85 \times W$)
+ *    - Layer 2 (Regional Field): Expansive ambient glow spanning adjacent viewports ($R \approx 2.0 \times W$)
+ *    - Layer 3 (Global Field): Ultra-soft celestial illumination reaching all 4 viewports ($R \approx 4.4 \times W$)
  *
  * Performance is guaranteed at 120 FPS by evaluating camera offsets and luminary geometry
- * solely inside the Draw phase (via [Modifier.drawBehind]), eliminating all recompositions during swipe gestures.
+ * solely inside the Draw phase (via [Modifier.drawBehind]), eliminating all recompositions during gestures.
  */
 @Composable
 fun WorldLighting(
@@ -40,7 +51,8 @@ fun WorldLighting(
     pagePositionProvider: () -> Float,
     isRtl: Boolean,
     modifier: Modifier = Modifier,
-    orbCenterProvider: () -> Offset = { Offset.Unspecified },
+    homeScrollProvider: () -> Float = { 0f },
+    orbAnchorProvider: () -> Offset = { Offset.Unspecified },
 ) {
     val palette = LocalStatusPalette.current
 
@@ -58,23 +70,23 @@ fun WorldLighting(
         label = "worldAmbientColor",
     )
 
-    // Breathing pulse transitions based on connection state
+    // Decoupled slow celestial breathing transitions for the environment
     val infiniteTransition = rememberInfiniteTransition(label = "worldLightingBreathe")
     val busyBreathe by infiniteTransition.animateFloat(
-        initialValue = 0.88f,
-        targetValue = 1.14f,
+        initialValue = 0.92f,
+        targetValue = 1.12f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2000, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 3200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "busyBreathe",
     )
 
     val liveBreathe by infiniteTransition.animateFloat(
-        initialValue = 0.97f,
+        initialValue = 0.98f,
         targetValue = 1.03f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 6500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "liveBreathe",
@@ -88,10 +100,10 @@ fun WorldLighting(
 
     // Base intensity scaling per state
     val targetIntensity = when (stage) {
-        ConnectionStage.CONNECTED -> 0.24f
+        ConnectionStage.CONNECTED -> 0.28f
         ConnectionStage.ERROR -> 0.22f
-        ConnectionStage.IDLE -> 0.11f
-        else -> 0.28f
+        ConnectionStage.IDLE -> 0.10f
+        else -> 0.24f
     }
 
     val ambientIntensity by animateFloatAsState(
@@ -110,56 +122,79 @@ fun WorldLighting(
 
                 val dirMultiplier = if (isRtl) 1f else -1f
                 val currentPagePosition = pagePositionProvider()
+                val currentHomeScroll = homeScrollProvider()
 
-                // Resolve real measured anchor position or safe fallback
-                val measuredCenter = orbCenterProvider()
-                val orbWorldX = if (measuredCenter.isSpecified && measuredCenter.x > 0f) {
-                    measuredCenter.x
+                // Resolve real measured anchor position (in un-scrolled world coordinates) or safe fallback
+                val measuredAnchor = orbAnchorProvider()
+                val orbWorldX = if (measuredAnchor.isSpecified && measuredAnchor.x > 0f) {
+                    measuredAnchor.x
                 } else {
                     width / 2f
                 }
-                val orbWorldY = if (measuredCenter.isSpecified && measuredCenter.y > 0f) {
-                    measuredCenter.y
+                val orbWorldY = if (measuredAnchor.isSpecified && measuredAnchor.y > 0f) {
+                    measuredAnchor.y
                 } else {
-                    height * 0.30f
+                    height * 0.28f
                 }
 
-                // World-space light translation relative to camera viewport position
+                // 2D Camera Transformations: Pager X + Home Scroll Y applied simultaneously
                 val cameraOffsetX = currentPagePosition * width * dirMultiplier
+                val cameraOffsetY = currentHomeScroll
                 val visibleOrbCenterX = orbWorldX + cameraOffsetX
-                val visibleOrbCenterY = orbWorldY
+                val visibleOrbCenterY = orbWorldY - cameraOffsetY
                 val lightCenter = Offset(visibleOrbCenterX, visibleOrbCenterY)
 
                 val effectiveAlpha = ambientIntensity.coerceIn(0f, 0.45f)
                 if (effectiveAlpha <= 0.005f) return@drawBehind
 
-                // Layer A: Extended Ambient Aura (wide spatial field spanning across viewports)
-                val ambientRadius = width * 1.60f * breatheScale
+                // ── Layer 3: Global World Illumination Field ────────────────────────
+                // Vast, ultra-soft celestial field reaching all 4 viewports (Settings ~15-30% perception)
+                val globalRadius = width * 4.4f * breatheScale
                 drawRect(
                     brush = Brush.radialGradient(
-                        colors = listOf(
-                            ambientColor.copy(alpha = effectiveAlpha * 0.35f),
-                            ambientColor.copy(alpha = effectiveAlpha * 0.12f),
-                            ambientColor.copy(alpha = effectiveAlpha * 0.03f),
-                            Color.Transparent,
+                        colorStops = arrayOf(
+                            0.00f to ambientColor.copy(alpha = effectiveAlpha * 0.40f),
+                            0.20f to ambientColor.copy(alpha = effectiveAlpha * 0.28f),
+                            0.45f to ambientColor.copy(alpha = effectiveAlpha * 0.16f),
+                            0.70f to ambientColor.copy(alpha = effectiveAlpha * 0.07f),
+                            0.90f to ambientColor.copy(alpha = effectiveAlpha * 0.02f),
+                            1.00f to Color.Transparent,
                         ),
                         center = lightCenter,
-                        radius = ambientRadius,
+                        radius = globalRadius,
                     )
                 )
 
-                // Layer B: Primary Luminary Core (focused radiance centered on ConnectOrb)
-                val luminaryRadius = width * 0.85f * breatheScale
+                // ── Layer 2: Regional Light Field ───────────────────────────────────
+                // Spans multiple viewports (Traffic ~50-70% perception, Logs edge ~30-50%)
+                val regionalRadius = width * 2.0f * breatheScale
                 drawRect(
                     brush = Brush.radialGradient(
-                        colors = listOf(
-                            ambientColor.copy(alpha = effectiveAlpha),
-                            ambientColor.copy(alpha = effectiveAlpha * 0.50f),
-                            ambientColor.copy(alpha = effectiveAlpha * 0.15f),
-                            Color.Transparent,
+                        colorStops = arrayOf(
+                            0.00f to ambientColor.copy(alpha = effectiveAlpha * 0.55f),
+                            0.30f to ambientColor.copy(alpha = effectiveAlpha * 0.32f),
+                            0.60f to ambientColor.copy(alpha = effectiveAlpha * 0.12f),
+                            0.85f to ambientColor.copy(alpha = effectiveAlpha * 0.03f),
+                            1.00f to Color.Transparent,
                         ),
                         center = lightCenter,
-                        radius = luminaryRadius,
+                        radius = regionalRadius,
+                    )
+                )
+
+                // ── Layer 1: Local Orb Aura Core ───────────────────────────────────
+                // Focused, high-radiance core centered on ConnectOrb on the Home viewport
+                val localRadius = width * 0.85f * breatheScale
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colorStops = arrayOf(
+                            0.00f to ambientColor.copy(alpha = effectiveAlpha * 0.85f),
+                            0.35f to ambientColor.copy(alpha = effectiveAlpha * 0.45f),
+                            0.70f to ambientColor.copy(alpha = effectiveAlpha * 0.15f),
+                            1.00f to Color.Transparent,
+                        ),
+                        center = lightCenter,
+                        radius = localRadius,
                     )
                 )
             }

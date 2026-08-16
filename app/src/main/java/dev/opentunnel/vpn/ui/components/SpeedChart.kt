@@ -122,9 +122,9 @@ fun SpeedChart(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.75f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.64f)
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)),
     ) {
         Column(
             modifier = Modifier.padding(16.dp)

@@ -379,7 +379,7 @@ fun AppTrafficMonitorScreen(
             } else {
                 LazyColumn(
                     state = listState,
-                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 48.dp),
+                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
@@ -464,10 +464,10 @@ private fun SummaryHeaderCard(
 
     Surface(
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
-        tonalElevation = 2.dp,
-        shadowElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.64f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(
@@ -527,8 +527,8 @@ private fun SummaryHeaderCard(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.68f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.48f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(
@@ -589,8 +589,8 @@ private fun SummaryHeaderCard(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.68f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.48f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(
@@ -761,19 +761,19 @@ private fun AppTrafficCard(
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = if (entry.isActive) {
-            scheme.surfaceContainerHigh.copy(alpha = 0.78f)
+            scheme.surfaceContainer.copy(alpha = 0.64f)
         } else {
-            scheme.surfaceContainer.copy(alpha = 0.74f)
+            scheme.surfaceContainerLow.copy(alpha = 0.54f)
         },
         border = BorderStroke(
             1.dp,
             if (entry.isActive) {
-                scheme.primary.copy(alpha = 0.30f)
+                scheme.primary.copy(alpha = 0.24f)
             } else {
-                scheme.outlineVariant.copy(alpha = 0.22f)
+                scheme.outlineVariant.copy(alpha = 0.15f)
             },
         ),
-        tonalElevation = if (entry.isActive) 2.dp else 1.dp,
+        tonalElevation = 0.dp,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(
@@ -912,7 +912,7 @@ private fun AppTrafficCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(scheme.surfaceContainerLowest.copy(alpha = 0.7f))
+                    .background(scheme.surfaceContainerLowest.copy(alpha = 0.45f))
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,

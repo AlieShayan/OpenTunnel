@@ -222,14 +222,14 @@ fun LogScreen(
             }
 
             // Atmospheric translucent container for high readability and world atmosphere
-            val logBoxShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            val logBoxShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(logBoxShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.76f))
+                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.60f))
                     .border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)),
                         logBoxShape,
                     ),
             ) {
@@ -248,7 +248,7 @@ fun LogScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         items(filteredLogs) { line ->

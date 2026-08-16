@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.0.0] - 2026-08-16
+
+### Added
+- **Continuous World / One Unified Environment**: Unified architecture uniting Home, Traffic Monitor, Logs, and Settings into a single physical spatial environment observed by a 2D viewport camera.
+- **3-Layer Global Light Field Model**: 3-layer radial illumination field (Local Aura, Regional Field, and Global World Illumination) delivering continuous ambient light across all 4 viewports.
+- **Simultaneous 2D Camera Transformations**: Real-time evaluation of horizontal pager offset and vertical home scroll offset inside Compose Draw phase (`Modifier.drawBehind`) for 120 FPS performance.
+- **Per-App Traffic Telemetry & Monitoring Screen**: Detailed per-app data usage, real-time rates, traffic share bars, and sort/filter controls.
+- **Translucent Frosted Surface Hierarchy**: Soft depth translucent styling across cards, log terminal, and floating island navigation.
+
+---
+
 ## [3.1.2] - 2026-07-27
 
 ### Fixed
