@@ -22,6 +22,7 @@ import dev.opentunnel.vpn.core.TunnelRunner
 import dev.opentunnel.vpn.core.VpnBus
 import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.data.Repository
+import dev.opentunnel.vpn.util.BatteryOptimizationHelper
 import dev.opentunnel.vpn.util.LocationResolver
 import dev.opentunnel.vpn.util.Strings
 import dev.opentunnel.vpn.util.SystemCaBundle
@@ -251,8 +252,7 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
     private fun requestBatteryOptExemptionIfNeeded() {
         if (batteryOptRequested) return
         batteryOptRequested = true
-        val pm = getSystemService<PowerManager>() ?: return
-        if (pm.isIgnoringBatteryOptimizations(packageName)) {
+        if (BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)) {
             VpnBus.info("Battery optimisation already exempted")
             return
         }
@@ -265,47 +265,6 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
             VpnBus.info("Requested battery optimisation exemption")
         }.onFailure {
             VpnBus.info("Could not open battery optimisation dialog: ${it.message}")
-        }
-    }
-
-    private var oemAutoStartRequested = false
-
-    private fun requestOemAutoStart() {
-        if (oemAutoStartRequested) return
-        oemAutoStartRequested = true
-
-        val manufacturer = Build.MANUFACTURER.lowercase()
-        val intent = when {
-            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> {
-                Intent().apply {
-                    setComponent(android.content.ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
-                }
-            }
-            manufacturer.contains("samsung") -> {
-                Intent().apply {
-                    setComponent(android.content.ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"))
-                }
-            }
-            manufacturer.contains("oppo") || manufacturer.contains("realme") -> {
-                Intent().apply {
-                    setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"))
-                }
-            }
-            else -> null
-        }
-
-        if (intent != null) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (packageManager.resolveActivity(intent, 0) != null) {
-                runCatching {
-                    startActivity(intent)
-                    VpnBus.info("Opened OEM Auto-Start settings for $manufacturer")
-                }.onFailure {
-                    VpnBus.debug("Could not launch OEM Auto-Start screen: ${it.message}")
-                }
-            } else {
-                VpnBus.debug("OEM Auto-Start screen not available on this ROM ($manufacturer)")
-            }
         }
     }
 
@@ -344,7 +303,6 @@ class OpenTunnelVpnService : VpnService(), TunnelHost {
                         // Ask once for battery-opt exemption so Doze never
                         // throttles the tunnel after the first screen-off.
                         requestBatteryOptExemptionIfNeeded()
-                        requestOemAutoStart()
 
                         if (stageChanged) {
                             locationAttemptCount = 0

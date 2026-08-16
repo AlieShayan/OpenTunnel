@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
@@ -51,6 +52,7 @@ import dev.opentunnel.vpn.ui.components.SettingRow
 import dev.opentunnel.vpn.ui.components.SwitchRow
 import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.ui.theme.ThemeMode
+import dev.opentunnel.vpn.util.BatteryOptimizationHelper
 import dev.opentunnel.vpn.util.Strings
 
 import androidx.compose.material.icons.rounded.Vibration
@@ -215,6 +217,14 @@ fun SettingsScreen(
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             )
                         }
+                    },
+                )
+                SettingRow(
+                    icon = Icons.Rounded.Bolt,
+                    title = Strings.batteryOptimization(lang),
+                    subtitle = Strings.batteryOptimizationSub(lang),
+                    onClick = {
+                        BatteryOptimizationHelper.openBatteryOrAutoStartSettings(context)
                     },
                 )
                 SwitchRow(

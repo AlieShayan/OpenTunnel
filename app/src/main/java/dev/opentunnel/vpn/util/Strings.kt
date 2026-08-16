@@ -158,6 +158,10 @@ object Strings {
     fun alwaysOnVpn(lang: AppLanguage): String = if (isRtl(lang)) "${ltr("VPN")} همیشه روشن" else "Always-on VPN"
     fun alwaysOnVpnSub(lang: AppLanguage): String =
         if (isRtl(lang)) "باز کردن تنظیمات ${ltr("VPN")} اندروید برای فعال‌سازی اتصال همیشگی" else "Open Android's VPN settings to make this the always-on VPN and block traffic when it drops"
+    fun batteryOptimization(lang: AppLanguage): String =
+        if (isRtl(lang)) "بهینه‌سازی باتری و اجرای خودکار" else "Battery & background restrictions"
+    fun batteryOptimizationSub(lang: AppLanguage): String =
+        if (isRtl(lang)) "مدیریت اجرای برنامه در پس‌زمینه برای جلوگیری از قطع شدن اتصال" else "Manage background running and battery settings to prevent connection drops"
     fun statsNotification(lang: AppLanguage): String = if (isRtl(lang)) "نمایش میزان ترافیک در اعلان" else "Traffic counters in the notification"
     fun statsNotificationSub(lang: AppLanguage): String =
         if (isRtl(lang)) "نمایش مجموع ترافیک ارسالی و دریافتی در اعلان" else "Show total up/down in the ongoing notification"
