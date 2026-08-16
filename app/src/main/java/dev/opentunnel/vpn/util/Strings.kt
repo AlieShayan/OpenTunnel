@@ -322,6 +322,17 @@ object Strings {
     fun trafficResume(lang: AppLanguage): String =
         if (isRtl(lang)) "ادامه" else "Resume"
 
+    // ── App Traffic Monitor Permission Banner ───────────────────────────────
+    fun trafficPermissionRequiredTitle(lang: AppLanguage): String =
+        if (isRtl(lang)) "مجوز دسترسی به داده‌های مصرف لازم است" else "Usage Access Permission Required"
+
+    fun trafficPermissionRequiredBody(lang: AppLanguage): String =
+        if (isRtl(lang)) "سیستم‌عامل اندروید برای خواندن و نمایش ترافیک مصرفی اپلیکیشن‌ها نیاز به مجوز «دسترسی به داده‌های مصرف» (Usage Access) دارد."
+        else "Android requires \"Usage Access\" permission to monitor and display per-app network traffic."
+
+    fun trafficGrantPermission(lang: AppLanguage): String =
+        if (isRtl(lang)) "اعطای مجوز در تنظیمات" else "Grant Permission"
+
     // ── Speed Chart ──────────────────────────────────────────────────────────
     fun speedChartLiveTraffic(lang: AppLanguage): String =
         if (isRtl(lang)) "ترافیک زنده" else "Live Traffic"

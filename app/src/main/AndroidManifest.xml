@@ -14,6 +14,11 @@
     <!-- Keeps the NDK tunnel thread alive during screen-off / deep sleep. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Required for NetworkStatsManager to monitor per-app network traffic data. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
     <!--
       Split tunnelling needs to show the user every app that can reach the
       network. If you plan to publish on Google Play and would rather not

@@ -47,10 +47,13 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.TrendingDown
 import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,6 +73,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -89,6 +93,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.data.AppTrafficEntry
 import dev.opentunnel.vpn.data.AppTrafficSummary
@@ -114,6 +121,7 @@ fun AppTrafficMonitorScreen(
     searchQuery: String,
     appLanguage: AppLanguage,
     hapticEnabled: Boolean,
+    hasUsageAccessPermission: Boolean = true,
     onSortByChange: (TrafficSortBy) -> Unit,
     onToggleSortDirection: () -> Unit,
     onFilterModeChange: (TrafficFilterMode) -> Unit,
@@ -121,12 +129,27 @@ fun AppTrafficMonitorScreen(
     onResetStats: () -> Unit,
     onPauseMonitoring: () -> Unit,
     onResumeMonitoring: () -> Unit,
+    onGrantUsageAccess: () -> Unit = {},
+    onRefreshPermission: () -> Unit = {},
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val isRtl = Strings.isRtl(appLanguage)
     val listState = rememberLazyListState()
     RememberLazyListHaptic(listState, hapticEnabled)
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                onRefreshPermission()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     var showResetDialog by remember { mutableStateOf(false) }
     var isPaused by remember { mutableStateOf(false) }
@@ -208,6 +231,17 @@ fun AppTrafficMonitorScreen(
                 .fillMaxSize()
                 .padding(paddingValues),
         ) {
+            if (!hasUsageAccessPermission) {
+                UsageAccessPermissionBanner(
+                    lang = appLanguage,
+                    onGrantPermission = {
+                        if (hapticEnabled) HapticHelper.performClick(context, true)
+                        onGrantUsageAccess()
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                )
+            }
+
             // ── Overall Summary Card ─────────────────────────────────────────
             SummaryHeaderCard(
                 summary = summary,
@@ -922,6 +956,74 @@ private fun AppTrafficCard(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UsageAccessPermissionBanner(
+    lang: AppLanguage,
+    onGrantPermission: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Security,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Text(
+                    text = Strings.trafficPermissionRequiredTitle(lang),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+
+            Text(
+                text = Strings.trafficPermissionRequiredBody(lang),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f),
+                lineHeight = 18.sp,
+            )
+
+            Button(
+                onClick = onGrantPermission,
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(
+                    text = Strings.trafficGrantPermission(lang),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                )
             }
         }
     }

@@ -78,6 +78,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _trafficSearchQuery = MutableStateFlow("")
     val trafficSearchQuery: StateFlow<String> = _trafficSearchQuery.asStateFlow()
 
+    private val _hasUsageAccessPermission = MutableStateFlow(
+        dev.opentunnel.vpn.core.hasUsageStatsPermission(application),
+    )
+    val hasUsageAccessPermission: StateFlow<Boolean> = _hasUsageAccessPermission.asStateFlow()
+
     val appTrafficEntries: StateFlow<List<dev.opentunnel.vpn.data.AppTrafficEntry>> = kotlinx.coroutines.flow.combine(
         trafficCollector.entries,
         _trafficSortBy,
@@ -390,6 +395,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         trafficCollector.resume()
     }
 
+    fun checkUsageAccessPermission() {
+        val granted = dev.opentunnel.vpn.core.hasUsageStatsPermission(getApplication())
+        if (granted != _hasUsageAccessPermission.value) {
+            _hasUsageAccessPermission.value = granted
+            if (granted) {
+                viewModelScope.launch {
+                    trafficCollector.reset()
+                }
+            }
+        }
+    }
+
+    fun openUsageAccessSettings() {
+        dev.opentunnel.vpn.core.openUsageAccessSettings(getApplication())
+    }
+
     override fun onCleared() {
         trafficCollector.destroy()
         super.onCleared()
@@ -436,3 +457,4 @@ class LongRingBuffer(private val capacity: Int) {
         }
     }
 }
+

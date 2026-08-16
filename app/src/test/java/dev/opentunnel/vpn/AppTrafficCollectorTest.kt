@@ -27,10 +27,21 @@ class FakeTrafficStatsProvider : TrafficStatsProvider {
     val rxCounters = mutableMapOf<Int, Long>()
     val txCounters = mutableMapOf<Int, Long>()
     var currentTime: Long = 1000L
+    var permissionGranted: Boolean = true
 
     override fun getUidRxBytes(uid: Int): Long = rxCounters.getOrDefault(uid, 0L)
     override fun getUidTxBytes(uid: Int): Long = txCounters.getOrDefault(uid, 0L)
+    override fun getAllUidStats(): Map<Int, dev.opentunnel.vpn.core.UidTrafficBytes>? {
+        val allUids = rxCounters.keys + txCounters.keys
+        return allUids.associateWith { uid ->
+            dev.opentunnel.vpn.core.UidTrafficBytes(
+                rxBytes = rxCounters.getOrDefault(uid, 0L),
+                txBytes = txCounters.getOrDefault(uid, 0L),
+            )
+        }
+    }
     override fun getElapsedRealtime(): Long = currentTime
+    override fun hasPermission(): Boolean = permissionGranted
 
     fun advanceTime(deltaMs: Long) {
         currentTime += deltaMs
@@ -333,5 +344,37 @@ class AppTrafficCollectorTest {
         val searchResult = list.filter { it.label.contains(searchQuery, ignoreCase = true) }
         assertEquals(1, searchResult.size)
         assertEquals("Telegram", searchResult.first().label)
+    }
+
+    @Test
+    fun testLatePermissionGrantNoSpike() = runTest(testDispatcher) {
+        // App launches before permission is granted: counters are 0
+        fakeStats.setCounters(10001, 0L, 0L)
+        collector.loadApps(listOf(chromeMeta))
+        collector.tick()
+
+        var chrome = collector.entries.value.first { it.packageName == chromeMeta.packageName }
+        assertEquals(0L, chrome.rxBytes)
+        assertEquals(0L, chrome.rxRate)
+
+        // Permission is now granted and system returns lifetime cumulative counters (e.g. 50 MB)
+        fakeStats.advanceTime(1000L)
+        fakeStats.setCounters(10001, 50_000_000L, 10_000_000L)
+        collector.tick()
+
+        chrome = collector.entries.value.first { it.packageName == chromeMeta.packageName }
+        // Should establish baseline at 50MB and NOT register an artificial 50MB delta / 50MB/s speed spike
+        assertEquals(0L, chrome.rxBytes)
+        assertEquals(0L, chrome.rxRate)
+
+        // Now Chrome actually downloads 100 KB in 1 second
+        fakeStats.advanceTime(1000L)
+        fakeStats.setCounters(10001, 50_100_000L, 10_000_000L)
+        collector.tick()
+
+        chrome = collector.entries.value.first { it.packageName == chromeMeta.packageName }
+        assertEquals(100_000L, chrome.rxBytes)
+        assertEquals(100_000L, chrome.rxRate)
+        assertTrue(chrome.isActive)
     }
 }

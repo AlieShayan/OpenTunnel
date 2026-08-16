@@ -72,6 +72,7 @@ fun OpenTunnelApp(
     val trafficSortDirection by viewModel.trafficSortDirection.collectAsStateWithLifecycle()
     val trafficFilterMode by viewModel.trafficFilterMode.collectAsStateWithLifecycle()
     val trafficSearchQuery by viewModel.trafficSearchQuery.collectAsStateWithLifecycle()
+    val hasUsageAccessPermission by viewModel.hasUsageAccessPermission.collectAsStateWithLifecycle()
 
     var previousStage by remember { mutableStateOf<ConnectionStage?>(null) }
 
@@ -171,6 +172,7 @@ fun OpenTunnelApp(
                         searchQuery = trafficSearchQuery,
                         appLanguage = settings.appLanguage,
                         hapticEnabled = settings.hapticFeedbackEnabled,
+                        hasUsageAccessPermission = hasUsageAccessPermission,
                         onSortByChange = viewModel::setTrafficSortBy,
                         onToggleSortDirection = viewModel::toggleTrafficSortDirection,
                         onFilterModeChange = viewModel::setTrafficFilterMode,
@@ -178,6 +180,8 @@ fun OpenTunnelApp(
                         onResetStats = viewModel::resetTrafficStats,
                         onPauseMonitoring = viewModel::pauseTrafficMonitoring,
                         onResumeMonitoring = viewModel::resumeTrafficMonitoring,
+                        onGrantUsageAccess = viewModel::openUsageAccessSettings,
+                        onRefreshPermission = viewModel::checkUsageAccessPermission,
                         onBack = { navController.popBackStack() },
                     )
                 }

@@ -1,10 +1,19 @@
 package dev.opentunnel.vpn.core
 
+import android.app.AppOpsManager
+import android.app.usage.NetworkStats
+import android.app.usage.NetworkStatsManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.net.TrafficStats
+import android.net.Uri
+import android.os.Build
+import android.os.Process
 import android.os.SystemClock
+import android.provider.Settings
 import dev.opentunnel.vpn.data.AppSettings
 import dev.opentunnel.vpn.data.AppTrafficEntry
 import dev.opentunnel.vpn.data.AppTrafficSummary
@@ -26,40 +35,156 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
+ * Checks whether the app has been granted [AppOpsManager.OPSTR_GET_USAGE_STATS] permission.
+ */
+fun hasUsageStatsPermission(context: Context): Boolean {
+    val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
+    val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        appOps.unsafeCheckOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            context.packageName,
+        )
+    } else {
+        @Suppress("DEPRECATION")
+        appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            context.packageName,
+        )
+    }
+    return mode == AppOpsManager.MODE_ALLOWED
+}
+
+/**
+ * Directs the user to the system Settings page for Usage Access.
+ */
+fun openUsageAccessSettings(context: Context) {
+    val intentWithPackage = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+        data = Uri.parse("package:${context.packageName}")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    val fallbackIntent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    runCatching {
+        context.startActivity(intentWithPackage)
+    }.recoverCatching {
+        context.startActivity(fallbackIntent)
+    }
+}
+
+/**
+ * Raw counter snapshot for a single UID.
+ */
+data class UidTrafficBytes(
+    val rxBytes: Long,
+    val txBytes: Long,
+)
+
+/**
  * Abstraction for querying UID traffic stats from the OS.
  * Allows deterministic unit testing without Android OS kernel dependencies.
  */
 interface TrafficStatsProvider {
     fun getUidRxBytes(uid: Int): Long
     fun getUidTxBytes(uid: Int): Long
+    fun getAllUidStats(): Map<Int, UidTrafficBytes>? = null
     fun getElapsedRealtime(): Long
+    fun hasPermission(): Boolean = true
 }
 
 /**
- * Standard production implementation backed by [android.net.TrafficStats], [SystemClock],
- * and procfs socket accounting fallback.
+ * Production implementation using [NetworkStatsManager] (API 23+) with bulk querying
+ * and [TrafficStats] for the app's own process.
  */
-object AndroidTrafficStatsProvider : TrafficStatsProvider {
-    override fun getUidRxBytes(uid: Int): Long {
-        val bytes = TrafficStats.getUidRxBytes(uid)
-        if (bytes != TrafficStats.UNSUPPORTED.toLong() && bytes >= 0) {
-            return bytes
+class AndroidTrafficStatsProvider(
+    private val context: Context? = null,
+) : TrafficStatsProvider {
+
+    override fun hasPermission(): Boolean {
+        val ctx = context ?: return false
+        return hasUsageStatsPermission(ctx)
+    }
+
+    override fun getAllUidStats(): Map<Int, UidTrafficBytes>? {
+        val ctx = context ?: return null
+        if (!hasUsageStatsPermission(ctx)) {
+            val myUid = Process.myUid()
+            val myRx = TrafficStats.getUidRxBytes(myUid).coerceAtLeast(0L)
+            val myTx = TrafficStats.getUidTxBytes(myUid).coerceAtLeast(0L)
+            return mapOf(myUid to UidTrafficBytes(myRx, myTx))
         }
-        return readProcUidStat(uid, "tcp_rcv")
+
+        val nsm = ctx.getSystemService(Context.NETWORK_STATS_SERVICE) as? NetworkStatsManager ?: return null
+        val now = System.currentTimeMillis()
+        val results = mutableMapOf<Int, MutableBytes>()
+
+        // 1. Wi-Fi (TYPE_WIFI)
+        querySummaryInto(nsm, ConnectivityManager.TYPE_WIFI, now, results)
+
+        // 2. Mobile Data (TYPE_MOBILE)
+        querySummaryInto(nsm, ConnectivityManager.TYPE_MOBILE, now, results)
+
+        // 3. Ethernet (TYPE_ETHERNET = 9)
+        querySummaryInto(nsm, 9, now, results)
+
+        // 4. VPN (TYPE_VPN = 17)
+        querySummaryInto(nsm, 17, now, results)
+
+        // Ensure own UID is tracked accurately even if NetworkStatsManager has a small flush lag
+        val myUid = Process.myUid()
+        val myRx = TrafficStats.getUidRxBytes(myUid)
+        val myTx = TrafficStats.getUidTxBytes(myUid)
+        if (myRx > 0L || myTx > 0L) {
+            val entry = results.getOrPut(myUid) { MutableBytes() }
+            if (myRx > entry.rx) entry.rx = myRx
+            if (myTx > entry.tx) entry.tx = myTx
+        }
+
+        return results.mapValues { (_, v) -> UidTrafficBytes(v.rx, v.tx) }
+    }
+
+    private class MutableBytes(var rx: Long = 0L, var tx: Long = 0L)
+
+    private fun querySummaryInto(
+        nsm: NetworkStatsManager,
+        networkType: Int,
+        endTime: Long,
+        outMap: MutableMap<Int, MutableBytes>,
+    ) {
+        runCatching {
+            val stats: NetworkStats = nsm.querySummary(networkType, null, 0L, endTime)
+            val bucket = NetworkStats.Bucket()
+            while (stats.hasNextBucket()) {
+                stats.getNextBucket(bucket)
+                val uid = bucket.uid
+                if (uid > 0) {
+                    val entry = outMap.getOrPut(uid) { MutableBytes() }
+                    entry.rx += bucket.rxBytes
+                    entry.tx += bucket.txBytes
+                }
+            }
+            stats.close()
+        }
+    }
+
+    override fun getUidRxBytes(uid: Int): Long {
+        val myUid = Process.myUid()
+        if (uid == myUid) {
+            val bytes = TrafficStats.getUidRxBytes(uid)
+            if (bytes != TrafficStats.UNSUPPORTED.toLong() && bytes >= 0) return bytes
+        }
+        return 0L
     }
 
     override fun getUidTxBytes(uid: Int): Long {
-        val bytes = TrafficStats.getUidTxBytes(uid)
-        if (bytes != TrafficStats.UNSUPPORTED.toLong() && bytes >= 0) {
-            return bytes
+        val myUid = Process.myUid()
+        if (uid == myUid) {
+            val bytes = TrafficStats.getUidTxBytes(uid)
+            if (bytes != TrafficStats.UNSUPPORTED.toLong() && bytes >= 0) return bytes
         }
-        return readProcUidStat(uid, "tcp_snd")
-    }
-
-    private fun readProcUidStat(uid: Int, file: String): Long {
-        return runCatching {
-            java.io.File("/proc/uid_stat/$uid/$file").readText().trim().toLong()
-        }.getOrDefault(0L)
+        return 0L
     }
 
     override fun getElapsedRealtime(): Long = SystemClock.elapsedRealtime()
@@ -103,7 +228,7 @@ private data class UidTracker(
  */
 class AppTrafficCollector(
     private val context: Context? = null,
-    private val statsProvider: TrafficStatsProvider = AndroidTrafficStatsProvider,
+    private val statsProvider: TrafficStatsProvider = AndroidTrafficStatsProvider(context),
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val sampleIntervalMs: Long = 1000L,
 ) {
@@ -142,11 +267,12 @@ class AppTrafficCollector(
      */
     suspend fun loadApps(packages: List<AppMetadata>) = mutex.withLock {
         val now = statsProvider.getElapsedRealtime()
+        val bulkStats = statsProvider.getAllUidStats()
         for (pkg in packages) {
             if (pkg.uid <= 0) continue
             if (!trackers.containsKey(pkg.packageName)) {
-                val currentRx = statsProvider.getUidRxBytes(pkg.uid)
-                val currentTx = statsProvider.getUidTxBytes(pkg.uid)
+                val currentRx = bulkStats?.get(pkg.uid)?.rxBytes ?: statsProvider.getUidRxBytes(pkg.uid)
+                val currentTx = bulkStats?.get(pkg.uid)?.txBytes ?: statsProvider.getUidTxBytes(pkg.uid)
                 trackers[pkg.packageName] = UidTracker(
                     packageName = pkg.packageName,
                     uid = pkg.uid,
@@ -245,9 +371,10 @@ class AppTrafficCollector(
     suspend fun reset() = mutex.withLock {
         val now = statsProvider.getElapsedRealtime()
         sessionStartTime = now
+        val bulkStats = statsProvider.getAllUidStats()
         for (tracker in trackers.values) {
-            val currentRx = statsProvider.getUidRxBytes(tracker.uid)
-            val currentTx = statsProvider.getUidTxBytes(tracker.uid)
+            val currentRx = bulkStats?.get(tracker.uid)?.rxBytes ?: statsProvider.getUidRxBytes(tracker.uid)
+            val currentTx = bulkStats?.get(tracker.uid)?.txBytes ?: statsProvider.getUidTxBytes(tracker.uid)
             tracker.baselineRx = currentRx
             tracker.baselineTx = currentTx
             tracker.prevRx = currentRx
@@ -278,13 +405,28 @@ class AppTrafficCollector(
         var aggregateTxRate = 0L
         var activeApps = 0
 
+        val bulkStats = statsProvider.getAllUidStats()
         val snapshotList = ArrayList<AppTrafficEntry>(trackers.size)
 
         for (tracker in trackers.values) {
-            val currentRx = statsProvider.getUidRxBytes(tracker.uid)
-            val currentTx = statsProvider.getUidTxBytes(tracker.uid)
+            val (currentRx, currentTx) = if (bulkStats != null) {
+                val stats = bulkStats[tracker.uid]
+                (stats?.rxBytes ?: 0L) to (stats?.txBytes ?: 0L)
+            } else {
+                statsProvider.getUidRxBytes(tracker.uid) to statsProvider.getUidTxBytes(tracker.uid)
+            }
 
             val dtMs = (now - tracker.prevSampleTime).coerceAtLeast(1L)
+
+            // If tracker had zero baseline (e.g. permission was just granted), establish initial baseline
+            if (tracker.baselineRx == 0L && tracker.prevRx == 0L && currentRx > 0L) {
+                tracker.baselineRx = currentRx
+                tracker.prevRx = currentRx
+            }
+            if (tracker.baselineTx == 0L && tracker.prevTx == 0L && currentTx > 0L) {
+                tracker.baselineTx = currentTx
+                tracker.prevTx = currentTx
+            }
 
             // Counter wrap or system reboot protection
             if (currentRx < tracker.prevRx) {
