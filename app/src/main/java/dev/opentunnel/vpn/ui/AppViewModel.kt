@@ -102,25 +102,66 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             matchesQuery && matchesFilter
         }
 
+        val collator = java.text.Collator.getInstance()
         val comparator: Comparator<dev.opentunnel.vpn.data.AppTrafficEntry> = when (sortBy) {
-            dev.opentunnel.vpn.data.TrafficSortBy.TOTAL_TRAFFIC -> compareBy { it.totalBytes }
-            dev.opentunnel.vpn.data.TrafficSortBy.DOWNLOAD -> compareBy { it.rxBytes }
-            dev.opentunnel.vpn.data.TrafficSortBy.UPLOAD -> compareBy { it.txBytes }
-            dev.opentunnel.vpn.data.TrafficSortBy.DOWNLOAD_SPEED -> compareBy { it.rxRate }
-            dev.opentunnel.vpn.data.TrafficSortBy.UPLOAD_SPEED -> compareBy { it.txRate }
-            dev.opentunnel.vpn.data.TrafficSortBy.APP_NAME -> compareBy(java.text.Collator.getInstance()) { it.label }
+            dev.opentunnel.vpn.data.TrafficSortBy.TOTAL_TRAFFIC ->
+                if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
+                    compareByDescending<dev.opentunnel.vpn.data.AppTrafficEntry> { it.totalBytes }
+                        .thenBy(collator) { it.label }
+                } else {
+                    compareBy<dev.opentunnel.vpn.data.AppTrafficEntry> { it.totalBytes }
+                        .thenBy(collator) { it.label }
+                }
+
+            dev.opentunnel.vpn.data.TrafficSortBy.DOWNLOAD ->
+                if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
+                    compareByDescending<dev.opentunnel.vpn.data.AppTrafficEntry> { it.rxBytes }
+                        .thenBy(collator) { it.label }
+                } else {
+                    compareBy<dev.opentunnel.vpn.data.AppTrafficEntry> { it.rxBytes }
+                        .thenBy(collator) { it.label }
+                }
+
+            dev.opentunnel.vpn.data.TrafficSortBy.UPLOAD ->
+                if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
+                    compareByDescending<dev.opentunnel.vpn.data.AppTrafficEntry> { it.txBytes }
+                        .thenBy(collator) { it.label }
+                } else {
+                    compareBy<dev.opentunnel.vpn.data.AppTrafficEntry> { it.txBytes }
+                        .thenBy(collator) { it.label }
+                }
+
+            dev.opentunnel.vpn.data.TrafficSortBy.DOWNLOAD_SPEED ->
+                if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
+                    compareByDescending<dev.opentunnel.vpn.data.AppTrafficEntry> { it.rxRate }
+                        .thenByDescending { it.totalBytes }
+                        .thenBy(collator) { it.label }
+                } else {
+                    compareBy<dev.opentunnel.vpn.data.AppTrafficEntry> { it.rxRate }
+                        .thenBy { it.totalBytes }
+                        .thenBy(collator) { it.label }
+                }
+
+            dev.opentunnel.vpn.data.TrafficSortBy.UPLOAD_SPEED ->
+                if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
+                    compareByDescending<dev.opentunnel.vpn.data.AppTrafficEntry> { it.txRate }
+                        .thenByDescending { it.totalBytes }
+                        .thenBy(collator) { it.label }
+                } else {
+                    compareBy<dev.opentunnel.vpn.data.AppTrafficEntry> { it.txRate }
+                        .thenBy { it.totalBytes }
+                        .thenBy(collator) { it.label }
+                }
+
+            dev.opentunnel.vpn.data.TrafficSortBy.APP_NAME ->
+                if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
+                    compareByDescending(collator) { it.label }
+                } else {
+                    compareBy(collator) { it.label }
+                }
         }
 
-        if (sortDir == dev.opentunnel.vpn.data.SortDirection.DESCENDING) {
-            if (sortBy == dev.opentunnel.vpn.data.TrafficSortBy.APP_NAME) {
-                filtered.sortedWith(comparator.reversed())
-            } else {
-                // Secondary sort by label so ties remain stable and don't flicker
-                filtered.sortedWith(comparator.reversed().thenBy { it.label })
-            }
-        } else {
-            filtered.sortedWith(comparator.thenBy { it.label })
-        }
+        filtered.sortedWith(comparator)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun clearSpeedHistory() {
