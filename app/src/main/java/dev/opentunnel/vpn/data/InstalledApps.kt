@@ -21,8 +21,9 @@ data class InstalledApp(
 )
 
 /**
- * Lists the apps that can actually use the network — those are the only ones
- * worth showing in a split-tunnel picker.
+ * Lists installed applications on the device.
+ * Excludes internal OS framework components and overlays so only real, user-facing
+ * applications are listed and monitored.
  */
 object InstalledApps {
 
@@ -50,14 +51,30 @@ object InstalledApps {
         }.getOrElse { emptyList() }
 
         val result = packages.asSequence()
-            .filter { it.packageName != self }
+            .filter { it.packageName != self && it.uid > 0 }
+            .filter { info ->
+                val isPureSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
+                    (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
+
+                // 1. User-installed apps: always included
+                // 2. Updated system apps (e.g. Chrome, YouTube from Play Store): included
+                // 3. Pre-installed system apps: only include if they have a launchable UI / icon
+                if (!isPureSystem) {
+                    true
+                } else {
+                    pm.getLaunchIntentForPackage(info.packageName) != null
+                }
+            }
             .map { info ->
+                val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
+                    (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
+                val label = runCatching { pm.getApplicationLabel(info).toString() }
+                    .getOrDefault(info.packageName)
+
                 InstalledApp(
                     packageName = info.packageName,
-                    label = runCatching { pm.getApplicationLabel(info).toString() }
-                        .getOrDefault(info.packageName),
-                    isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
-                        (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0,
+                    label = if (label.isNotBlank()) label else info.packageName,
+                    isSystem = isSystem,
                 )
             }
             .sortedWith(compareBy(collator) { it.label })
@@ -67,12 +84,6 @@ object InstalledApps {
         lastLoadTime = now
         result
     }
-
-    private fun hasInternet(pm: PackageManager, packageName: String): Boolean =
-        runCatching {
-            pm.checkPermission(android.Manifest.permission.INTERNET, packageName) ==
-                PackageManager.PERMISSION_GRANTED
-        }.getOrDefault(true)
 
     suspend fun icon(context: Context, packageName: String): ImageBitmap? {
         iconCache.get(packageName)?.let { return it }

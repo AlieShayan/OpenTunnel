@@ -5,7 +5,6 @@ import android.app.usage.NetworkStats
 import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.TrafficStats
@@ -17,6 +16,7 @@ import android.provider.Settings
 import dev.opentunnel.vpn.data.AppSettings
 import dev.opentunnel.vpn.data.AppTrafficEntry
 import dev.opentunnel.vpn.data.AppTrafficSummary
+import dev.opentunnel.vpn.data.InstalledApps
 import dev.opentunnel.vpn.data.SplitTunnelMode
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +28,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -84,7 +83,6 @@ data class UidTrafficBytes(
 
 /**
  * Abstraction for querying UID traffic stats from the OS.
- * Allows deterministic unit testing without Android OS kernel dependencies.
  */
 interface TrafficStatsProvider {
     fun getUidRxBytes(uid: Int): Long
@@ -96,7 +94,7 @@ interface TrafficStatsProvider {
 
 /**
  * Production implementation using [NetworkStatsManager] (API 23+) with bulk querying
- * and [TrafficStats] for the app's own process.
+ * across Wi-Fi, Mobile, and Ethernet interfaces.
  */
 class AndroidTrafficStatsProvider(
     private val context: Context? = null,
@@ -120,22 +118,19 @@ class AndroidTrafficStatsProvider(
         val now = System.currentTimeMillis()
         val results = mutableMapOf<Int, MutableBytes>()
 
-        // 1. Wi-Fi (TYPE_WIFI)
+        // 1. Wi-Fi (TYPE_WIFI = 1)
         querySummaryInto(nsm, ConnectivityManager.TYPE_WIFI, now, results)
 
-        // 2. Mobile Data (TYPE_MOBILE)
+        // 2. Mobile Data (TYPE_MOBILE = 0)
         querySummaryInto(nsm, ConnectivityManager.TYPE_MOBILE, now, results)
 
         // 3. Ethernet (TYPE_ETHERNET = 9)
         querySummaryInto(nsm, 9, now, results)
 
-        // 4. VPN (TYPE_VPN = 17)
-        querySummaryInto(nsm, 17, now, results)
-
-        // Ensure own UID is tracked accurately even if NetworkStatsManager has a small flush lag
+        // Track VPN's own process via TrafficStats directly for instant response
         val myUid = Process.myUid()
-        val myRx = TrafficStats.getUidRxBytes(myUid)
-        val myTx = TrafficStats.getUidTxBytes(myUid)
+        val myRx = TrafficStats.getUidRxBytes(myUid).coerceAtLeast(0L)
+        val myTx = TrafficStats.getUidTxBytes(myUid).coerceAtLeast(0L)
         if (myRx > 0L || myTx > 0L) {
             val entry = results.getOrPut(myUid) { MutableBytes() }
             if (myRx > entry.rx) entry.rx = myRx
@@ -191,7 +186,7 @@ class AndroidTrafficStatsProvider(
 }
 
 /**
- * Package metadata cached to avoid continuous PackageManager queries on every tick.
+ * Package metadata cached for tracking.
  */
 data class AppMetadata(
     val packageName: String,
@@ -224,7 +219,7 @@ private data class UidTracker(
 /**
  * Background engine responsible for polling per-UID network counters, calculating
  * smoothed bandwidth rates via Exponential Moving Average (EMA), and publishing
- * immutable [AppTrafficEntry] snapshots via [StateFlow].
+ * accurate [AppTrafficEntry] snapshots via [StateFlow].
  */
 class AppTrafficCollector(
     private val context: Context? = null,
@@ -252,7 +247,7 @@ class AppTrafficCollector(
     private var appSettings: AppSettings = AppSettings()
 
     companion object {
-        private const val EMA_ALPHA = 0.70f // Weight given to current sample (responsive yet smooth)
+        private const val EMA_ALPHA = 0.65f // Responsive and smooth weight for live speed rate
     }
 
     /**
@@ -268,9 +263,15 @@ class AppTrafficCollector(
     suspend fun loadApps(packages: List<AppMetadata>) = mutex.withLock {
         val now = statsProvider.getElapsedRealtime()
         val bulkStats = statsProvider.getAllUidStats()
+        val incomingKeys = packages.map { it.packageName }.toSet()
+
+        // Remove packages that are no longer installed
+        trackers.keys.retainAll(incomingKeys)
+
         for (pkg in packages) {
             if (pkg.uid <= 0) continue
-            if (!trackers.containsKey(pkg.packageName)) {
+            val existing = trackers[pkg.packageName]
+            if (existing == null) {
                 val currentRx = bulkStats?.get(pkg.uid)?.rxBytes ?: statsProvider.getUidRxBytes(pkg.uid)
                 val currentTx = bulkStats?.get(pkg.uid)?.txBytes ?: statsProvider.getUidTxBytes(pkg.uid)
                 trackers[pkg.packageName] = UidTracker(
@@ -291,41 +292,31 @@ class AppTrafficCollector(
     }
 
     /**
-     * Discovers all installed apps via PackageManager without heavy metadata bundles to prevent Binder IPC limits.
+     * Discovers user-installed applications via [InstalledApps.load].
      */
-    suspend fun discoverInstalledApps(): List<AppMetadata> = kotlinx.coroutines.withContext(Dispatchers.IO) {
-        val ctx = context ?: return@withContext emptyList()
+    suspend fun discoverInstalledApps(): List<AppMetadata> {
+        val ctx = context ?: return emptyList()
         val pm = ctx.packageManager
-        val selfPkg = ctx.packageName
+        val list = InstalledApps.load(ctx)
+        return list.mapNotNull { app ->
+            val uid = runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getPackageUid(app.packageName, PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.getPackageUid(app.packageName, 0)
+                }
+            }.getOrDefault(0)
 
-        val packages: List<ApplicationInfo> = runCatching {
-            pm.getInstalledApplications(0)
-        }.recoverCatching {
-            pm.getInstalledPackages(0).map { it.applicationInfo }
-        }.getOrElse { emptyList() }
-
-        if (packages.isEmpty()) return@withContext emptyList()
-
-        packages.asSequence()
-            .filter { info ->
-                info.packageName != selfPkg &&
-                    info.uid > 0 &&
-                    ((info.flags and ApplicationInfo.FLAG_SYSTEM) == 0 ||
-                        (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
-            }
-            .map { info ->
-                val label = runCatching { pm.getApplicationLabel(info).toString() }
-                    .getOrDefault(info.packageName)
-                val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
-                    (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
+            if (uid > 0) {
                 AppMetadata(
-                    packageName = info.packageName,
-                    uid = info.uid,
-                    label = if (label.isBlank()) info.packageName else label,
-                    isSystem = isSystem,
+                    packageName = app.packageName,
+                    uid = uid,
+                    label = app.label,
+                    isSystem = app.isSystem,
                 )
-            }
-            .toList()
+            } else null
+        }
     }
 
     /**
@@ -396,7 +387,7 @@ class AppTrafficCollector(
     }
 
     /**
-     * Executes one sampling iteration. Visible for testing.
+     * Executes one sampling iteration and calculates rates and cumulative consumption.
      */
     suspend fun tick() = mutex.withLock {
         val now = statsProvider.getElapsedRealtime()
@@ -413,6 +404,7 @@ class AppTrafficCollector(
 
         val bulkStats = statsProvider.getAllUidStats()
         val snapshotList = ArrayList<AppTrafficEntry>(trackers.size)
+        val seenUidsForSummary = mutableSetOf<Int>()
 
         for (tracker in trackers.values) {
             val (currentRx, currentTx) = if (bulkStats != null) {
@@ -424,23 +416,17 @@ class AppTrafficCollector(
 
             val dtMs = (now - tracker.prevSampleTime).coerceAtLeast(1L)
 
-            // If tracker had zero baseline (e.g. permission was just granted), establish initial baseline
-            if (tracker.baselineRx == 0L && tracker.prevRx == 0L && currentRx > 0L) {
+            // Counter wrap / reboot protection: if current counter dropped below baseline
+            if (currentRx < tracker.baselineRx) {
                 tracker.baselineRx = currentRx
-                tracker.prevRx = currentRx
             }
-            if (tracker.baselineTx == 0L && tracker.prevTx == 0L && currentTx > 0L) {
+            if (currentTx < tracker.baselineTx) {
                 tracker.baselineTx = currentTx
-                tracker.prevTx = currentTx
             }
-
-            // Counter wrap or system reboot protection
             if (currentRx < tracker.prevRx) {
-                tracker.baselineRx = currentRx
                 tracker.prevRx = currentRx
             }
             if (currentTx < tracker.prevTx) {
-                tracker.baselineTx = currentTx
                 tracker.prevTx = currentTx
             }
 
@@ -484,12 +470,13 @@ class AppTrafficCollector(
                 }
             }
 
-            // Update tracker state
+            // Advance previous snapshot markers
             tracker.prevRx = currentRx
             tracker.prevTx = currentTx
             tracker.prevSampleTime = now
 
-            if (tracker.rxRate > 0 || tracker.txRate > 0) {
+            val isAppActive = tracker.rxRate > 0 || tracker.txRate > 0
+            if (isAppActive) {
                 tracker.lastActiveTime = now
                 activeApps++
             }
@@ -498,10 +485,13 @@ class AppTrafficCollector(
             val sessionTx = (currentTx - tracker.baselineTx).coerceAtLeast(0L)
             val appTotal = sessionRx + sessionTx
 
-            totalRxSession += sessionRx
-            totalTxSession += sessionTx
-            aggregateRxRate += tracker.rxRate
-            aggregateTxRate += tracker.txRate
+            // Prevent double-counting when multiple packages share the same UID in global summary
+            if (seenUidsForSummary.add(tracker.uid)) {
+                totalRxSession += sessionRx
+                totalTxSession += sessionTx
+                aggregateRxRate += tracker.rxRate
+                aggregateTxRate += tracker.txRate
+            }
 
             val isVpnRouted = when {
                 !splitEnabled -> true
@@ -523,17 +513,17 @@ class AppTrafficCollector(
                     rxRate = tracker.rxRate,
                     txRate = tracker.txRate,
                     totalRate = tracker.rxRate + tracker.txRate,
-                    trafficSharePercent = 0f, // will be computed in second pass below
+                    trafficSharePercent = 0f, // computed below
                     firstSeenTime = tracker.firstSeenTime,
                     lastActiveTime = tracker.lastActiveTime,
-                    isActive = tracker.rxRate > 0 || tracker.txRate > 0,
+                    isActive = isAppActive,
                 )
             )
         }
 
         val totalSessionAll = totalRxSession + totalTxSession
 
-        // Second pass: compute traffic share percentage
+        // Second pass: compute traffic share percentage accurately
         val finalizedEntries = if (totalSessionAll > 0L) {
             snapshotList.map { entry ->
                 val share = ((entry.totalBytes.toDouble() / totalSessionAll.toDouble()) * 100.0).toFloat()
