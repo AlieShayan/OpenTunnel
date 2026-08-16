@@ -3,6 +3,7 @@ package dev.opentunnel.vpn.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -158,6 +159,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(Strings.editProfileTitle(lang, draft.name)) },
@@ -166,6 +168,9 @@ fun ProfileScreen(
                         Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
                 actions = {
                     if (draft.id.isNotBlank() && onDelete != null) {
                         IconButton(onClick = { showDeleteConfirm = true }) {
@@ -185,9 +190,6 @@ fun ProfileScreen(
                         Text(Strings.save(lang), fontWeight = FontWeight.Bold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
             )
         },
     ) { padding ->

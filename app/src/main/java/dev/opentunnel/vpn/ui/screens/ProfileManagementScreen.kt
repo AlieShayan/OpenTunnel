@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -131,6 +132,7 @@ fun ProfileManagementScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(Strings.profileManagementTitle(lang)) },
@@ -139,6 +141,9 @@ fun ProfileManagementScreen(
                         Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
                 actions = {
                     if (profiles.isNotEmpty()) {
                         IconButton(
@@ -172,9 +177,6 @@ fun ProfileManagementScreen(
                         Icon(Icons.Rounded.Download, contentDescription = Strings.importProfiles(lang))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
             )
         },
         floatingActionButton = {

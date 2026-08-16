@@ -221,15 +221,15 @@ fun LogScreen(
                 )
             }
 
-            // Dark translucent box so the ambient glow is visible behind the text
-            val logBoxShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            // Atmospheric translucent container for high readability and world atmosphere
+            val logBoxShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(logBoxShape)
-                    .background(Color(0xFF070A12).copy(alpha = 0.78f))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.82f))
                     .border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                         logBoxShape,
                     ),
             ) {

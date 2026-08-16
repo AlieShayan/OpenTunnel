@@ -1,6 +1,7 @@
 package dev.opentunnel.vpn.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,6 +72,7 @@ fun SplitTunnelNetworksScreen(
     var newEntryText by remember { mutableStateOf("") }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -88,6 +90,9 @@ fun SplitTunnelNetworksScreen(
                         Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
                 actions = {
                     if (settings.splitTunnelNetworks.isNotEmpty()) {
                         TextButton(onClick = {
@@ -101,9 +106,6 @@ fun SplitTunnelNetworksScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
             )
         }
     ) { padding ->

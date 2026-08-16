@@ -57,7 +57,7 @@ class FakeTrafficStatsProvider : TrafficStatsProvider {
 class AppTrafficCollectorTest {
 
     private lateinit var fakeStats: FakeTrafficStatsProvider
-    private lateinit var testDispatcher: StandardTestDispatcher
+    private lateinit var testDispatcher: kotlinx.coroutines.test.TestDispatcher
     private lateinit var testScope: TestScope
     private lateinit var collector: AppTrafficCollector
 
@@ -349,6 +349,7 @@ class AppTrafficCollectorTest {
     @Test
     fun testLatePermissionGrantNoSpike() = runTest(testDispatcher) {
         // App launches before permission is granted: counters are 0
+        fakeStats.permissionGranted = false
         fakeStats.setCounters(10001, 0L, 0L)
         collector.loadApps(listOf(chromeMeta))
         collector.tick()
@@ -358,6 +359,7 @@ class AppTrafficCollectorTest {
         assertEquals(0L, chrome.rxRate)
 
         // Permission is now granted and system returns lifetime cumulative counters (e.g. 50 MB)
+        fakeStats.permissionGranted = true
         fakeStats.advanceTime(1000L)
         fakeStats.setCounters(10001, 50_000_000L, 10_000_000L)
         collector.tick()

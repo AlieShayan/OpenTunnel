@@ -214,6 +214,7 @@ private data class UidTracker(
     var zeroTxCount: Int = 0,
     var firstSeenTime: Long = 0L,
     var lastActiveTime: Long = 0L,
+    var hasEstablishedBaseline: Boolean = (baselineRx > 0L || baselineTx > 0L),
 )
 
 /**
@@ -242,6 +243,7 @@ class AppTrafficCollector(
     private val trackers = mutableMapOf<String, UidTracker>()
     private var sessionStartTime = statsProvider.getElapsedRealtime()
     private var isPaused = false
+    private var hadPermission = statsProvider.hasPermission()
 
     @Volatile
     private var appSettings: AppSettings = AppSettings()
@@ -391,6 +393,10 @@ class AppTrafficCollector(
      */
     suspend fun tick() = mutex.withLock {
         val now = statsProvider.getElapsedRealtime()
+        val hasPerm = statsProvider.hasPermission()
+        val permissionJustGranted = hasPerm && !hadPermission
+        hadPermission = hasPerm
+
         val currentSettings = appSettings
         val selectedPackages = currentSettings.selectedPackages
         val splitEnabled = currentSettings.splitTunnelEnabled
@@ -412,6 +418,14 @@ class AppTrafficCollector(
                 (stats?.rxBytes ?: 0L) to (stats?.txBytes ?: 0L)
             } else {
                 statsProvider.getUidRxBytes(tracker.uid) to statsProvider.getUidTxBytes(tracker.uid)
+            }
+
+            // Late permission grant: establish baseline without registering fake spike
+            if (permissionJustGranted) {
+                tracker.baselineRx = currentRx
+                tracker.baselineTx = currentTx
+                tracker.prevRx = currentRx
+                tracker.prevTx = currentTx
             }
 
             val dtMs = (now - tracker.prevSampleTime).coerceAtLeast(1L)

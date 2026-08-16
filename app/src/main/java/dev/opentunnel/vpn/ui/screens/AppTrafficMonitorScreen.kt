@@ -163,6 +163,7 @@ fun AppTrafficMonitorScreen(
     var isPaused by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -229,7 +230,7 @@ fun AppTrafficMonitorScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                 ),
             )
         },
@@ -463,7 +464,7 @@ private fun SummaryHeaderCard(
 
     Surface(
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
         tonalElevation = 4.dp,
         shadowElevation = 3.dp,
@@ -526,7 +527,7 @@ private fun SummaryHeaderCard(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.80f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -588,7 +589,7 @@ private fun SummaryHeaderCard(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.80f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -760,9 +761,9 @@ private fun AppTrafficCard(
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = if (entry.isActive) {
-            scheme.surfaceContainerHigh
+            scheme.surfaceContainerHigh.copy(alpha = 0.90f)
         } else {
-            scheme.surfaceContainer
+            scheme.surfaceContainer.copy(alpha = 0.85f)
         },
         border = BorderStroke(
             1.dp,

@@ -104,6 +104,8 @@ import dev.opentunnel.vpn.data.VpnProfile
 import dev.opentunnel.vpn.ui.components.ActionableErrorBottomSheet
 import dev.opentunnel.vpn.ui.components.ConnectOrb
 import dev.opentunnel.vpn.ui.components.DetailRow
+import dev.opentunnel.vpn.ui.components.FloatingIslandNavigation
+import dev.opentunnel.vpn.ui.components.OpenTunnelWorld
 import dev.opentunnel.vpn.ui.components.SectionCard
 import dev.opentunnel.vpn.ui.components.SettingRow
 import dev.opentunnel.vpn.ui.theme.LocalStatusPalette
@@ -223,7 +225,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.large),
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
                 shadowElevation = 5.dp,
                 tonalElevation = 3.dp,
@@ -349,46 +351,14 @@ fun MainPagerScreen(
     // 4 Pages: 0: Home, 1: Traffic Monitor, 2: Logs, 3: Settings
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 4 })
     val scope = rememberCoroutineScope()
-    val palette = LocalStatusPalette.current
 
-    val ambient by animateColorAsState(
-        targetValue = when (status.stage) {
-            ConnectionStage.CONNECTED -> palette.connected.copy(alpha = 0.32f)
-            ConnectionStage.ERROR -> palette.error.copy(alpha = 0.30f)
-            ConnectionStage.IDLE -> palette.idle.copy(alpha = 0.12f)
-            else -> palette.connecting.copy(alpha = 0.30f)
+    OpenTunnelWorld(
+        pagerState = pagerState,
+        stage = status.stage,
+        lang = settings.appLanguage,
+        onNavigateToPage = { index ->
+            scope.launch { pagerState.animateScrollToPage(index) }
         },
-        animationSpec = tween(700),
-        label = "ambient",
-    )
-
-    val pagePosition by remember(pagerState) {
-        derivedStateOf {
-            pagerState.currentPage + pagerState.currentPageOffsetFraction
-        }
-    }
-    val isRtl = settings.appLanguage == AppLanguage.PERSIAN
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .drawBehind {
-                val orbCenterY = 190.dp.toPx()
-                val dirMultiplier = if (isRtl) -1f else 1f
-                val orbCenterX = size.width / 2f + (0f - pagePosition) * size.width * dirMultiplier
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            ambient,
-                            ambient.copy(alpha = ambient.alpha * 0.6f),
-                            ambient.copy(alpha = ambient.alpha * 0.2f),
-                            Color.Transparent,
-                        ),
-                        center = Offset(orbCenterX, orbCenterY),
-                        radius = size.width * 2.2f,
-                    )
-                )
-            }
     ) {
         HorizontalPager(
             state = pagerState,
@@ -466,136 +436,6 @@ fun MainPagerScreen(
                         scope.launch { pagerState.animateScrollToPage(0) }
                     },
                 )
-            }
-        }
-
-        FloatingIslandNavigation(
-            pagerState = pagerState,
-            lang = settings.appLanguage,
-            onNavigateToPage = { index ->
-                scope.launch { pagerState.animateScrollToPage(index) }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-        )
-    }
-}
-
-/**
- * Centered, symmetrical, frosted-glass Floating Island Navigation Bar
- * supporting 4 primary destinations with smooth animated indicator and RTL geometry.
- */
-@Composable
-private fun FloatingIslandNavigation(
-    pagerState: PagerState,
-    lang: AppLanguage,
-    onNavigateToPage: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val haptic = LocalHapticFeedback.current
-    val isRtl = Strings.isRtl(lang)
-
-    val position by remember(pagerState) {
-        derivedStateOf {
-            pagerState.currentPage + pagerState.currentPageOffsetFraction
-        }
-    }
-
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(36.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
-        tonalElevation = 8.dp,
-        shadowElevation = 12.dp,
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            val itemWidth = 60.dp
-            val itemSpacing = 4.dp
-            val indicatorSize = 48.dp
-
-            val totalSpan = itemWidth + itemSpacing
-            val effectivePos = if (isRtl) (3f - position).coerceIn(0f, 3f) else position.coerceIn(0f, 3f)
-            val indicatorOffset = totalSpan * effectivePos + (itemWidth - indicatorSize) / 2
-
-            // Active sliding pill indicator
-            Box(
-                modifier = Modifier
-                    .offset(x = indicatorOffset)
-                    .size(indicatorSize)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
-                                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.70f),
-                            )
-                        )
-                    )
-                    .border(
-                        1.5.dp,
-                        Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.80f),
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.40f),
-                            )
-                        ),
-                        CircleShape
-                    )
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val items = listOf(
-                    Triple(Icons.Rounded.Home, Strings.navHome(lang), 0),
-                    Triple(Icons.Rounded.DataUsage, Strings.navTraffic(lang), 1),
-                    Triple(Icons.Rounded.Article, Strings.navLogs(lang), 2),
-                    Triple(Icons.Rounded.Settings, Strings.navSettings(lang), 3),
-                )
-
-                items.forEach { (icon, label, index) ->
-                    val isSelected = pagerState.currentPage == index
-                    val scale by animateFloatAsState(
-                        targetValue = if (isSelected) 1.15f else 1.0f,
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        label = "navScale_$index",
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(itemWidth, indicatorSize)
-                            .clip(CircleShape)
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onNavigateToPage(index)
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = label,
-                                tint = if (isSelected) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.80f)
-                                },
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .scale(scale),
-                            )
-                        }
-                    }
-                }
             }
         }
     }
@@ -772,7 +612,7 @@ private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
     ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.90f),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
             tonalElevation = 2.dp,
         ) {
@@ -965,7 +805,7 @@ private fun TrafficTile(
             modifier
         },
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
     ) {
         Column(Modifier.padding(16.dp)) {

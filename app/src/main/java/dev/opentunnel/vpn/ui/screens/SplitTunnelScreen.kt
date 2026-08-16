@@ -118,6 +118,7 @@ fun SplitTunnelScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(dev.opentunnel.vpn.util.Strings.splitTunnelTitle(lang)) },
@@ -126,6 +127,9 @@ fun SplitTunnelScreen(
                         Icon(Icons.Rounded.ArrowBack, contentDescription = dev.opentunnel.vpn.util.Strings.cancel(lang))
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
                 actions = {
                     if (settings.splitTunnelEnabled && visible.isNotEmpty()) {
                         val selectAllLabel = if (query.isNotBlank()) {
@@ -145,9 +149,6 @@ fun SplitTunnelScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
             )
         },
     ) { padding ->
