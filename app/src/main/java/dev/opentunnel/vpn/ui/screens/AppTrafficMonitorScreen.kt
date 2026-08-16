@@ -74,6 +74,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -96,6 +97,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import dev.opentunnel.vpn.core.TrafficStats
 import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.data.AppTrafficEntry
 import dev.opentunnel.vpn.data.AppTrafficSummary
@@ -113,6 +115,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTrafficMonitorScreen(
+    vpnStats: TrafficStats = TrafficStats(),
     summary: AppTrafficSummary,
     entries: List<AppTrafficEntry>,
     sortBy: TrafficSortBy,
@@ -137,6 +140,11 @@ fun AppTrafficMonitorScreen(
     val isRtl = Strings.isRtl(appLanguage)
     val listState = rememberLazyListState()
     RememberLazyListHaptic(listState, hapticEnabled)
+
+    // Reset scroll position to top whenever sorting or filtering changes
+    LaunchedEffect(sortBy, sortDirection, filterMode) {
+        listState.scrollToItem(0)
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -244,7 +252,7 @@ fun AppTrafficMonitorScreen(
 
             // ── Overall Summary Card ─────────────────────────────────────────
             SummaryHeaderCard(
-                summary = summary,
+                vpnStats = vpnStats,
                 lang = appLanguage,
                 isPaused = isPaused,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
@@ -299,8 +307,6 @@ fun AppTrafficMonitorScreen(
                         val label = when (mode) {
                             TrafficFilterMode.ALL -> Strings.trafficFilterAll(appLanguage)
                             TrafficFilterMode.ACTIVE_ONLY -> Strings.trafficFilterActive(appLanguage)
-                            TrafficFilterMode.USER_APPS -> Strings.trafficFilterUser(appLanguage)
-                            TrafficFilterMode.SYSTEM_APPS -> Strings.trafficFilterSystem(appLanguage)
                         }
                         FilterChip(
                             selected = isSelected,
@@ -435,7 +441,7 @@ fun AppTrafficMonitorScreen(
 
 @Composable
 private fun SummaryHeaderCard(
-    summary: AppTrafficSummary,
+    vpnStats: TrafficStats,
     lang: AppLanguage,
     isPaused: Boolean,
     modifier: Modifier = Modifier,
@@ -451,6 +457,9 @@ private fun SummaryHeaderCard(
         ),
         label = "pulseAlpha",
     )
+
+    val totalTunnelBytes = vpnStats.rxBytes + vpnStats.txBytes
+    val isLive = !isPaused && (vpnStats.rxRate > 0 || vpnStats.txRate > 0)
 
     Surface(
         shape = RoundedCornerShape(24.dp),
@@ -482,7 +491,7 @@ private fun SummaryHeaderCard(
                             .background(
                                 if (isPaused) {
                                     scheme.tertiary
-                                } else if (summary.currentRxRate > 0 || summary.currentTxRate > 0) {
+                                } else if (isLive) {
                                     scheme.primary.copy(alpha = pulseAlpha)
                                 } else {
                                     scheme.outline
@@ -497,7 +506,7 @@ private fun SummaryHeaderCard(
                 }
 
                 Text(
-                    text = Formatters.bytes(summary.totalBytes),
+                    text = Formatters.bytes(totalTunnelBytes),
                     style = MonoNumberStyle.copy(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
@@ -549,7 +558,7 @@ private fun SummaryHeaderCard(
                         Spacer(Modifier.height(6.dp))
 
                         Text(
-                            text = Formatters.bytes(summary.totalRxBytes),
+                            text = Formatters.bytes(vpnStats.rxBytes),
                             style = MonoNumberStyle.copy(
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -564,11 +573,11 @@ private fun SummaryHeaderCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = "↓ ${Formatters.rate(summary.currentRxRate)}",
+                                text = "↓ ${Formatters.rate(vpnStats.rxRate)}",
                                 style = MonoNumberStyle.copy(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (summary.currentRxRate > 0) scheme.primary else scheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    color = if (vpnStats.rxRate > 0) scheme.primary else scheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 ),
                             )
                         }
@@ -611,7 +620,7 @@ private fun SummaryHeaderCard(
                         Spacer(Modifier.height(6.dp))
 
                         Text(
-                            text = Formatters.bytes(summary.totalTxBytes),
+                            text = Formatters.bytes(vpnStats.txBytes),
                             style = MonoNumberStyle.copy(
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -626,11 +635,11 @@ private fun SummaryHeaderCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = "↑ ${Formatters.rate(summary.currentTxRate)}",
+                                text = "↑ ${Formatters.rate(vpnStats.txRate)}",
                                 style = MonoNumberStyle.copy(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (summary.currentTxRate > 0) scheme.tertiary else scheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    color = if (vpnStats.txRate > 0) scheme.tertiary else scheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 ),
                             )
                         }

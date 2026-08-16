@@ -98,8 +98,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val matchesFilter = when (filterMode) {
                 dev.opentunnel.vpn.data.TrafficFilterMode.ALL -> true
                 dev.opentunnel.vpn.data.TrafficFilterMode.ACTIVE_ONLY -> entry.isActive || entry.totalBytes > 0L
-                dev.opentunnel.vpn.data.TrafficFilterMode.USER_APPS -> !entry.isSystem
-                dev.opentunnel.vpn.data.TrafficFilterMode.SYSTEM_APPS -> entry.isSystem
             }
             matchesQuery && matchesFilter
         }

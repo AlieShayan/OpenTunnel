@@ -164,6 +164,7 @@ fun OpenTunnelApp(
 
                 composable(Routes.TRAFFIC_MONITOR) {
                     AppTrafficMonitorScreen(
+                        vpnStats = stats,
                         summary = appTrafficSummary,
                         entries = appTrafficEntries,
                         sortBy = trafficSortBy,

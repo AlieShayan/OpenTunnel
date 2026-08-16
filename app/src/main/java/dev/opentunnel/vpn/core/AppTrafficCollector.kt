@@ -307,16 +307,22 @@ class AppTrafficCollector(
         if (packages.isEmpty()) return@withContext emptyList()
 
         packages.asSequence()
-            .filter { it.packageName != selfPkg && it.uid > 0 }
+            .filter { info ->
+                info.packageName != selfPkg &&
+                    info.uid > 0 &&
+                    ((info.flags and ApplicationInfo.FLAG_SYSTEM) == 0 ||
+                        (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
+            }
             .map { info ->
                 val label = runCatching { pm.getApplicationLabel(info).toString() }
                     .getOrDefault(info.packageName)
+                val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
+                    (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
                 AppMetadata(
                     packageName = info.packageName,
                     uid = info.uid,
                     label = if (label.isBlank()) info.packageName else label,
-                    isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
-                        (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0,
+                    isSystem = isSystem,
                 )
             }
             .toList()

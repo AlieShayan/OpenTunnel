@@ -59,12 +59,7 @@ enum class SortDirection {
     ASCENDING,
 }
 
-/**
- * Filter modes for the application list.
- */
 enum class TrafficFilterMode {
     ALL,
     ACTIVE_ONLY,
-    USER_APPS,
-    SYSTEM_APPS,
 }
