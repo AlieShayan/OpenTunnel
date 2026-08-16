@@ -132,8 +132,11 @@ class TunnelRunner(
         VpnBus.setStage(ConnectionStage.AUTHENTICATING)
         var cookieResult = lib.obtainCookie()
 
+        val serverHost = runCatching { java.net.URI(rawUrl).host }.getOrNull().orEmpty()
+        val isCompatKnown = serverHost.isNotEmpty() && compatHosts.contains(serverHost)
+
         if (cookieResult < 0 && !disconnectRequested.get() && !userCancelled.get()
-            && !profile.allowInsecureCrypto && !profile.wifiCompatMode
+            && !profile.allowInsecureCrypto && !profile.wifiCompatMode && !isCompatKnown
         ) {
             VpnBus.info("SSL handshake failed \u2014 retrying with TLS compatibility mode\u2026")
             lib.setAllowInsecureCrypto(true)
@@ -141,6 +144,9 @@ class TunnelRunner(
             runCatching { lib.resetSSL() }
             passwordConsumed = false
             cookieResult = lib.obtainCookie()
+            if (cookieResult == 0 && serverHost.isNotEmpty()) {
+                compatHosts.add(serverHost)
+            }
         }
 
         if (disconnectRequested.get()) return null
@@ -230,15 +236,13 @@ class TunnelRunner(
 
         if (!profile.enableDtls) lib.disableDTLS()
         if (!profile.enableIpv6) lib.disableIPv6()
-        if (profile.allowInsecureCrypto) {
-            lib.setAllowInsecureCrypto(true)
-            VpnBus.log(LogLevel.DEBUG, "Legacy cipher suites enabled for this profile")
-        }
+        val serverHost = runCatching { java.net.URI(normaliseServer(profile.server)).host }.getOrNull().orEmpty()
+        val useInsecure = profile.allowInsecureCrypto || profile.wifiCompatMode || (serverHost.isNotEmpty() && compatHosts.contains(serverHost))
 
-        if (profile.wifiCompatMode) {
+        if (useInsecure) {
             lib.setAllowInsecureCrypto(true)
             runCatching { lib.setSystemTrust(true) }
-            VpnBus.log(LogLevel.DEBUG, "WiFi compatibility mode enabled \u2014 broadened TLS cipher list")
+            VpnBus.log(LogLevel.DEBUG, "TLS compatibility mode enabled for $serverHost")
         }
     }
 
@@ -267,26 +271,16 @@ class TunnelRunner(
                 return buildResolvedUrl(uri, cached.ip)
             }
 
-            val executor = java.util.concurrent.Executors.newFixedThreadPool(2)
-            val completionService = java.util.concurrent.ExecutorCompletionService<String?>(executor)
-
-            completionService.submit(java.util.concurrent.Callable {
+            // 1. Fast path: native system DNS resolution (< 20-100ms)
+            val nativeFuture = dnsExecutor.submit(java.util.concurrent.Callable {
                 runCatching { java.net.InetAddress.getByName(host).hostAddress }.getOrNull()
             })
-            completionService.submit(java.util.concurrent.Callable {
-                resolveViaDoh(host)
-            })
+            var resolvedIp = runCatching { nativeFuture.get(800, java.util.concurrent.TimeUnit.MILLISECONDS) }.getOrNull()
 
-            var resolvedIp: String? = null
-            for (i in 0 until 2) {
-                val future = completionService.poll(3000, java.util.concurrent.TimeUnit.MILLISECONDS)
-                val res = runCatching { future?.get() }.getOrNull()
-                if (!res.isNullOrBlank()) {
-                    resolvedIp = res
-                    break
-                }
+            // 2. Fallback path: parallel DoH if native DNS timed out or failed
+            if (resolvedIp.isNullOrBlank()) {
+                resolvedIp = resolveViaDohFast(host)
             }
-            executor.shutdownNow()
 
             if (!resolvedIp.isNullOrBlank()) {
                 dnsCache[host] = DnsCacheEntry(resolvedIp, now)
@@ -294,7 +288,7 @@ class TunnelRunner(
                 return buildResolvedUrl(uri, resolvedIp)
             }
 
-            VpnBus.log(LogLevel.DEBUG, "DNS resolution failed for $host, trying hostname directly")
+            VpnBus.log(LogLevel.DEBUG, "DNS pre-resolution skipped for $host, delegating to openconnect")
             rawUrl
         }.getOrDefault(rawUrl)
     }
@@ -306,24 +300,32 @@ class TunnelRunner(
         return "https://$safeIp$port$path"
     }
 
-    private fun resolveViaDoh(hostname: String): String? {
-        val encodedName = java.net.URLEncoder.encode(hostname, "UTF-8")
+    private fun resolveViaDohFast(hostname: String): String? {
+        val encodedName = runCatching { java.net.URLEncoder.encode(hostname, "UTF-8") }.getOrDefault(hostname)
         val dohUrls = listOf(
             "https://1.1.1.1/dns-query?name=$encodedName&type=A",
             "https://8.8.8.8/dns-query?name=$encodedName&type=A",
         )
+        val completion = java.util.concurrent.ExecutorCompletionService<String?>(dnsExecutor)
         for (url in dohUrls) {
-            val ip = runCatching {
-                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                conn.setRequestProperty("Accept", "application/dns-json")
-                conn.connectTimeout = 3_000
-                conn.readTimeout = 3_000
-                conn.connect()
-                val body = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-                val regex = Regex(""""data"\s*:\s*"([\d.]+)"""")
-                regex.find(body)?.groupValues?.get(1)
-            }.getOrNull()
+            completion.submit(java.util.concurrent.Callable {
+                runCatching {
+                    val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                    conn.setRequestProperty("Accept", "application/dns-json")
+                    conn.connectTimeout = 1200
+                    conn.readTimeout = 1200
+                    conn.connect()
+                    val body = conn.inputStream.bufferedReader().readText()
+                    conn.disconnect()
+                    val regex = Regex(""""data"\s*:\s*"([\d.]+)"""")
+                    regex.find(body)?.groupValues?.get(1)
+                }.getOrNull()
+            })
+        }
+
+        for (i in dohUrls.indices) {
+            val future = runCatching { completion.poll(1200, java.util.concurrent.TimeUnit.MILLISECONDS) }.getOrNull()
+            val ip = runCatching { future?.get() }.getOrNull()
             if (!ip.isNullOrBlank()) return ip
         }
         return null
@@ -397,7 +399,7 @@ class TunnelRunner(
 
                 if (cidr != null) {
                     customCidrs.add(cidr)
-                } else {
+                } else if (!isWildcardDomain(item)) {
                     val cleanDomain = item.removePrefix("*.").removePrefix(".")
                     if (cleanDomain.isNotBlank()) {
                         val addrs = runCatching { java.net.InetAddress.getAllByName(cleanDomain) }.getOrNull()
@@ -408,22 +410,11 @@ class TunnelRunner(
                                 val resolved = Cidr(hostAddr, if (isIpv6) 128 else 32, isIpv6)
                                 if (resolved !in customCidrs) customCidrs.add(resolved)
                             }
-                            VpnBus.info("Resolved domain '$cleanDomain' to ${addrs.size} IP address(es)")
-                        }
-
-                        if (cleanDomain.equals("ir", ignoreCase = true) || item.endsWith(".ir", ignoreCase = true)) {
-                            val topIrHosts = listOf("nic.ir", "post.ir", "gov.ir", "telecom.ir", "bankmarkazi.ir", "snapp.ir", "digikala.com")
-                            for (h in topIrHosts) {
-                                runCatching { java.net.InetAddress.getAllByName(h) }.getOrNull()?.forEach { addr ->
-                                    val hostAddr = addr.hostAddress ?: return@forEach
-                                    val isIpv6 = addr is java.net.Inet6Address
-                                    val c = Cidr(hostAddr, if (isIpv6) 128 else 32, isIpv6)
-                                    if (c !in customCidrs) customCidrs.add(c)
-                                }
-                            }
+                            VpnBus.log(LogLevel.DEBUG, "Resolved domain '$cleanDomain' to ${addrs.size} IP(s)")
                         }
                     }
                 }
+                // Note: Wildcard domains (e.g. *.ir) are handled in applyDns() via addSearchDomain
             }
         }
 
@@ -827,8 +818,8 @@ class TunnelRunner(
         get() = "AnyConnect Android 4.10.05065"
 
     private companion object {
-        /** Reduced from 20 s — DTLS is optional; TLS fallback is seamless. */
-        const val DTLS_ATTEMPT_SECONDS      = 12
+        /** Reduced to 1 s so that blocked UDP/DTLS fails fast and falls back immediately to CSTP without freezing. */
+        const val DTLS_ATTEMPT_SECONDS      = 1
         const val RECONNECT_TIMEOUT_SECONDS = 300
         const val MIN_MTU                   = 1280
         const val DEFAULT_MTU               = 1350
@@ -837,5 +828,11 @@ class TunnelRunner(
         private data class DnsCacheEntry(val ip: String, val timestamp: Long)
         private val dnsCache = java.util.concurrent.ConcurrentHashMap<String, DnsCacheEntry>()
         private const val DNS_CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes
+
+        private val compatHosts = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+        private val dnsExecutor = java.util.concurrent.Executors.newCachedThreadPool { r ->
+            Thread(r, "opentunnel-dns").apply { isDaemon = true }
+        }
     }
 }

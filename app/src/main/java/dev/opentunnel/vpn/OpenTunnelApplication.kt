@@ -34,5 +34,10 @@ class OpenTunnelApplication : Application() {
         if (!NativeLibrary.isAvailable) {
             VpnBus.error(NativeLibrary.loadError ?: NativeLibrary.MISSING_MESSAGE)
         }
+
+        // Warm up the system CA bundle in the background so connecting doesn't block on cert extraction
+        kotlin.concurrent.thread(name = "ca-bundle-warmup", isDaemon = true) {
+            runCatching { dev.opentunnel.vpn.util.SystemCaBundle.ensure(this) }
+        }
     }
 }
