@@ -15,7 +15,8 @@ import dev.opentunnel.vpn.ui.theme.MidnightBase
 /**
  * WorldBackground renders the persistent multi-layer foundation for the entire application.
  *
- * Reads [pagePositionProvider] only in the Draw phase to guarantee smooth 120 FPS performance.
+ * Implements subtle spatial parallax across the continuous world. Reads [pagePositionProvider]
+ * only in the Draw phase to guarantee smooth 120 FPS performance.
  */
 @Composable
 fun WorldBackground(
@@ -30,15 +31,15 @@ fun WorldBackground(
     // Static color list remembered across frames
     val verticalColors = remember(surfaceColor, backgroundBase) {
         listOf(
-            surfaceColor.copy(alpha = 0.35f),
-            backgroundBase.copy(alpha = 0.20f),
-            MidnightBase.copy(alpha = 0.50f),
+            surfaceColor.copy(alpha = 0.30f),
+            backgroundBase.copy(alpha = 0.15f),
+            MidnightBase.copy(alpha = 0.45f),
         )
     }
 
     val parallaxColors = remember(containerColor, surfaceColor) {
         listOf(
-            containerColor.copy(alpha = 0.10f),
+            containerColor.copy(alpha = 0.12f),
             Color.Transparent,
             surfaceColor.copy(alpha = 0.08f),
         )
@@ -52,7 +53,8 @@ fun WorldBackground(
                 val height = size.height
                 if (width <= 0f || height <= 0f) return@drawBehind
 
-                val dirMultiplier = if (isRtl) -1f else 1f
+                val dirMultiplier = if (isRtl) 1f else -1f
+                val currentPagePosition = pagePositionProvider()
 
                 // Layer 1: Solid Base
                 drawRect(color = backgroundBase)
@@ -66,16 +68,16 @@ fun WorldBackground(
                     )
                 )
 
-                // Layer 3: Soft Parallax Spatial Gradient
-                val currentPagePosition = pagePositionProvider()
-                val parallaxOffsetX = -currentPagePosition * width * 0.04f * dirMultiplier
+                // Layer 3: Soft Parallax Spatial Gradient (Far background moves at subtle 0.85x relative rate)
+                val parallaxOffsetX = currentPagePosition * width * 0.12f * dirMultiplier
                 drawRect(
                     brush = Brush.linearGradient(
                         colors = parallaxColors,
                         start = Offset(parallaxOffsetX, 0f),
-                        end = Offset(width + parallaxOffsetX, height * 0.8f),
+                        end = Offset(width + parallaxOffsetX, height * 0.85f),
                     )
                 )
             }
     )
 }
+

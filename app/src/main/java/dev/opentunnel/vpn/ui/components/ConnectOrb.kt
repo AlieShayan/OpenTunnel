@@ -41,6 +41,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -145,9 +147,16 @@ fun ConnectOrb(
         else -> dev.opentunnel.vpn.util.Strings.connecting(lang)
     }
 
+    val onOrbPositioned = LocalOrbPositionCallback.current
+
     Box(
         modifier = modifier
             .size(diameter)
+            .onGloballyPositioned { coordinates ->
+                val bounds = coordinates.boundsInRoot()
+                val center = Offset(bounds.left + bounds.width / 2f, bounds.top + bounds.height / 2f)
+                onOrbPositioned(center)
+            }
             .clip(CircleShape)
             .semantics(mergeDescendants = true) {
                 contentDescription = "VPN Connection Button"

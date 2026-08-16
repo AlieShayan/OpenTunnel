@@ -227,9 +227,9 @@ fun LogScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(logBoxShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.82f))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.76f))
                     .border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
                         logBoxShape,
                     ),
             ) {

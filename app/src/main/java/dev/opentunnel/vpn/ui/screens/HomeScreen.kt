@@ -225,10 +225,10 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.large),
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
-                shadowElevation = 5.dp,
-                tonalElevation = 3.dp,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+                shadowElevation = 2.dp,
+                tonalElevation = 1.dp,
             ) {
                 ProfilePickerRow(
                     profile = profile,
@@ -612,9 +612,9 @@ private fun LocationBadge(flag: String, name: String, pingMs: Long = -1L) {
     ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.90f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-            tonalElevation = 2.dp,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.68f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+            tonalElevation = 1.dp,
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -805,8 +805,9 @@ private fun TrafficTile(
             modifier
         },
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.75f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        tonalElevation = 1.dp,
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

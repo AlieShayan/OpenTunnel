@@ -464,10 +464,10 @@ private fun SummaryHeaderCard(
 
     Surface(
         shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-        tonalElevation = 4.dp,
-        shadowElevation = 3.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+        tonalElevation = 2.dp,
+        shadowElevation = 1.dp,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(
@@ -527,8 +527,8 @@ private fun SummaryHeaderCard(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.80f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.68f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(
@@ -589,8 +589,8 @@ private fun SummaryHeaderCard(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.80f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.68f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(
@@ -761,19 +761,19 @@ private fun AppTrafficCard(
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = if (entry.isActive) {
-            scheme.surfaceContainerHigh.copy(alpha = 0.90f)
+            scheme.surfaceContainerHigh.copy(alpha = 0.78f)
         } else {
-            scheme.surfaceContainer.copy(alpha = 0.85f)
+            scheme.surfaceContainer.copy(alpha = 0.74f)
         },
         border = BorderStroke(
             1.dp,
             if (entry.isActive) {
-                scheme.primary.copy(alpha = 0.35f)
+                scheme.primary.copy(alpha = 0.30f)
             } else {
-                scheme.outlineVariant.copy(alpha = 0.3f)
+                scheme.outlineVariant.copy(alpha = 0.22f)
             },
         ),
-        tonalElevation = if (entry.isActive) 3.dp else 1.dp,
+        tonalElevation = if (entry.isActive) 2.dp else 1.dp,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(

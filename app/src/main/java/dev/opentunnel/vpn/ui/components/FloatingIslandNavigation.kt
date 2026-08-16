@@ -90,10 +90,10 @@ fun FloatingIslandNavigation(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(36.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f)),
-        tonalElevation = 8.dp,
-        shadowElevation = 14.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+        tonalElevation = 6.dp,
+        shadowElevation = 10.dp,
     ) {
         Box(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
