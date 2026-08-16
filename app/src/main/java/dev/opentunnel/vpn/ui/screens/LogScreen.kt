@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,23 +16,27 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -40,30 +45,30 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.opentunnel.vpn.core.LogLevel
 import dev.opentunnel.vpn.core.LogLine
+import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.ui.theme.LocalStatusPalette
+import dev.opentunnel.vpn.util.HapticHelper
+import dev.opentunnel.vpn.util.RememberLazyListHaptic
+import dev.opentunnel.vpn.util.Strings
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-import dev.opentunnel.vpn.data.AppLanguage
-import dev.opentunnel.vpn.util.RememberLazyListHaptic
-import dev.opentunnel.vpn.util.Strings
-
-import androidx.compose.material3.FilterChip
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 
 private enum class LogFilter {
     ALL, ERROR, INFO, APP;
@@ -96,13 +101,20 @@ fun LogScreen(
 
     var filter by remember { mutableStateOf(LogFilter.ALL) }
     var autoScroll by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+    var showSearchBar by remember { mutableStateOf(false) }
 
-    val filteredLogs = remember(logs, filter) {
-        when (filter) {
-            LogFilter.ALL -> logs
-            LogFilter.ERROR -> logs.filter { it.level == LogLevel.ERROR }
-            LogFilter.INFO -> logs.filter { it.level == LogLevel.INFO || it.level == LogLevel.DEBUG }
-            LogFilter.APP -> logs.filter { it.level == LogLevel.APP }
+    val filteredLogs = remember(logs, filter, searchQuery) {
+        val needle = searchQuery.trim().lowercase()
+        logs.filter { line ->
+            val matchesLevel = when (filter) {
+                LogFilter.ALL -> true
+                LogFilter.ERROR -> line.level == LogLevel.ERROR
+                LogFilter.INFO -> line.level == LogLevel.INFO || line.level == LogLevel.DEBUG
+                LogFilter.APP -> line.level == LogLevel.APP
+            }
+            val matchesQuery = needle.isEmpty() || line.text.lowercase().contains(needle)
+            matchesLevel && matchesQuery
         }
     }
 
@@ -123,6 +135,13 @@ fun LogScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showSearchBar = !showSearchBar }) {
+                        Icon(
+                            Icons.Rounded.Search,
+                            contentDescription = "Search logs",
+                            tint = if (showSearchBar) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     IconButton(onClick = {
                         copyToClipboard(context, filteredLogs.toPlainText(formatter))
                         scope.launch { snackbar.showSnackbar("Log copied") }
@@ -132,7 +151,10 @@ fun LogScreen(
                     IconButton(onClick = { shareText(context, filteredLogs.toPlainText(formatter)) }) {
                         Icon(Icons.Rounded.Share, contentDescription = "Share log")
                     }
-                    IconButton(onClick = onClear) {
+                    IconButton(onClick = {
+                        onClear()
+                        scope.launch { snackbar.showSnackbar(Strings.logsCleared(appLanguage)) }
+                    }) {
                         Icon(Icons.Rounded.DeleteOutline, contentDescription = "Clear log")
                     }
                 },
@@ -148,6 +170,27 @@ fun LogScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            AnimatedVisibility(visible = showSearchBar) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text(Strings.searchLogsPlaceholder(appLanguage)) },
+                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Rounded.Clear, contentDescription = null)
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                )
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -158,7 +201,10 @@ fun LogScreen(
                 LogFilter.entries.forEach { option ->
                     FilterChip(
                         selected = filter == option,
-                        onClick = { filter = option },
+                        onClick = {
+                            HapticHelper.performClick(context, hapticFeedbackEnabled)
+                            filter = option
+                        },
                         label = { Text(option.getLabel(appLanguage)) },
                         shape = MaterialTheme.shapes.small,
                     )
@@ -166,14 +212,16 @@ fun LogScreen(
                 Spacer(Modifier.weight(1f))
                 FilterChip(
                     selected = autoScroll,
-                    onClick = { autoScroll = !autoScroll },
+                    onClick = {
+                        HapticHelper.performClick(context, hapticFeedbackEnabled)
+                        autoScroll = !autoScroll
+                    },
                     label = { Text(Strings.autoScrollLabel(appLanguage)) },
                     shape = MaterialTheme.shapes.small,
                 )
             }
 
-            // Dark translucent box so the orb glow is visible behind the text
-            // while keeping log lines easily readable.
+            // Dark translucent box so the ambient glow is visible behind the text
             val logBoxShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
             Box(
                 modifier = Modifier
@@ -191,7 +239,7 @@ fun LogScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "Nothing logged yet.",
+                            text = if (searchQuery.isNotEmpty()) "No matching log entries found." else "Nothing logged yet.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -200,8 +248,8 @@ fun LogScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         items(filteredLogs) { line ->
                             LogRow(line, formatter)
@@ -250,23 +298,22 @@ private fun List<LogLine>.toPlainText(formatter: SimpleDateFormat): String {
     return sanitizeLog(raw)
 }
 
-private fun sanitizeLog(log: String): String {
-    var clean = log
-    clean = clean.replace(Regex("""(?i)(password|passwd|pass|token|secret|key|authorization|bearer)\s*[:=]\s*([^\s,;]+)"""), "$1: [REDACTED]")
-    clean = clean.replace(Regex("""(?i)(pin-sha256:)[A-Za-z0-9+/=]+"""), "$1[REDACTED_FINGERPRINT]")
-    return clean
-}
-
 private fun copyToClipboard(context: Context, text: String) {
-    val manager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-    manager.setPrimaryClip(ClipData.newPlainText("OpenTunnel log", text))
+    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    cm.setPrimaryClip(ClipData.newPlainText("OpenTunnel log", text))
 }
 
 private fun shareText(context: Context, text: String) {
-    val intent = Intent(Intent.ACTION_SEND)
-        .setType("text/plain")
-        .putExtra(Intent.EXTRA_TEXT, text)
-    runCatching {
-        context.startActivity(Intent.createChooser(intent, "Share log"))
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
     }
+    context.startActivity(Intent.createChooser(intent, "Share OpenTunnel log"))
+}
+
+private fun sanitizeLog(raw: String): String {
+    var s = raw
+    val pwRegex = Regex("""(?i)(password|secret|pass|token)(\s*[:=]\s*)([^\s\r\n]+)""")
+    s = pwRegex.replace(s) { m -> "${m.groupValues[1]}${m.groupValues[2]}***REDACTED***" }
+    return s
 }

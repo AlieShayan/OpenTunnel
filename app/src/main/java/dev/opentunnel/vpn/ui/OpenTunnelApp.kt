@@ -37,7 +37,6 @@ private object Routes {
     const val PROFILES = "profiles"
     const val PROFILE = "profile"
     const val SPLIT = "split"
-    const val SPLIT_NETWORKS = "split_networks"
     const val TRAFFIC_MONITOR = "traffic_monitor"
     const val LOGS = "logs"
     const val SETTINGS = "settings"
@@ -135,6 +134,13 @@ fun OpenTunnelApp(
                         settings = settings,
                         rxHistoryList = rxHistory,
                         txHistoryList = txHistory,
+                        appTrafficSummary = appTrafficSummary,
+                        appTrafficEntries = appTrafficEntries,
+                        trafficSortBy = trafficSortBy,
+                        trafficSortDirection = trafficSortDirection,
+                        trafficFilterMode = trafficFilterMode,
+                        trafficSearchQuery = trafficSearchQuery,
+                        hasUsageAccessPermission = hasUsageAccessPermission,
                         onToggleConnection = {
                             if (status.stage.isActive) onRequestDisconnect() else onRequestConnect()
                         },
@@ -147,7 +153,6 @@ fun OpenTunnelApp(
                             navController.navigate(Routes.PROFILES)
                         },
                         onOpenSplitTunnel = { navController.navigate(Routes.SPLIT) },
-                        onOpenSplitNetworks = { navController.navigate(Routes.SPLIT_NETWORKS) },
                         onClearLogs = viewModel::clearLogs,
                         onThemeMode = viewModel::setThemeMode,
                         onAppLanguage = viewModel::setAppLanguage,
@@ -158,32 +163,15 @@ fun OpenTunnelApp(
                         onShowStatsInNotification = viewModel::setShowStatsInNotification,
                         onVerboseLogging = viewModel::setVerboseLogging,
                         onHapticFeedbackEnabled = viewModel::setHapticFeedbackEnabled,
-                        onOpenTrafficMonitor = { navController.navigate(Routes.TRAFFIC_MONITOR) },
-                    )
-                }
-
-                composable(Routes.TRAFFIC_MONITOR) {
-                    AppTrafficMonitorScreen(
-                        vpnStats = stats,
-                        summary = appTrafficSummary,
-                        entries = appTrafficEntries,
-                        sortBy = trafficSortBy,
-                        sortDirection = trafficSortDirection,
-                        filterMode = trafficFilterMode,
-                        searchQuery = trafficSearchQuery,
-                        appLanguage = settings.appLanguage,
-                        hapticEnabled = settings.hapticFeedbackEnabled,
-                        hasUsageAccessPermission = hasUsageAccessPermission,
                         onSortByChange = viewModel::setTrafficSortBy,
                         onToggleSortDirection = viewModel::toggleTrafficSortDirection,
                         onFilterModeChange = viewModel::setTrafficFilterMode,
                         onSearchQueryChange = viewModel::setTrafficSearchQuery,
-                        onResetStats = viewModel::resetTrafficStats,
-                        onPauseMonitoring = viewModel::pauseTrafficMonitoring,
-                        onResumeMonitoring = viewModel::resumeTrafficMonitoring,
+                        onResetTrafficStats = viewModel::resetTrafficStats,
+                        onPauseTrafficMonitoring = viewModel::pauseTrafficMonitoring,
+                        onResumeTrafficMonitoring = viewModel::resumeTrafficMonitoring,
                         onGrantUsageAccess = viewModel::openUsageAccessSettings,
                         onRefreshPermission = viewModel::checkUsageAccessPermission,
-                        onBack = { navController.popBackStack() },
                     )
                 }
 
@@ -235,18 +223,6 @@ fun OpenTunnelApp(
                         onChangeMode = viewModel::setSplitTunnelMode,
                         onTogglePackage = viewModel::togglePackage,
                         onClearAll = viewModel::clearSelectedPackages,
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-
-                composable(Routes.SPLIT_NETWORKS) {
-                    dev.opentunnel.vpn.ui.screens.SplitTunnelNetworksScreen(
-                        settings = settings,
-                        onToggleEnabled = viewModel::setSplitTunnelNetworksEnabled,
-                        onChangeMode = viewModel::setSplitTunnelNetworksMode,
-                        onAddNetwork = viewModel::addSplitTunnelNetwork,
-                        onRemoveNetwork = viewModel::removeSplitTunnelNetwork,
-                        onClearAll = viewModel::clearSplitTunnelNetworks,
                         onBack = { navController.popBackStack() },
                     )
                 }

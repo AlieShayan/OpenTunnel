@@ -224,7 +224,7 @@ fun AppTrafficMonitorScreen(
                         Icon(
                             imageVector = Icons.Rounded.RestartAlt,
                             contentDescription = Strings.trafficResetStats(appLanguage),
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
@@ -389,7 +389,7 @@ fun AppTrafficMonitorScreen(
                         AppTrafficCard(
                             entry = entry,
                             lang = appLanguage,
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }

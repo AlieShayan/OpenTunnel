@@ -128,10 +128,15 @@ fun SplitTunnelScreen(
                 },
                 actions = {
                     if (settings.splitTunnelEnabled && visible.isNotEmpty()) {
+                        val selectAllLabel = if (query.isNotBlank()) {
+                            if (dev.opentunnel.vpn.util.Strings.isRtl(lang)) "انتخاب فیلترشده‌ها (${visible.size})" else "Select (${visible.size})"
+                        } else {
+                            dev.opentunnel.vpn.util.Strings.selectAllApps(lang)
+                        }
                         TextButton(onClick = {
                             visible.forEach { onTogglePackage(it.packageName, true) }
                         }) {
-                            Text(dev.opentunnel.vpn.util.Strings.selectAllApps(lang))
+                            Text(selectAllLabel)
                         }
                     }
                     if (selected.isNotEmpty()) {

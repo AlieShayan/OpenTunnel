@@ -1,13 +1,21 @@
 package dev.opentunnel.vpn.ui.screens
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,40 +25,29 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.lerp
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Article
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DataUsage
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.ChevronLeft
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,13 +55,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import dev.opentunnel.vpn.core.LogLine
-import dev.opentunnel.vpn.data.AppLanguage
-import dev.opentunnel.vpn.ui.theme.ThemeMode
-import kotlinx.coroutines.launch
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -72,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -80,31 +71,48 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
-import android.os.SystemClock
 import dev.opentunnel.vpn.core.ConnectionStage
+import dev.opentunnel.vpn.core.LogLine
 import dev.opentunnel.vpn.core.TrafficStats
 import dev.opentunnel.vpn.core.TunnelStatus
+import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.data.AppSettings
+import dev.opentunnel.vpn.data.AppTrafficEntry
+import dev.opentunnel.vpn.data.AppTrafficSummary
+import dev.opentunnel.vpn.data.SortDirection
 import dev.opentunnel.vpn.data.SplitTunnelMode
+import dev.opentunnel.vpn.data.TrafficFilterMode
+import dev.opentunnel.vpn.data.TrafficSortBy
 import dev.opentunnel.vpn.data.VpnProfile
+import dev.opentunnel.vpn.ui.components.ActionableErrorBottomSheet
 import dev.opentunnel.vpn.ui.components.ConnectOrb
 import dev.opentunnel.vpn.ui.components.DetailRow
 import dev.opentunnel.vpn.ui.components.SectionCard
 import dev.opentunnel.vpn.ui.components.SettingRow
 import dev.opentunnel.vpn.ui.theme.LocalStatusPalette
 import dev.opentunnel.vpn.ui.theme.MonoNumberStyle
+import dev.opentunnel.vpn.ui.theme.ThemeMode
 import dev.opentunnel.vpn.util.Formatters
 import dev.opentunnel.vpn.util.Strings
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -120,16 +128,16 @@ fun HomeScreen(
     onOpenProfile: () -> Unit,
     onOpenProfileManagement: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
-    onOpenSplitNetworks: () -> Unit,
     onOpenTrafficMonitor: () -> Unit = {},
     onOpenLogs: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val lang = settings.appLanguage
-
     val scrollState = rememberScrollState()
     dev.opentunnel.vpn.util.RememberScrollHaptic(scrollState, settings.hapticFeedbackEnabled)
+
+    var showErrorBottomSheet by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -157,7 +165,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            StatusLine(status = status, lang = settings.appLanguage)
+            StatusLine(status = status, profile = profile, lang = settings.appLanguage)
 
             Spacer(Modifier.height(16.dp))
 
@@ -201,88 +209,38 @@ fun HomeScreen(
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 Column {
-                    ErrorBanner(status.error.orEmpty())
+                    ErrorBanner(
+                        message = status.error.orEmpty(),
+                        onClick = { showErrorBottomSheet = true },
+                    )
                     Spacer(Modifier.height(18.dp))
                 }
             }
 
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.TopCenter,
+            // ── Clean Unified Active Profile Card ──────────────────────────────
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.large),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                shadowElevation = 5.dp,
+                tonalElevation = 3.dp,
             ) {
-                // Darker Peeking Sub-Card (positioned underneath/behind)
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth(0.92f)
-                        .padding(top = 52.dp)
-                        .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp, topStart = 6.dp, topEnd = 6.dp))
-                        .clickable { onOpenProfileManagement() },
-                    shape = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp, topStart = 6.dp, topEnd = 6.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                    tonalElevation = 1.dp,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = scheme.primary.copy(alpha = 0.14f),
-                                modifier = Modifier.size(26.dp),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Tune,
-                                        contentDescription = null,
-                                        tint = scheme.primary,
-                                        modifier = Modifier.size(15.dp),
-                                    )
-                                }
-                            }
-                            Text(
-                                text = Strings.manageProfilesAction(lang),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Icon(
-                            imageVector = if (Strings.isRtl(lang)) Icons.Rounded.ChevronLeft else Icons.Rounded.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
-
-                // Lighter Active Profile Main Card (rendered ON TOP with elevation & drop shadow)
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-                    shadowElevation = 6.dp,
-                    tonalElevation = 4.dp,
-                ) {
-                    ProfilePickerRow(
-                        profile = profile,
-                        profiles = profiles,
-                        lang = settings.appLanguage,
-                        onSelectProfile = onSelectProfile,
-                        onOpenProfile = onOpenProfile,
-                        onOpenProfileManagement = onOpenProfileManagement,
-                    )
-                }
+                ProfilePickerRow(
+                    profile = profile,
+                    profiles = profiles,
+                    lang = settings.appLanguage,
+                    onSelectProfile = onSelectProfile,
+                    onOpenProfile = onOpenProfile,
+                    onOpenProfileManagement = onOpenProfileManagement,
+                )
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(16.dp))
 
+            // ── App Split Tunneling Shortcut ──────────────────────────────────
             SectionCard {
                 SettingRow(
                     painter = painterResource(dev.opentunnel.vpn.R.drawable.ic_split_tunnel),
@@ -294,26 +252,13 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(14.dp))
-
-            SectionCard {
-                SettingRow(
-                    icon = Icons.Rounded.DataUsage,
-                    title = Strings.trafficMonitorTitle(lang),
-                    subtitle = Strings.trafficMonitorSubtitle(lang),
-                    iconTint = scheme.primary,
-                    iconBackground = scheme.primary.copy(alpha = 0.14f),
-                    onClick = onOpenTrafficMonitor,
-                )
-            }
-
             AnimatedVisibility(
                 visible = status.stage == ConnectionStage.CONNECTED,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 Column {
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(16.dp))
                     ConnectionDetails(status, settings.appLanguage)
                 }
             }
@@ -341,9 +286,20 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(Modifier.height(80.dp))
+            // Bottom space to prevent floating navigation bar from covering content
+            Spacer(Modifier.height(100.dp))
         }
 
+        if (showErrorBottomSheet && status.error != null) {
+            ActionableErrorBottomSheet(
+                errorMessage = status.error,
+                appLanguage = lang,
+                onRetry = onToggleConnection,
+                onEditProfile = onOpenProfile,
+                onViewLogs = onOpenLogs,
+                onDismiss = { showErrorBottomSheet = false },
+            )
+        }
     }
 }
 
@@ -358,13 +314,18 @@ fun MainPagerScreen(
     settings: AppSettings,
     rxHistoryList: List<Long> = emptyList(),
     txHistoryList: List<Long> = emptyList(),
+    appTrafficSummary: AppTrafficSummary = AppTrafficSummary(),
+    appTrafficEntries: List<AppTrafficEntry> = emptyList(),
+    trafficSortBy: TrafficSortBy = TrafficSortBy.TOTAL_TRAFFIC,
+    trafficSortDirection: SortDirection = SortDirection.DESCENDING,
+    trafficFilterMode: TrafficFilterMode = TrafficFilterMode.ALL,
+    trafficSearchQuery: String = "",
+    hasUsageAccessPermission: Boolean = true,
     onToggleConnection: () -> Unit,
     onSelectProfile: (String) -> Unit,
     onOpenProfile: () -> Unit,
     onOpenProfileManagement: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
-    onOpenSplitNetworks: () -> Unit,
-    onOpenTrafficMonitor: () -> Unit = {},
     onClearLogs: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onAppLanguage: (AppLanguage) -> Unit,
@@ -375,8 +336,18 @@ fun MainPagerScreen(
     onShowStatsInNotification: (Boolean) -> Unit,
     onVerboseLogging: (Boolean) -> Unit,
     onHapticFeedbackEnabled: (Boolean) -> Unit,
+    onSortByChange: (TrafficSortBy) -> Unit = {},
+    onToggleSortDirection: () -> Unit = {},
+    onFilterModeChange: (TrafficFilterMode) -> Unit = {},
+    onSearchQueryChange: (String) -> Unit = {},
+    onResetTrafficStats: () -> Unit = {},
+    onPauseTrafficMonitoring: () -> Unit = {},
+    onResumeTrafficMonitoring: () -> Unit = {},
+    onGrantUsageAccess: () -> Unit = {},
+    onRefreshPermission: () -> Unit = {},
 ) {
-    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
+    // 4 Pages: 0: Home, 1: Traffic Monitor, 2: Logs, 3: Settings
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 4 })
     val scope = rememberCoroutineScope()
     val palette = LocalStatusPalette.current
 
@@ -404,7 +375,7 @@ fun MainPagerScreen(
             .drawBehind {
                 val orbCenterY = 190.dp.toPx()
                 val dirMultiplier = if (isRtl) -1f else 1f
-                val orbCenterX = size.width / 2f + (1f - pagePosition) * size.width * dirMultiplier
+                val orbCenterX = size.width / 2f + (0f - pagePosition) * size.width * dirMultiplier
                 drawRect(
                     brush = Brush.radialGradient(
                         colors = listOf(
@@ -424,16 +395,7 @@ fun MainPagerScreen(
             modifier = Modifier.fillMaxSize(),
         ) { page ->
             when (page) {
-                0 -> LogScreen(
-                    logs = logs,
-                    appLanguage = settings.appLanguage,
-                    hapticFeedbackEnabled = settings.hapticFeedbackEnabled,
-                    onClear = onClearLogs,
-                    onBack = {
-                        scope.launch { pagerState.animateScrollToPage(1) }
-                    },
-                )
-                1 -> HomeScreen(
+                0 -> HomeScreen(
                     status = status,
                     stats = stats,
                     profile = profile,
@@ -446,16 +408,50 @@ fun MainPagerScreen(
                     onOpenProfile = onOpenProfile,
                     onOpenProfileManagement = onOpenProfileManagement,
                     onOpenSplitTunnel = onOpenSplitTunnel,
-                    onOpenSplitNetworks = onOpenSplitNetworks,
-                    onOpenTrafficMonitor = onOpenTrafficMonitor,
-                    onOpenLogs = {
-                        scope.launch { pagerState.animateScrollToPage(0) }
+                    onOpenTrafficMonitor = {
+                        scope.launch { pagerState.animateScrollToPage(1) }
                     },
-                    onOpenSettings = {
+                    onOpenLogs = {
                         scope.launch { pagerState.animateScrollToPage(2) }
                     },
+                    onOpenSettings = {
+                        scope.launch { pagerState.animateScrollToPage(3) }
+                    },
                 )
-                2 -> SettingsScreen(
+                1 -> AppTrafficMonitorScreen(
+                    vpnStats = stats,
+                    summary = appTrafficSummary,
+                    entries = appTrafficEntries,
+                    sortBy = trafficSortBy,
+                    sortDirection = trafficSortDirection,
+                    filterMode = trafficFilterMode,
+                    searchQuery = trafficSearchQuery,
+                    appLanguage = settings.appLanguage,
+                    hapticEnabled = settings.hapticFeedbackEnabled,
+                    hasUsageAccessPermission = hasUsageAccessPermission,
+                    onSortByChange = onSortByChange,
+                    onToggleSortDirection = onToggleSortDirection,
+                    onFilterModeChange = onFilterModeChange,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onResetStats = onResetTrafficStats,
+                    onPauseMonitoring = onPauseTrafficMonitoring,
+                    onResumeMonitoring = onResumeTrafficMonitoring,
+                    onGrantUsageAccess = onGrantUsageAccess,
+                    onRefreshPermission = onRefreshPermission,
+                    onBack = {
+                        scope.launch { pagerState.animateScrollToPage(0) }
+                    },
+                )
+                2 -> LogScreen(
+                    logs = logs,
+                    appLanguage = settings.appLanguage,
+                    hapticFeedbackEnabled = settings.hapticFeedbackEnabled,
+                    onClear = onClearLogs,
+                    onBack = {
+                        scope.launch { pagerState.animateScrollToPage(0) }
+                    },
+                )
+                3 -> SettingsScreen(
                     settings = settings,
                     onThemeMode = onThemeMode,
                     onAppLanguage = onAppLanguage,
@@ -467,31 +463,38 @@ fun MainPagerScreen(
                     onVerboseLogging = onVerboseLogging,
                     onHapticFeedbackEnabled = onHapticFeedbackEnabled,
                     onBack = {
-                        scope.launch { pagerState.animateScrollToPage(1) }
+                        scope.launch { pagerState.animateScrollToPage(0) }
                     },
                 )
             }
         }
 
-        FloatingCapsuleNavigation(
+        FloatingIslandNavigation(
             pagerState = pagerState,
+            lang = settings.appLanguage,
             onNavigateToPage = { index ->
                 scope.launch { pagerState.animateScrollToPage(index) }
             },
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 24.dp, end = 20.dp),
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp),
         )
     }
 }
 
+/**
+ * Centered, symmetrical, frosted-glass Floating Island Navigation Bar
+ * supporting 4 primary destinations with smooth animated indicator and RTL geometry.
+ */
 @Composable
-private fun FloatingCapsuleNavigation(
+private fun FloatingIslandNavigation(
     pagerState: PagerState,
+    lang: AppLanguage,
     onNavigateToPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val haptic = LocalHapticFeedback.current
+    val isRtl = Strings.isRtl(lang)
 
     val position by remember(pagerState) {
         derivedStateOf {
@@ -501,22 +504,25 @@ private fun FloatingCapsuleNavigation(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(32.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        shape = RoundedCornerShape(36.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
         tonalElevation = 8.dp,
-        shadowElevation = 10.dp,
+        shadowElevation = 12.dp,
     ) {
         Box(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
-            val itemWidth = 48.dp
+            val itemWidth = 60.dp
             val itemSpacing = 4.dp
-            val indicatorSize = 42.dp
+            val indicatorSize = 48.dp
 
-            val indicatorOffset = (itemWidth + itemSpacing) * position + (itemWidth - indicatorSize) / 2
+            val totalSpan = itemWidth + itemSpacing
+            val effectivePos = if (isRtl) (3f - position).coerceIn(0f, 3f) else position.coerceIn(0f, 3f)
+            val indicatorOffset = totalSpan * effectivePos + (itemWidth - indicatorSize) / 2
 
+            // Active sliding pill indicator
             Box(
                 modifier = Modifier
                     .offset(x = indicatorOffset)
@@ -534,8 +540,8 @@ private fun FloatingCapsuleNavigation(
                         1.5.dp,
                         Brush.linearGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.35f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.80f),
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.40f),
                             )
                         ),
                         CircleShape
@@ -547,22 +553,23 @@ private fun FloatingCapsuleNavigation(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val items = listOf(
-                    Icons.Rounded.Article to "Connection Logs",
-                    Icons.Rounded.Home to "Home",
-                    Icons.Rounded.Settings to "Settings",
+                    Triple(Icons.Rounded.Home, Strings.navHome(lang), 0),
+                    Triple(Icons.Rounded.DataUsage, Strings.navTraffic(lang), 1),
+                    Triple(Icons.Rounded.Article, Strings.navLogs(lang), 2),
+                    Triple(Icons.Rounded.Settings, Strings.navSettings(lang), 3),
                 )
 
-                items.forEachIndexed { index, (icon, contentDesc) ->
+                items.forEach { (icon, label, index) ->
                     val isSelected = pagerState.currentPage == index
                     val scale by animateFloatAsState(
                         targetValue = if (isSelected) 1.15f else 1.0f,
                         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        label = "iconScale",
+                        label = "navScale_$index",
                     )
 
                     Box(
                         modifier = Modifier
-                            .size(itemWidth)
+                            .size(itemWidth, indicatorSize)
                             .clip(CircleShape)
                             .clickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -570,16 +577,23 @@ private fun FloatingCapsuleNavigation(
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = contentDesc,
-                            tint = if (isSelected) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                            },
-                            modifier = Modifier.scale(scale),
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = if (isSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.80f)
+                                },
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .scale(scale),
+                            )
+                        }
                     }
                 }
             }
@@ -587,14 +601,14 @@ private fun FloatingCapsuleNavigation(
     }
 }
 
-// ── Profile Picker Sheet ───────────────────────────────────────────────────
+// ── Profile Picker Sheet & Row ─────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfilePickerRow(
     profile: VpnProfile,
     profiles: List<VpnProfile>,
-    lang: dev.opentunnel.vpn.data.AppLanguage,
+    lang: AppLanguage,
     onSelectProfile: (String) -> Unit,
     onOpenProfile: () -> Unit,
     onOpenProfileManagement: () -> Unit,
@@ -602,26 +616,62 @@ private fun ProfilePickerRow(
     var showSheet by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
 
-    Box {
-        SettingRow(
-            icon = Icons.Rounded.Public,
-            title = profile.displayName,
-            subtitle = when {
-                !profile.isComplete -> Strings.tapToSetupProfile(lang)
-                profile.username.isNotBlank() -> "${profile.username} \u00B7 ${profile.protocol}"
-                else -> profile.protocol
-            },
-            trailing = {
-                IconButton(onClick = { showSheet = true }) {
+    Box(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showSheet = true }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                modifier = Modifier.size(42.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        Icons.Rounded.ExpandMore,
-                        contentDescription = Strings.selectProfileTitle(lang),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        imageVector = Icons.Rounded.Public,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
                     )
                 }
-            },
-            onClick = onOpenProfile,
-        )
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = profile.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = when {
+                        !profile.isComplete -> Strings.tapToSetupProfile(lang)
+                        profile.server.isNotBlank() -> "${profile.server} \u00B7 ${profile.protocol}"
+                        else -> profile.protocol
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            IconButton(onClick = onOpenProfileManagement) {
+                Icon(
+                    imageVector = Icons.Rounded.Tune,
+                    contentDescription = Strings.manageProfilesAction(lang),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
 
         if (showSheet) {
             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -629,7 +679,8 @@ private fun ProfilePickerRow(
             ModalBottomSheet(
                 onDismissRequest = { showSheet = false },
                 sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surface,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             ) {
                 Column(
                     modifier = Modifier
@@ -637,14 +688,27 @@ private fun ProfilePickerRow(
                         .padding(horizontal = 20.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(
-                        text = Strings.selectProfileTitle(lang),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = Strings.selectProfileTitle(lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold,
+                        )
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        TextButton(onClick = {
+                            showSheet = false
+                            onOpenProfileManagement()
+                        }) {
+                            Text(Strings.manageProfilesAction(lang))
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                     profiles.forEach { p ->
                         val isSelected = p.id == profile.id
@@ -799,12 +863,12 @@ private fun HomeTopBar(scrollState: ScrollState) {
 // ── Status ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun StatusLine(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLanguage) {
+private fun StatusLine(status: TunnelStatus, profile: VpnProfile, lang: AppLanguage) {
     val palette = LocalStatusPalette.current
 
     val label = when (status.stage) {
         ConnectionStage.CONNECTED -> status.info.server ?: Strings.connected(lang)
-        ConnectionStage.IDLE -> Strings.notConnected(lang)
+        ConnectionStage.IDLE -> Strings.readyToConnect(lang, profile.displayName)
         ConnectionStage.ERROR -> Strings.connectionFailed(lang)
         ConnectionStage.AUTHENTICATING -> Strings.authenticating(lang)
         ConnectionStage.PREPARING -> Strings.preparing(lang)
@@ -854,7 +918,7 @@ private fun StatusLine(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLa
 @Composable
 private fun TrafficRow(
     stats: TrafficStats,
-    lang: dev.opentunnel.vpn.data.AppLanguage,
+    lang: AppLanguage,
     onClick: (() -> Unit)? = null,
 ) {
     Row(
@@ -945,30 +1009,49 @@ private fun TrafficTile(
     }
 }
 
-// ── Error ──────────────────────────────────────────────────────────────────
+// ── Error Banner ───────────────────────────────────────────────────────────
 
 @Composable
-private fun ErrorBanner(message: String) {
+private fun ErrorBanner(message: String, onClick: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.errorContainer,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Rounded.ErrorOutline,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(22.dp),
             )
             Spacer(Modifier.width(12.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "Tap for troubleshooting & recovery actions",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                )
+            }
+            Icon(
+                Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(18.dp),
             )
         }
     }
@@ -977,7 +1060,7 @@ private fun ErrorBanner(message: String) {
 // ── Connection details ─────────────────────────────────────────────────────
 
 @Composable
-private fun ConnectionDetails(status: TunnelStatus, lang: dev.opentunnel.vpn.data.AppLanguage) {
+private fun ConnectionDetails(status: TunnelStatus, lang: AppLanguage) {
     val info = status.info
     SectionCard(title = Strings.connectionDetails(lang)) {
         Column(Modifier.padding(vertical = 6.dp)) {
@@ -1006,18 +1089,10 @@ private fun ConnectionDetails(status: TunnelStatus, lang: dev.opentunnel.vpn.dat
     }
 }
 
-private fun splitTunnelSummary(settings: AppSettings, lang: dev.opentunnel.vpn.data.AppLanguage): String = when {
+private fun splitTunnelSummary(settings: AppSettings, lang: AppLanguage): String = when {
     !settings.splitTunnelEnabled -> Strings.splitTunnelOffSummary(lang)
     settings.selectedPackages.isEmpty() -> Strings.splitTunnelNoAppsSelectedSummary(lang)
     settings.splitTunnelMode == SplitTunnelMode.EXCLUDE_SELECTED ->
         "${settings.selectedPackages.size} app(s) bypass the VPN"
     else -> "Only ${settings.selectedPackages.size} app(s) use the VPN"
-}
-
-private fun splitTunnelNetworksSummary(settings: AppSettings, lang: dev.opentunnel.vpn.data.AppLanguage): String = when {
-    !settings.splitTunnelNetworksEnabled -> Strings.splitTunnelNetworksOffSummary(lang)
-    settings.splitTunnelNetworks.isEmpty() -> Strings.splitTunnelNetworksNoEntriesSummary(lang)
-    settings.splitTunnelNetworksMode == SplitTunnelMode.EXCLUDE_SELECTED ->
-        "${settings.splitTunnelNetworks.size} network(s)/site(s) bypass the VPN"
-    else -> "Only ${settings.splitTunnelNetworks.size} network(s)/site(s) use the VPN"
 }

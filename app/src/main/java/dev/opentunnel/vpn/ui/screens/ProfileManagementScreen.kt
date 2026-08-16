@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.AlertDialog
@@ -61,7 +62,9 @@ import androidx.compose.ui.unit.dp
 import dev.opentunnel.vpn.data.AppLanguage
 import dev.opentunnel.vpn.data.VpnProfile
 import dev.opentunnel.vpn.ui.components.SectionCard
+import dev.opentunnel.vpn.ui.theme.LocalStatusPalette
 import dev.opentunnel.vpn.ui.theme.MonoNumberStyle
+import dev.opentunnel.vpn.util.HapticHelper
 import dev.opentunnel.vpn.util.RememberLazyListHaptic
 import dev.opentunnel.vpn.util.Strings
 import kotlinx.coroutines.Dispatchers
@@ -92,6 +95,7 @@ fun ProfileManagementScreen(
     val lang = appLanguage
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val palette = LocalStatusPalette.current
 
     RememberLazyListHaptic(listState, hapticFeedbackEnabled)
 
@@ -103,6 +107,29 @@ fun ProfileManagementScreen(
     var profilePings by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     var isPinging by remember { mutableStateOf(false) }
 
+    val handlePingAndSort = {
+        if (!isPinging && profiles.isNotEmpty()) {
+            HapticHelper.performClick(context, hapticFeedbackEnabled)
+            scope.launch {
+                isPinging = true
+                val results = withContext(Dispatchers.IO) {
+                    profiles.map { p ->
+                        async { p.id to measureServerPing(p.server) }
+                    }.awaitAll().toMap()
+                }
+                profilePings = results
+                val sorted = profiles.sortedWith(
+                    compareBy<VpnProfile> {
+                        val ping = results[it.id] ?: -1L
+                        if (ping >= 0) ping else Long.MAX_VALUE
+                    }.thenBy { it.displayName }
+                )
+                onReorderProfiles(sorted)
+                isPinging = false
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -113,16 +140,36 @@ fun ProfileManagementScreen(
                     }
                 },
                 actions = {
+                    if (profiles.isNotEmpty()) {
+                        IconButton(
+                            onClick = { handlePingAndSort() },
+                            enabled = !isPinging,
+                        ) {
+                            if (isPinging) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Rounded.Speed,
+                                    contentDescription = "Ping & Sort Profiles",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = {
                         onExportProfiles { json ->
                             exportJsonString = json
                             showExportDialog = true
                         }
                     }) {
-                        Icon(Icons.Rounded.Upload, contentDescription = "Export profiles")
+                        Icon(Icons.Rounded.Upload, contentDescription = Strings.exportProfiles(lang))
                     }
                     IconButton(onClick = { showImportDialog = true }) {
-                        Icon(Icons.Rounded.Download, contentDescription = "Import profiles")
+                        Icon(Icons.Rounded.Download, contentDescription = Strings.importProfiles(lang))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -131,74 +178,13 @@ fun ProfileManagementScreen(
             )
         },
         floatingActionButton = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            FloatingActionButton(
+                onClick = onAddProfile,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = CircleShape,
             ) {
-                Surface(
-                    onClick = {
-                        if (!isPinging && profiles.isNotEmpty()) {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            scope.launch {
-                                isPinging = true
-                                val results = withContext(Dispatchers.IO) {
-                                    profiles.map { p ->
-                                        async { p.id to measureServerPing(p.server) }
-                                    }.awaitAll().toMap()
-                                }
-                                profilePings = results
-                                val sorted = profiles.sortedWith(
-                                    compareBy<VpnProfile> {
-                                        val ping = results[it.id] ?: -1L
-                                        if (ping >= 0) ping else Long.MAX_VALUE
-                                    }.thenBy { it.displayName }
-                                )
-                                onReorderProfiles(sorted)
-                                isPinging = false
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(32.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                    tonalElevation = 8.dp,
-                    shadowElevation = 10.dp,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        if (isPinging) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.Speed,
-                                contentDescription = "Ping & Sort Profiles",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }
-                        Text(
-                            text = if (Strings.isRtl(lang)) "پینگ و مرتب‌سازی" else "Ping & Sort",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-
-                FloatingActionButton(
-                    onClick = onAddProfile,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    shape = CircleShape,
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = Strings.addProfile(lang))
-                }
+                Icon(Icons.Rounded.Add, contentDescription = Strings.addProfile(lang))
             }
         },
     ) { padding ->
@@ -212,17 +198,34 @@ fun ProfileManagementScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.size(64.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Public,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(32.dp),
+                                )
+                            }
+                        }
                         Text(
                             text = Strings.noProfilesYet(lang),
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
-                        Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "Tap + to add a VPN profile with any gateway",
+                            text = Strings.tapToAddProfile(lang),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -234,7 +237,7 @@ fun ProfileManagementScreen(
                         .padding(horizontal = 18.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item { Spacer(Modifier.height(6.dp)) }
+                    item { Spacer(Modifier.height(4.dp)) }
 
                     items(profiles, key = { it.id }) { p ->
                         val isActive = p.id == activeProfileId || (activeProfileId.isBlank() && profiles.firstOrNull()?.id == p.id)
@@ -257,7 +260,7 @@ fun ProfileManagementScreen(
                                         Text(
                                             text = p.displayName,
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
                                         )
                                         if (isActive) {
                                             Spacer(Modifier.width(8.dp))
@@ -266,9 +269,10 @@ fun ProfileManagementScreen(
                                                 color = MaterialTheme.colorScheme.primaryContainer,
                                             ) {
                                                 Text(
-                                                    text = "ACTIVE",
+                                                    text = Strings.activeProfileBadge(lang),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    fontWeight = FontWeight.Bold,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                 )
                                             }
@@ -276,7 +280,7 @@ fun ProfileManagementScreen(
                                     }
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        text = if (p.server.isNotBlank()) p.server else "No server set",
+                                        text = if (p.server.isNotBlank()) p.server else "No server configured",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -287,21 +291,33 @@ fun ProfileManagementScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                         )
                                     }
+
+                                    // Single-profile ping tester badge
                                     val pingMs = profilePings[p.id]
                                     if (pingMs != null) {
-                                        Spacer(Modifier.height(4.dp))
-                                        if (pingMs >= 0) {
+                                        Spacer(Modifier.height(6.dp))
+                                        val (pingColor, pingLabel) = when {
+                                            pingMs < 0 -> palette.error to "Timeout"
+                                            pingMs < 100 -> palette.connected to "$pingMs ms"
+                                            pingMs < 250 -> palette.connecting to "$pingMs ms"
+                                            else -> palette.error to "$pingMs ms"
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = pingColor.copy(alpha = 0.14f),
+                                            modifier = Modifier.clickable {
+                                                scope.launch {
+                                                    val single = withContext(Dispatchers.IO) { measureServerPing(p.server) }
+                                                    profilePings = profilePings + (p.id to single)
+                                                }
+                                            },
+                                        ) {
                                             Text(
-                                                text = "⚡ $pingMs ms",
-                                                style = MaterialTheme.typography.bodySmall.merge(MonoNumberStyle),
-                                                color = MaterialTheme.colorScheme.primary,
+                                                text = "⚡ $pingLabel",
+                                                style = MaterialTheme.typography.labelSmall.merge(MonoNumberStyle),
+                                                color = pingColor,
                                                 fontWeight = FontWeight.Bold,
-                                            )
-                                        } else {
-                                            Text(
-                                                text = "⚡ Timeout",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                             )
                                         }
                                     }
@@ -318,7 +334,7 @@ fun ProfileManagementScreen(
                                 IconButton(onClick = { profileToDelete = p }) {
                                     Icon(
                                         Icons.Rounded.Delete,
-                                        contentDescription = "Delete profile",
+                                        contentDescription = Strings.delete(lang),
                                         tint = MaterialTheme.colorScheme.error,
                                     )
                                 }
@@ -326,7 +342,7 @@ fun ProfileManagementScreen(
                         }
                     }
 
-                    item { Spacer(Modifier.height(80.dp)) }
+                    item { Spacer(Modifier.height(88.dp)) }
                 }
             }
         }
@@ -336,19 +352,19 @@ fun ProfileManagementScreen(
     profileToDelete?.let { p ->
         AlertDialog(
             onDismissRequest = { profileToDelete = null },
-            title = { Text("Delete Profile") },
-            text = { Text("Are you sure you want to delete profile “${p.displayName}”?") },
+            title = { Text(Strings.delete(lang)) },
+            text = { Text(Strings.deleteProfileConfirm(lang, p.displayName)) },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteProfile(p.id)
                     profileToDelete = null
                 }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(Strings.delete(lang), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { profileToDelete = null }) {
-                    Text("Cancel")
+                    Text(Strings.cancel(lang))
                 }
             },
         )
@@ -358,15 +374,21 @@ fun ProfileManagementScreen(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            title = { Text("Export Profiles") },
+            title = { Text(Strings.exportProfiles(lang)) },
             text = {
                 Column {
-                    Text("Profile configuration JSON (passwords excluded for security):")
+                    Text(
+                        text = if (Strings.isRtl(lang)) "تنظیمات پروفایل‌ها در قالب JSON (بدون رمز عبور برای امنیت):"
+                        else "Profile configuration JSON (passwords excluded for security):",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = exportJsonString,
                         onValueChange = {},
                         readOnly = true,
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp),
@@ -379,12 +401,12 @@ fun ProfileManagementScreen(
                     Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
                     showExportDialog = false
                 }) {
-                    Text("Copy JSON")
+                    Text("Copy JSON", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showExportDialog = false }) {
-                    Text("Close")
+                    Text(Strings.cancel(lang))
                 }
             },
         )
@@ -394,18 +416,24 @@ fun ProfileManagementScreen(
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
-            title = { Text("Import Profiles") },
+            title = { Text(Strings.importProfiles(lang)) },
             text = {
                 Column {
-                    Text("Paste JSON array of profiles below:")
+                    Text(
+                        text = if (Strings.isRtl(lang)) "رشته JSON شامل لیست پروفایل‌ها را وارد کنید:"
+                        else "Paste JSON array of profiles below:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = importJsonInput,
                         onValueChange = { importJsonInput = it },
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp),
-                        placeholder = { Text("[{ \"name\": \"My VPN\", \"server\": \"...\" }]") },
+                        placeholder = { Text("[{ \"name\": \"Work VPN\", \"server\": \"...\" }]") },
                     )
                 }
             },
@@ -417,12 +445,12 @@ fun ProfileManagementScreen(
                         importJsonInput = ""
                     }
                 }) {
-                    Text("Import")
+                    Text("Import", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showImportDialog = false }) {
-                    Text("Cancel")
+                    Text(Strings.cancel(lang))
                 }
             },
         )
