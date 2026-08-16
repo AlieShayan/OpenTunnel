@@ -122,10 +122,8 @@ fun ProfileScreen(
     // Form Validation Rules
     val nameError = draft.name.trim().isBlank()
     val serverError = draft.server.trim().isBlank()
-    val mtuInt = draft.mtu.trim().toIntOrNull()
-    val mtuError = draft.mtu.trim().isNotEmpty() && (mtuInt == null || mtuInt !in 576..1500)
-    val dpdInt = draft.dpdSeconds.trim().toIntOrNull()
-    val dpdError = draft.overrideDpdTimeout && (dpdInt == null || dpdInt <= 0)
+    val mtuError = draft.mtu > 0 && draft.mtu !in 576..1500
+    val dpdError = draft.overrideDpdTimeout && draft.dpdSeconds <= 0
 
     val isFormValid = !nameError && !serverError && !mtuError && !dpdError
 
@@ -712,16 +710,17 @@ private fun LabelledDropdown(
 @Composable
 private fun NumberField(
     label: String,
-    value: String,
+    value: Int,
     placeholder: String,
     isError: Boolean = false,
     supportingText: String? = null,
-    onValueChange: (String) -> Unit,
+    onValueChange: (Int) -> Unit,
 ) {
     OutlinedTextField(
-        value = value,
+        value = if (value > 0) value.toString() else "",
         onValueChange = { input ->
-            if (input.isEmpty() || input.all { it.isDigit() }) onValueChange(input)
+            val digits = input.filter { it.isDigit() }.take(5)
+            onValueChange(digits.toIntOrNull() ?: 0)
         },
         label = { Text(label) },
         placeholder = { Text(placeholder) },
