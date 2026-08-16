@@ -76,6 +76,8 @@ data class TrafficStats(
     /** Bytes per second, smoothed over the last sampling window. */
     val rxRate: Long = 0,
     val txRate: Long = 0,
+    /** SystemClock.elapsedRealtime() when this sample was recorded; changes every tick even when idle. */
+    val sampleTimestamp: Long = 0L,
 )
 
 enum class LogLevel { ERROR, INFO, DEBUG, TRACE, APP }

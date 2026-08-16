@@ -108,6 +108,7 @@ object VpnBus {
                 txPackets = txPackets,
                 rxRate = rxRate.coerceAtLeast(0),
                 txRate = txRate.coerceAtLeast(0),
+                sampleTimestamp = nowElapsed,
             )
         }
     }

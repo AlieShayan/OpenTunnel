@@ -321,4 +321,20 @@ object Strings {
 
     fun trafficResume(lang: AppLanguage): String =
         if (isRtl(lang)) "ادامه" else "Resume"
+
+    // ── Speed Chart ──────────────────────────────────────────────────────────
+    fun speedChartLiveTraffic(lang: AppLanguage): String =
+        if (isRtl(lang)) "ترافیک زنده" else "Live Traffic"
+
+    fun speedChartPeakDl(lang: AppLanguage, rate: String): String =
+        if (isRtl(lang)) "بیشینه دانلود: $rate" else "Peak DL: $rate"
+
+    fun speedChartDlShort(lang: AppLanguage): String =
+        if (isRtl(lang)) "دانلود" else "DL"
+
+    fun speedChartUlShort(lang: AppLanguage): String =
+        if (isRtl(lang)) "آپلود" else "UL"
+
+    fun speedChartNow(lang: AppLanguage): String =
+        if (isRtl(lang)) "اکنون" else "now"
 }
