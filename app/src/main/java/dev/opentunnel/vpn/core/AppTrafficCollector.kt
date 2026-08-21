@@ -260,17 +260,18 @@ class AppTrafficCollector(
     }
 
     /**
-     * Initializes or reloads package metadata.
+     * Initializes or reloads package metadata for user-installed applications.
      */
     suspend fun loadApps(packages: List<AppMetadata>) = mutex.withLock {
+        val userOnlyPackages = packages.filter { !it.isSystem }
         val now = statsProvider.getElapsedRealtime()
         val bulkStats = statsProvider.getAllUidStats()
-        val incomingKeys = packages.map { it.packageName }.toSet()
+        val incomingKeys = userOnlyPackages.map { it.packageName }.toSet()
 
-        // Remove packages that are no longer installed
+        // Remove packages that are no longer installed or are system apps
         trackers.keys.retainAll(incomingKeys)
 
-        for (pkg in packages) {
+        for (pkg in userOnlyPackages) {
             if (pkg.uid <= 0) continue
             val existing = trackers[pkg.packageName]
             if (existing == null) {
@@ -280,7 +281,7 @@ class AppTrafficCollector(
                     packageName = pkg.packageName,
                     uid = pkg.uid,
                     label = pkg.label,
-                    isSystem = pkg.isSystem,
+                    isSystem = false,
                     baselineRx = currentRx,
                     baselineTx = currentTx,
                     prevRx = currentRx,
@@ -295,12 +296,13 @@ class AppTrafficCollector(
 
     /**
      * Discovers user-installed applications via [InstalledApps.load].
+     * Excludes system and pre-installed apps.
      */
     suspend fun discoverInstalledApps(): List<AppMetadata> {
         val ctx = context ?: return emptyList()
         val pm = ctx.packageManager
         val list = InstalledApps.load(ctx)
-        return list.mapNotNull { app ->
+        return list.filter { !it.isSystem }.mapNotNull { app ->
             val uid = runCatching {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     pm.getPackageUid(app.packageName, PackageManager.PackageInfoFlags.of(0))
@@ -315,7 +317,7 @@ class AppTrafficCollector(
                     packageName = app.packageName,
                     uid = uid,
                     label = app.label,
-                    isSystem = app.isSystem,
+                    isSystem = false,
                 )
             } else null
         }

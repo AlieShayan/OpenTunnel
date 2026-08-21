@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Info
@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PowerSettingsNew
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Router
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,6 +72,7 @@ fun SettingsScreen(
     onShowStatsInNotification: (Boolean) -> Unit,
     onVerboseLogging: (Boolean) -> Unit,
     onHapticFeedbackEnabled: (Boolean) -> Unit,
+    onOpenSplitNetworks: (() -> Unit)? = null,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -87,7 +89,7 @@ fun SettingsScreen(
                 title = { Text(Strings.settingsTitle(lang)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -203,6 +205,15 @@ fun SettingsScreen(
                     hapticEnabled = settings.hapticFeedbackEnabled,
                     onCheckedChange = onConnectOnBoot,
                 )
+                if (onOpenSplitNetworks != null) {
+                    SettingRow(
+                        icon = Icons.Rounded.Public,
+                        title = if (Strings.isRtl(lang)) "تونل‌سازی شبکه‌ها و سایت‌ها" else "Network & Site Split Tunneling",
+                        subtitle = if (Strings.isRtl(lang)) "مسیریابی بر اساس رنج IP یا پسوند دامنه‌ها" else "Route traffic by IP ranges or domain suffixes",
+                        hapticEnabled = settings.hapticFeedbackEnabled,
+                        onClick = onOpenSplitNetworks,
+                    )
+                }
             }
 
             SectionCard(title = Strings.systemSection(lang)) {

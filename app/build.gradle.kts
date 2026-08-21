@@ -23,8 +23,8 @@ android {
         applicationId = "dev.opentunnel.vpn"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "4.0.0"
+        versionCode = 15
+        versionName = System.getenv("GITHUB_REF_NAME")?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "4.1.0"
 
         ndk {
             abiFilters += ocAbis

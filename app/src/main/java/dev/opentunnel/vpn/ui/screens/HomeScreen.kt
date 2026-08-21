@@ -131,6 +131,7 @@ fun HomeScreen(
     onOpenProfile: () -> Unit,
     onOpenProfileManagement: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
+    onOpenSplitNetworks: () -> Unit = {},
     onOpenTrafficMonitor: () -> Unit = {},
     onOpenLogs: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -242,7 +243,7 @@ fun HomeScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // ── App Split Tunneling Shortcut ──────────────────────────────────
+            // ── Split Tunneling Shortcuts (Apps & Networks) ───────────────────
             SectionCard {
                 SettingRow(
                     painter = painterResource(dev.opentunnel.vpn.R.drawable.ic_split_tunnel),
@@ -251,6 +252,19 @@ fun HomeScreen(
                     iconTint = scheme.tertiary,
                     iconBackground = scheme.tertiary.copy(alpha = 0.14f),
                     onClick = onOpenSplitTunnel,
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                )
+                SettingRow(
+                    icon = Icons.Rounded.Public,
+                    title = if (Strings.isRtl(lang)) "تونل‌سازی شبکه‌ها و سایت‌ها" else "Network & Site Split Tunneling",
+                    subtitle = splitTunnelNetworksSummary(settings, lang),
+                    iconTint = scheme.primary,
+                    iconBackground = scheme.primary.copy(alpha = 0.14f),
+                    onClick = onOpenSplitNetworks,
                 )
             }
 
@@ -328,6 +342,7 @@ fun MainPagerScreen(
     onOpenProfile: () -> Unit,
     onOpenProfileManagement: () -> Unit,
     onOpenSplitTunnel: () -> Unit,
+    onOpenSplitNetworks: () -> Unit = {},
     onClearLogs: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onAppLanguage: (AppLanguage) -> Unit,
@@ -381,6 +396,7 @@ fun MainPagerScreen(
                     onOpenProfile = onOpenProfile,
                     onOpenProfileManagement = onOpenProfileManagement,
                     onOpenSplitTunnel = onOpenSplitTunnel,
+                    onOpenSplitNetworks = onOpenSplitNetworks,
                     onOpenTrafficMonitor = {
                         scope.launch { pagerState.animateScrollToPage(1) }
                     },
@@ -435,6 +451,7 @@ fun MainPagerScreen(
                     onShowStatsInNotification = onShowStatsInNotification,
                     onVerboseLogging = onVerboseLogging,
                     onHapticFeedbackEnabled = onHapticFeedbackEnabled,
+                    onOpenSplitNetworks = onOpenSplitNetworks,
                     onBack = {
                         scope.launch { pagerState.animateScrollToPage(0) }
                     },
@@ -939,4 +956,13 @@ private fun splitTunnelSummary(settings: AppSettings, lang: AppLanguage): String
     settings.splitTunnelMode == SplitTunnelMode.EXCLUDE_SELECTED ->
         "${settings.selectedPackages.size} app(s) bypass the VPN"
     else -> "Only ${settings.selectedPackages.size} app(s) use the VPN"
+}
+
+private fun splitTunnelNetworksSummary(settings: AppSettings, lang: AppLanguage): String = when {
+    !settings.splitTunnelNetworksEnabled -> Strings.splitTunnelNetworksOffSummary(lang)
+    settings.splitTunnelNetworks.isEmpty() -> Strings.splitTunnelNetworksNoEntriesSummary(lang)
+    settings.splitTunnelNetworksMode == SplitTunnelMode.EXCLUDE_SELECTED ->
+        if (Strings.isRtl(lang)) "${settings.splitTunnelNetworks.size} شبکه/سایت خارج از تونل" else "${settings.splitTunnelNetworks.size} network(s)/domain(s) bypass the VPN"
+    else ->
+        if (Strings.isRtl(lang)) "فقط ${settings.splitTunnelNetworks.size} شبکه/سایت در تونل" else "Only ${settings.splitTunnelNetworks.size} network(s)/domain(s) use the VPN"
 }

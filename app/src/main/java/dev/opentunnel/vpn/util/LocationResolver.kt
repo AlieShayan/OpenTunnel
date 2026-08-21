@@ -27,9 +27,17 @@ object LocationResolver {
     ) {
         /** Unicode flag emoji derived from the two-letter country code. */
         val flagEmoji: String
-            get() = countryCode.uppercase()
-                .map { ch -> 0x1F1E6 + (ch.code - 'A'.code) }
-                .joinToString("") { String(Character.toChars(it)) }
+            get() {
+                val code = countryCode.trim().uppercase()
+                if (code.length == 2 && code.all { it in 'A'..'Z' }) {
+                    return runCatching {
+                        val first = Character.toChars(0x1F1E6 + (code[0] - 'A'))
+                        val second = Character.toChars(0x1F1E6 + (code[1] - 'A'))
+                        String(first) + String(second)
+                    }.getOrDefault("🌐")
+                }
+                return "🌐"
+            }
 
         /** Human-readable single line, e.g. "\uD83C\uDDF3\uD83C\uDDF1 Netherlands, Amsterdam" */
         val displayLine: String get() = "$flagEmoji $country, $city"

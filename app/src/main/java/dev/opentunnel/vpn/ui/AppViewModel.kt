@@ -92,14 +92,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     ) { rawEntries, sortBy, sortDir, filterMode, query ->
         val needle = query.trim().lowercase()
         val filtered = rawEntries.filter { entry ->
-            val matchesQuery = needle.isEmpty() ||
-                entry.label.lowercase().contains(needle) ||
-                entry.packageName.lowercase().contains(needle)
-            val matchesFilter = when (filterMode) {
-                dev.opentunnel.vpn.data.TrafficFilterMode.ALL -> true
-                dev.opentunnel.vpn.data.TrafficFilterMode.ACTIVE_ONLY -> entry.isActive || entry.totalBytes > 0L
-            }
-            matchesQuery && matchesFilter
+            !entry.isSystem && (
+                (needle.isEmpty() || entry.label.lowercase().contains(needle) || entry.packageName.lowercase().contains(needle)) &&
+                (when (filterMode) {
+                    dev.opentunnel.vpn.data.TrafficFilterMode.ALL -> true
+                    dev.opentunnel.vpn.data.TrafficFilterMode.ACTIVE_ONLY -> entry.isActive || entry.totalBytes > 0L
+                })
+            )
         }
 
         val collator = java.text.Collator.getInstance()

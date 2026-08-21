@@ -66,8 +66,7 @@ object InstalledApps {
                 }
             }
             .map { info ->
-                val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
-                    (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
+                val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                 val label = runCatching { pm.getApplicationLabel(info).toString() }
                     .getOrDefault(info.packageName)
 

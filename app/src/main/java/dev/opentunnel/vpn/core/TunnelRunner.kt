@@ -123,10 +123,15 @@ class TunnelRunner(
         applyPreferences(lib)
 
         val rawUrl = normaliseServer(profile.server)
+        val originalHost = runCatching { java.net.URI(rawUrl).host }.getOrNull().orEmpty()
         val url = resolveServerUrl(rawUrl, lib)
         VpnBus.info("Connecting to $url")
         if (lib.parseURL(url) != 0) {
             return "Could not parse the server address \u201c${profile.server}\u201d."
+        }
+        if (originalHost.isNotEmpty() && !Net.isValidIp(originalHost)) {
+            lib.setHostname(originalHost)
+            lib.setSNI(originalHost)
         }
 
         VpnBus.setStage(ConnectionStage.AUTHENTICATING)
@@ -317,8 +322,22 @@ class TunnelRunner(
                     conn.connect()
                     val body = conn.inputStream.bufferedReader().readText()
                     conn.disconnect()
-                    val regex = Regex(""""data"\s*:\s*"([\d.]+)"""")
-                    regex.find(body)?.groupValues?.get(1)
+                    val json = org.json.JSONObject(body)
+                    val answers = json.optJSONArray("Answer")
+                    var resolvedA: String? = null
+                    if (answers != null) {
+                        for (idx in 0 until answers.length()) {
+                            val record = answers.optJSONObject(idx) ?: continue
+                            if (record.optInt("type") == 1) {
+                                val data = record.optString("data").trim()
+                                if (Net.isValidIp(data)) {
+                                    resolvedA = data
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    resolvedA
                 }.getOrNull()
             })
         }

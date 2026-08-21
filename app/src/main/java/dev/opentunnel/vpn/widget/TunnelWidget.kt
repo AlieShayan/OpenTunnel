@@ -45,6 +45,11 @@ open class TunnelWidget : AppWidgetProvider() {
                 when {
                     stage == ConnectionStage.CONNECTED || stage.isBusy ->
                         OpenTunnelVpnService.disconnect(context)
+                    android.net.VpnService.prepare(context) != null -> {
+                        val appIntent = Intent(context, dev.opentunnel.vpn.ui.MainActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        context.startActivity(appIntent)
+                    }
                     else ->
                         OpenTunnelVpnService.connect(context)
                 }

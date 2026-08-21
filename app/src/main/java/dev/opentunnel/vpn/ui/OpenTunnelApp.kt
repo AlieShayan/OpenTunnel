@@ -37,6 +37,7 @@ private object Routes {
     const val PROFILES = "profiles"
     const val PROFILE = "profile"
     const val SPLIT = "split"
+    const val SPLIT_NETWORKS = "split_networks"
     const val TRAFFIC_MONITOR = "traffic_monitor"
     const val LOGS = "logs"
     const val SETTINGS = "settings"
@@ -153,6 +154,7 @@ fun OpenTunnelApp(
                             navController.navigate(Routes.PROFILES)
                         },
                         onOpenSplitTunnel = { navController.navigate(Routes.SPLIT) },
+                        onOpenSplitNetworks = { navController.navigate(Routes.SPLIT_NETWORKS) },
                         onClearLogs = viewModel::clearLogs,
                         onThemeMode = viewModel::setThemeMode,
                         onAppLanguage = viewModel::setAppLanguage,
@@ -223,6 +225,18 @@ fun OpenTunnelApp(
                         onChangeMode = viewModel::setSplitTunnelMode,
                         onTogglePackage = viewModel::togglePackage,
                         onClearAll = viewModel::clearSelectedPackages,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                composable(Routes.SPLIT_NETWORKS) {
+                    dev.opentunnel.vpn.ui.screens.SplitTunnelNetworksScreen(
+                        settings = settings,
+                        onToggleEnabled = viewModel::setSplitTunnelNetworksEnabled,
+                        onChangeMode = viewModel::setSplitTunnelNetworksMode,
+                        onAddNetwork = viewModel::addSplitTunnelNetwork,
+                        onRemoveNetwork = viewModel::removeSplitTunnelNetwork,
+                        onClearAll = viewModel::clearSplitTunnelNetworks,
                         onBack = { navController.popBackStack() },
                     )
                 }
