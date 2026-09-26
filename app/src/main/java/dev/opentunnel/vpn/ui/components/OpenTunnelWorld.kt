@@ -57,7 +57,11 @@ fun OpenTunnelWorld(
         { visibleCenter ->
             val unScrolledY = visibleCenter.y + homeScrollProvider()
             val worldAnchor = Offset(visibleCenter.x, unScrolledY)
-            if (orbAnchorInWorld != worldAnchor) {
+            val current = orbAnchorInWorld
+            if (!current.isSpecified ||
+                kotlin.math.abs(current.x - worldAnchor.x) > 1f ||
+                kotlin.math.abs(current.y - worldAnchor.y) > 1f
+            ) {
                 orbAnchorInWorld = worldAnchor
             }
         }

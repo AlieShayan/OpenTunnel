@@ -149,15 +149,15 @@ fun WorldLighting(
 
                 // ── Layer 3: Global World Illumination Field ────────────────────────
                 // Vast, ultra-soft celestial field reaching all 4 viewports (Settings ~15-30% perception)
-                val globalRadius = width * 4.4f * breatheScale
+                val globalRadius = (width * 2.8f * breatheScale).coerceIn(100f, 2500f)
                 drawRect(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0.00f to ambientColor.copy(alpha = effectiveAlpha * 0.40f),
-                            0.20f to ambientColor.copy(alpha = effectiveAlpha * 0.28f),
-                            0.45f to ambientColor.copy(alpha = effectiveAlpha * 0.16f),
-                            0.70f to ambientColor.copy(alpha = effectiveAlpha * 0.07f),
-                            0.90f to ambientColor.copy(alpha = effectiveAlpha * 0.02f),
+                            0.00f to ambientColor.copy(alpha = (effectiveAlpha * 0.40f).coerceIn(0f, 1f)),
+                            0.20f to ambientColor.copy(alpha = (effectiveAlpha * 0.28f).coerceIn(0f, 1f)),
+                            0.45f to ambientColor.copy(alpha = (effectiveAlpha * 0.16f).coerceIn(0f, 1f)),
+                            0.70f to ambientColor.copy(alpha = (effectiveAlpha * 0.07f).coerceIn(0f, 1f)),
+                            0.90f to ambientColor.copy(alpha = (effectiveAlpha * 0.02f).coerceIn(0f, 1f)),
                             1.00f to Color.Transparent,
                         ),
                         center = lightCenter,
@@ -167,14 +167,14 @@ fun WorldLighting(
 
                 // ── Layer 2: Regional Light Field ───────────────────────────────────
                 // Spans multiple viewports (Traffic ~50-70% perception, Logs edge ~30-50%)
-                val regionalRadius = width * 2.0f * breatheScale
+                val regionalRadius = (width * 1.6f * breatheScale).coerceIn(100f, 1800f)
                 drawRect(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0.00f to ambientColor.copy(alpha = effectiveAlpha * 0.55f),
-                            0.30f to ambientColor.copy(alpha = effectiveAlpha * 0.32f),
-                            0.60f to ambientColor.copy(alpha = effectiveAlpha * 0.12f),
-                            0.85f to ambientColor.copy(alpha = effectiveAlpha * 0.03f),
+                            0.00f to ambientColor.copy(alpha = (effectiveAlpha * 0.55f).coerceIn(0f, 1f)),
+                            0.30f to ambientColor.copy(alpha = (effectiveAlpha * 0.32f).coerceIn(0f, 1f)),
+                            0.60f to ambientColor.copy(alpha = (effectiveAlpha * 0.12f).coerceIn(0f, 1f)),
+                            0.85f to ambientColor.copy(alpha = (effectiveAlpha * 0.03f).coerceIn(0f, 1f)),
                             1.00f to Color.Transparent,
                         ),
                         center = lightCenter,
@@ -184,13 +184,13 @@ fun WorldLighting(
 
                 // ── Layer 1: Local Orb Aura Core ───────────────────────────────────
                 // Focused, high-radiance core centered on ConnectOrb on the Home viewport
-                val localRadius = width * 0.85f * breatheScale
+                val localRadius = (width * 0.85f * breatheScale).coerceIn(50f, 1000f)
                 drawRect(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0.00f to ambientColor.copy(alpha = effectiveAlpha * 0.85f),
-                            0.35f to ambientColor.copy(alpha = effectiveAlpha * 0.45f),
-                            0.70f to ambientColor.copy(alpha = effectiveAlpha * 0.15f),
+                            0.00f to ambientColor.copy(alpha = (effectiveAlpha * 0.85f).coerceIn(0f, 1f)),
+                            0.35f to ambientColor.copy(alpha = (effectiveAlpha * 0.45f).coerceIn(0f, 1f)),
+                            0.70f to ambientColor.copy(alpha = (effectiveAlpha * 0.15f).coerceIn(0f, 1f)),
                             1.00f to Color.Transparent,
                         ),
                         center = lightCenter,

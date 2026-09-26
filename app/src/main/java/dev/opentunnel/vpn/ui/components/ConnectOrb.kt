@@ -181,9 +181,9 @@ fun ConnectOrb(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        accent.copy(alpha = 0.42f * glow),
-                        accent.copy(alpha = 0.16f * glow),
-                        accent.copy(alpha = 0.04f * glow),
+                        accent.copy(alpha = (0.42f * glow).coerceIn(0f, 1f)),
+                        accent.copy(alpha = (0.16f * glow).coerceIn(0f, 1f)),
+                        accent.copy(alpha = (0.04f * glow).coerceIn(0f, 1f)),
                         Color.Transparent,
                     ),
                     center = center,
@@ -196,8 +196,9 @@ fun ConnectOrb(
             // Pulse waves during handshake/connecting
             if (busy) {
                 for (progress in listOf(waveA, waveB)) {
+                    val waveAlpha = (0.40f * (1f - progress)).coerceIn(0f, 1f)
                     drawCircle(
-                        color = accent.copy(alpha = 0.40f * (1f - progress)),
+                        color = accent.copy(alpha = waveAlpha),
                         radius = radius * (0.55f + 0.45f * progress),
                         center = center,
                         style = Stroke(width = 2.5.dp.toPx()),
@@ -225,26 +226,24 @@ fun ConnectOrb(
             }
 
             if (busy || live) {
-                drawArc(
-                    brush = Brush.sweepGradient(
-                        colors = if (live) listOf(
-                            accent.copy(alpha = 0.7f),
-                            accent,
-                            accent.copy(alpha = 0.7f)
-                        ) else listOf(
-                            accent.copy(alpha = 0.2f),
-                            accent,
-                            accent.copy(alpha = 0.2f)
-                        ),
+                if (live) {
+                    drawCircle(
+                        color = accent,
+                        radius = trackRadius,
                         center = center,
-                    ),
-                    startAngle = if (live) -90f else sweep,
-                    sweepAngle = if (live) 360f else 96f,
-                    useCenter = false,
-                    topLeft = Offset(center.x - trackRadius, center.y - trackRadius),
-                    size = Size(trackRadius * 2f, trackRadius * 2f),
-                    style = Stroke(width = (if (live) 4.5.dp else 4.dp).toPx(), cap = StrokeCap.Round),
-                )
+                        style = Stroke(width = 4.5.dp.toPx()),
+                    )
+                } else {
+                    drawArc(
+                        color = accent,
+                        startAngle = sweep,
+                        sweepAngle = 96f,
+                        useCenter = false,
+                        topLeft = Offset(center.x - trackRadius, center.y - trackRadius),
+                        size = Size(trackRadius * 2f, trackRadius * 2f),
+                        style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
+                    )
+                }
             }
 
             // Core orb surface with multi-tone gradient
@@ -263,14 +262,7 @@ fun ConnectOrb(
                 center = center,
             )
             drawCircle(
-                brush = Brush.sweepGradient(
-                    colors = listOf(
-                        accent.copy(alpha = 0.35f),
-                        accent.copy(alpha = 0.10f),
-                        accent.copy(alpha = 0.35f)
-                    ),
-                    center = center
-                ),
+                color = accent.copy(alpha = 0.25f),
                 radius = coreRadius,
                 center = center,
                 style = Stroke(width = 1.5.dp.toPx()),

@@ -9,6 +9,20 @@ class OpenTunnelApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            runCatching {
+                val crashFile = java.io.File(filesDir, "last_crash.txt")
+                val sw = java.io.StringWriter()
+                val pw = java.io.PrintWriter(sw)
+                throwable.printStackTrace(pw)
+                crashFile.writeText("Thread: ${thread.name}\n$sw")
+                android.util.Log.e("OpenTunnelCrash", "FATAL UNCAUGHT EXCEPTION in ${thread.name}", throwable)
+            }
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+
         Notifications.createChannels(this)
 
         if (BuildConfig.DEBUG) {

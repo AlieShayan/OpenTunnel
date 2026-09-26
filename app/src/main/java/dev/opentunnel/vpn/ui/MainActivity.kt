@@ -43,6 +43,17 @@ class MainActivity : ComponentActivity() {
 
         requestNotificationPermissionIfNeeded()
 
+        val crashFile = java.io.File(filesDir, "last_crash.txt")
+        if (crashFile.exists()) {
+            runCatching {
+                val crashText = crashFile.readText()
+                android.util.Log.e("OpenTunnelCrash", "Previous crash trace:\n$crashText")
+                VpnBus.error("Recovered from crash")
+                VpnBus.log(dev.opentunnel.vpn.core.LogEntry.Level.ERROR, "PREVIOUS CRASH:\n$crashText")
+                crashFile.delete()
+            }
+        }
+
         setContent {
             val viewModel: AppViewModel = viewModel()
             val settings by viewModel.settings.collectAsStateWithLifecycle()
