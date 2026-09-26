@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
                 val crashText = crashFile.readText()
                 android.util.Log.e("OpenTunnelCrash", "Previous crash trace:\n$crashText")
                 VpnBus.error("Recovered from crash")
-                VpnBus.log(dev.opentunnel.vpn.core.LogEntry.Level.ERROR, "PREVIOUS CRASH:\n$crashText")
+                VpnBus.log(dev.opentunnel.vpn.core.LogLevel.ERROR, "PREVIOUS CRASH:\n$crashText")
                 crashFile.delete()
             }
         }
